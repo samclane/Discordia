@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict, Any
 import numpy
 from noise import pnoise3
 
-from Discordia.gamelogic import events, actors, items, weapons
+from Discordia.GameLogic import Events, Actors, Items, Weapons
 
 
 class Terrain(ABC):
@@ -134,7 +134,7 @@ class Town(Space):
     Industry: IndustryType
 
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
-                 terrain: Terrain = NullTerrain(), store: items.Store = None) -> None:
+                 terrain: Terrain = NullTerrain(), store: Items.Store = None) -> None:
         super(Town, self).__init__(x, y)
         self.Name = name
         self.Population = population
@@ -157,11 +157,11 @@ class Wilds(Space):
     def __init__(self, x, y, name):
         super(Wilds, self).__init__(x, y)
         self.name: str = name
-        self.null_event: events.Event = events.Event(1.0, "Null Event")
-        self.events: List[events.Event] = []
+        self.null_event: Events.Event = Events.Event(1.0, "Null Event")
+        self.events: List[Events.Event] = []
         self.events.append(self.null_event)
 
-    def add_event(self, event: events.Event):
+    def add_event(self, event: Events.Event):
         self.events.append(event)
         self.null_event.probability -= event.probability
 
@@ -191,7 +191,7 @@ class World:
                     range(height)]
         self.Towns: List[Town] = []
         self.Wilds: List[Wilds] = []
-        self.Players: List[actors.PlayerCharacter] = []
+        self.Players: List[Actors.PlayerCharacter] = []
         self.StartingTown: Town = starting_town
 
         self.generate_map()
@@ -245,13 +245,13 @@ class World:
         self.Map[wilds.Y][wilds.X] = wilds
 
     def add_actor(self, actor, space=None):
-        if isinstance(actor, actors.PlayerCharacter):
+        if isinstance(actor, Actors.PlayerCharacter):
             actor.location = self.StartingTown
             self.Players.append(actor)
         elif space and self.is_space_valid(space):
             actor.Location = space
 
-    def attack(self, player_character: actors.PlayerCharacter, direction: Tuple[int, int] = (0, 0)) -> Dict[str, Any]:
+    def attack(self, player_character: Actors.PlayerCharacter, direction: Tuple[int, int] = (0, 0)) -> Dict[str, Any]:
         response: Dict[str, Any] = {
             "success": False,
             "damage": 0,
@@ -261,12 +261,12 @@ class World:
         loc: Space = player_character.location
         dmg: int = player_character.weapon.damage
         while dmg > 0:
-            if isinstance(player_character.weapon, weapons.ProjectileWeapon) and player_character.weapon.is_empty:
+            if isinstance(player_character.weapon, Weapons.ProjectileWeapon) and player_character.weapon.is_empty:
                 response["fail_reason"] = "Your currently equipped weapon is empty!"
                 break
             targets = [player for player in self.Players if player != player_character and player.location == loc]
             if len(targets):
-                target: actors.PlayerCharacter = random.choice(targets)
+                target: Actors.PlayerCharacter = random.choice(targets)
                 player_character.weapon.on_damage()
                 target.take_damage(dmg)
                 response["success"] = True
@@ -274,7 +274,7 @@ class World:
                 response["target"] = target
                 break
             else:
-                if isinstance(player_character.weapon, weapons.MeleeWeapon):
+                if isinstance(player_character.weapon, Weapons.MeleeWeapon):
                     response["fail_reason"] = "No other players in range of your Melee Weapon."
                     break
                 if direction == (0, 0):

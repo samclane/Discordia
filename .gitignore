@@ -105,3 +105,6 @@ venv.bak/
 
 # Local sprites
 local_resources/
+
+# Config Files
+*.ini

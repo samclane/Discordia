@@ -1,7 +1,8 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 
-from Discordia.gamelogic import actors
+from Discordia.GameLogic import Actors
 
 
 class FullyImplemented:
@@ -11,14 +12,11 @@ class FullyImplemented:
 
 
 class Equipment(ABC):
-    name: str
-    weight_lb: float
-    base_value: int
 
     def __init__(self, name: str = "Empty", weight_lb: float = 0, base_value: int = 0):
-        self.name = name
-        self.weight_lb = weight_lb
-        self.base_value = base_value
+        self.name: name = name
+        self.weight_lb: float = weight_lb
+        self.base_value: int = base_value
         self.is_equipped = False
 
     def __str__(self):
@@ -27,11 +25,9 @@ class Equipment(ABC):
     def __repr__(self):
         return "{} {}lbs ${} [{}]".format(self.name, self.weight_lb, self.base_value, 'X' if self.is_equipped else ' ')
 
-    @abstractmethod
     def on_equip(self, player_character):
         self.is_equipped = True
 
-    @abstractmethod
     def on_unequip(self, player_character):
         self.is_equipped = False
 
@@ -57,27 +53,27 @@ class Armor(Equipment, ABC):
         pass
 
 
-class HeadArmor(Armor):
+class HeadArmor(Armor, ABC):
     name: str = "Head"
 
 
-class ChestArmor(Armor):
+class ChestArmor(Armor, ABC):
     name: str = "Chest"
 
 
-class LegArmor(Armor):
+class LegArmor(Armor, ABC):
     name: str = "Legs"
 
 
-class FootArmor(Armor):
+class FootArmor(Armor, ABC):
     name: str = "Feet"
 
 
-class MainHandEquipment(Equipment):
+class MainHandEquipment(Equipment, ABC):
     name: str = "Main Hand"
 
 
-class OffHandEquipment(Equipment):
+class OffHandEquipment(Equipment, ABC):
     name: str = "Off Hand"
 
 
@@ -166,26 +162,26 @@ class Store:
 
     def __init__(self, inventory=None):
         super().__init__()
-        self.Inventory: List[Equipment] = inventory if inventory else []
-        self.PriceRatio: float = 1.0  # Lower means better buy/sell prices, higher means worse
+        self.inventory: List[Equipment] = inventory if inventory else []
+        self.price_ratio: float = 1.0  # Lower means better buy/sell prices, higher means worse
 
     def get_price(self, item: Equipment) -> float:
-        return item.base_value * self.PriceRatio
+        return item.base_value * self.price_ratio
 
-    def sell_item(self, index: int, player_character: actors.PlayerCharacter) -> bool:
+    def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
-        item = [item for item in self.Inventory if isinstance(item, type(list(set(self.Inventory))[index]))][0]
+        item = [item for item in self.inventory if isinstance(item, type(list(set(self.inventory))[index]))][0]
         price = self.get_price(item)
         if player_character.currency < price:
             return False
-        self.Inventory.remove(item)
+        self.inventory.remove(item)
         player_character.currency -= price
         player_character.inventory.append(item)
         return True
 
-    def buy_item(self, item: Equipment, player_character: actors.PlayerCharacter) -> float:
-        self.Inventory.append(item)
-        price = item.base_value / self.PriceRatio
+    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> float:
+        self.inventory.append(item)
+        price = item.base_value / self.price_ratio
         player_character.currency += price
         player_character.inventory.remove(item)
         return price

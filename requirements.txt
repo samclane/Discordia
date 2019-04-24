@@ -1,2 +1,3 @@
 noise
 numpy
+discord

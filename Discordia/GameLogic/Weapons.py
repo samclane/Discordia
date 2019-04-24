@@ -1,6 +1,6 @@
 from abc import ABC
 
-from Discordia.gamelogic.items import Equipment, MainHandEquipment, OffHandEquipment, FullyImplemented
+from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment, FullyImplemented
 
 
 class ProjectileType:
@@ -27,7 +27,7 @@ class FiringAction:
     FullyAutomatic = 4
 
 
-class Weapon(Equipment):
+class Weapon(Equipment, ABC):
     _base_damage: int
 
     def __init__(self, base_damage: int, *args, **kwargs):
@@ -54,7 +54,7 @@ class Weapon(Equipment):
         pass
 
 
-class RangedWeapon(Weapon):
+class RangedWeapon(Weapon, ABC):
 
     def __init__(self, range_: int = 1, range_falloff: float = 1., *args, **kwargs):
         """
@@ -91,7 +91,7 @@ class RangedWeapon(Weapon):
         self._range_falloff = val
 
 
-class ProjectileWeapon(RangedWeapon):
+class ProjectileWeapon(RangedWeapon, ABC):
 
     def __init__(self, projectile_type: int, capacity: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -127,7 +127,7 @@ class ProjectileWeapon(RangedWeapon):
         self._current_capacity = self.capacity
 
 
-class Firearm(ProjectileWeapon):
+class Firearm(ProjectileWeapon, ABC):
 
     def __init__(self, caliber: int, action: int = FiringAction.SingleShot, burst_size: int = 1, *args, **kwargs):
         super().__init__(ProjectileType.Bullet, *args, **kwargs)
@@ -412,27 +412,3 @@ class Hammer(BluntWeapon, MainHandEquipment):
 ImplementedWeaponsList: list = FullyImplemented.__subclasses__()
 
 ImplementedWeaponsDict: dict = {cls.__name__: cls for cls in FullyImplemented.__subclasses__()}
-
-"""
-Here are my fancy regex's, because I don't want to waste them:
-
-Match:
-    class (\w*)\((\w*), FullyImplemented\):
-    .*
-    \s*(.*)
-    .*
-    \s*name: str \= \"(.*)\"
-    
-    \s*def \_\_init\_\_\(self\):
-    \s*super\(\)\.\_\_init\_\_\(caliber\=(.*),
-    \s*action\=(.*),
-    \s*capacity\=(.*),
-    \s*range_falloff\=(.*),
-    \s*base_damage\=(.*),
-    \s*name\=(.*),
-    \s*weightlb\=(.*)\)\s
-    
-Replace: 
-    $1 = $2\(caliber\=$5, action\=$6, capacity\=$7, range_falloff\=$8, base\_Damage\=$9, name\=\"$4\", weightlb\=$11\)\n
-
-"""

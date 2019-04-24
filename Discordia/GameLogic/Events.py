@@ -2,7 +2,7 @@ import uuid
 from abc import ABC
 from typing import List
 
-from Discordia.gamelogic import actors
+from Discordia.GameLogic import Actors
 
 
 class Event(ABC):
@@ -20,10 +20,10 @@ class CombatEvent(Event):
 
     def __init__(self, probability: float, flavor: str, enemies: list, conditions=None):
         super().__init__(probability, flavor)
-        self.enemies: List[actors.Enemy] = enemies
+        self.enemies: List[Actors.Enemy] = enemies
         self.SpecialConditions: [] = conditions
 
-    def run(self, player_character: actors.PlayerCharacter):
+    def run(self, player_character: Actors.PlayerCharacter):
         print("We're in combat!")
 
 

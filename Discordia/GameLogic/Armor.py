@@ -1,4 +1,4 @@
-from Discordia.gamelogic.items import Armor, HeadArmor, ChestArmor, LegArmor, FootArmor, MainHandEquipment, \
+from Discordia.GameLogic.Items import Armor, HeadArmor, ChestArmor, LegArmor, FootArmor, MainHandEquipment, \
     OffHandEquipment, FullyImplemented
 from random import random
 
@@ -31,6 +31,6 @@ class SSh68(Helmet, FullyImplemented):
                          weightlb=3.31)
 
 
-ImplementedArmorList: list = FullyImplemented.__subclasses__()
+ImplementedArmorList: list = FullyImplemented.__subclasses__()  # TODO This sucks delete it
 
 ImplementedArmorDict: dict = {cls.__name__: cls for cls in FullyImplemented.__subclasses__()}
