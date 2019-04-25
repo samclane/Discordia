@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
-from Discordia.Interface.WorldAdapter import WorldAdapter, RegistrationException
+from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
@@ -19,6 +19,19 @@ class DiscordInterface(commands.Cog):
         self.bot.add_cog(self)
         self.world_adapter: WorldAdapter = world_adapter
 
+    @staticmethod
+    def _check_response(ctx: Context, message: discord.Message, phrase: str = None, exact: bool = False) -> bool:
+        chk_author = ctx.author == message.author
+        chk_channel = ctx.channel == message.channel
+        if phrase:
+            if exact:
+                chk_phrase = message.content.lower() == phrase
+            else:
+                chk_phrase = phrase in message.content.lower()
+        else:
+            chk_phrase = True
+        return chk_author and chk_channel and chk_phrase
+
     async def on_ready(self):
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
 
@@ -27,18 +40,19 @@ class DiscordInterface(commands.Cog):
         member: discord.Member = ctx.author
         LOG.info(f"[p]register called by {member.display_name}: <{member.id}>")
         try:
-            # Currently just adds player id to dictionary. Maybe move to end of command?
-            self.world_adapter.register_player(member.id)
-        except RegistrationException:
-            LOG.exception("Error trying to register")
-            await ctx.send(f"User {member.display_name} has already been registered.")
-            return
-        await ctx.send("Are you sure you want to join the MUD? (say 'yes' to continue)")
-        try:
-            await self.bot.wait_for('message', check=lambda
-                m: m.author == member and m.channel == ctx.channel and m.content.lower() == 'yes',
-                                          timeout=DISCORD_MSG_TIMEOUT)
+            await ctx.send("Are you sure you want to join the MUD? (say 'yes' to continue)")
+            await self.bot.wait_for('message', check=lambda m: self._check_response(ctx, m, 'yes', True),
+                                    timeout=DISCORD_MSG_TIMEOUT)
+
+            await ctx.send(f"Choose a character name: ")
+            resp: discord.Message = await self.bot.wait_for('message', timeout=DISCORD_MSG_TIMEOUT)
+            name: str = resp.clean_content.strip(DISCORD_PREFIX)
+            self.world_adapter.register_player(member.id, player_name=name)
+        except AlreadyRegisteredException:
+            LOG.warning("Player tried to re-register.")
+            await ctx.send(f"Player {member.display_name} is already registered.")
         except asyncio.TimeoutError:
-            await ctx.send("Nevermind...")
+            await ctx.send(f"Took move than {DISCORD_MSG_TIMEOUT}s to respond...")
         else:
-            await ctx.send(f"User {member.display_name} successfully registered!")
+            await ctx.send(f"User {member.display_name} has been registered! "
+                           f"Or should I say {name}? Good luck out there, comrade!")

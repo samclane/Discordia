@@ -6,7 +6,11 @@ from Discordia.GameLogic import Actors
 from Discordia.GameLogic.GameSpace import World
 
 
-class RegistrationException(Exception):
+class NullWorldException(Exception):
+    pass
+
+
+class AlreadyRegisteredException(Exception):
     pass
 
 
@@ -18,12 +22,15 @@ class WorldAdapter:
         self.world: World = gameworld
         self.discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
 
-    def register_player(self, member_id: int):
+    def register_player(self, member_id: int, player_name: str):
         if not self.world:
-            raise Exception("Tried to register PlayerCharacter to empty world.")
+            raise NullWorldException("Tried to register PlayerCharacter to empty world.")
         if self.is_registered(member_id):
-            raise RegistrationException("Member is already registered!")
-        self.discord_player_map[member_id] = Actors.PlayerCharacter(parent_world=self.world)
+            raise AlreadyRegisteredException("Member is already registered!")
+        # Create new PlayerCharacter and add him into the existing world
+        new_player = Actors.PlayerCharacter(parent_world=self.world, name=player_name)
+        self.discord_player_map[member_id] = new_player
+        self.world.add_actor(new_player, new_player.location)  # TODO location is null_space
 
-    def is_registered(self, member_id: int):
+    def is_registered(self, member_id: int) -> bool:
         return member_id in self.discord_player_map.keys()
