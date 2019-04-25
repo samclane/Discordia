@@ -48,7 +48,6 @@ class Armor(Equipment, ABC):
     def armour_count(self, val):
         self._armor_count = val
 
-    @abstractmethod
     def activate_utility(self, player_character):
         pass
 

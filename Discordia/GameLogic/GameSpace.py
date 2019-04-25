@@ -57,7 +57,7 @@ class MountainTerrain(Terrain):
 
 class IndustryType(ABC):
     @property
-    def Name(self) -> str:
+    def name(self) -> str:
         raise NotImplementedError
 
 
@@ -84,37 +84,37 @@ class WoodworkingIndustry(IndustryType):
 class Space:
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
-        self.X: int = x
-        self.Y: int = y
-        self.Terrain: Terrain = terrain
+        self.x: int = x
+        self.y: int = y
+        self.terrain: Terrain = terrain
 
     def __str__(self):
-        return "({}, {})".format(self.X, self.Y)
+        return "({}, {})".format(self.x, self.y)
 
     def __repr__(self):
-        return str((self.X, self.Y, self.Terrain))
+        return str((self.x, self.y, self.terrain))
 
     def __eq__(self, other):
         if isinstance(other, Space):
-            return self.X == other.X and self.Y == other.Y
+            return self.x == other.x and self.y == other.y
         else:
-            return self.X == other[0] and self.Y == other[1]
+            return self.x == other[0] and self.y == other[1]
 
     def __add__(self, other) -> Space:
         if isinstance(other, Space):
-            return Space(self.X + other.X, self.Y + other.Y, other.Terrain)
+            return Space(self.x + other.x, self.y + other.y, other.terrain)
         else:
-            return Space(self.X + int(other[0]), self.Y + int(other[1]), NullTerrain())
+            return Space(self.x + int(other[0]), self.y + int(other[1]), NullTerrain())
 
     def __iter__(self):
-        yield self.X
-        yield self.Y
+        yield self.x
+        yield self.y
 
     def __getitem__(self, item) -> int:
         if item == 0:
-            return self.X
+            return self.x
         if item == 1:
-            return self.Y
+            return self.y
         raise ValueError("Item should be either 0 or 1")
 
     @classmethod
@@ -123,29 +123,26 @@ class Space:
 
     def distance(self, other) -> float:
         if isinstance(other, Space):
-            return sqrt(abs(self.X - other.X) ** 2 + abs(self.Y - other.Y) ** 2)
+            return sqrt(abs(self.x - other.x) ** 2 + abs(self.y - other.y) ** 2)
         else:
-            return sqrt(abs(self.X - other[0]) ** 2 + abs(self.Y - other[1]) ** 2)
+            return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
 
 class Town(Space):
-    Name: str
-    Population: int
-    Industry: IndustryType
 
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
                  terrain: Terrain = NullTerrain(), store: Items.Store = None) -> None:
         super(Town, self).__init__(x, y)
-        self.Name = name
-        self.Population = population
-        self.Industry = industry
-        self.Terrain = terrain
-        self.Store = store
-        self.isUnderwater = isinstance(self.Terrain, WaterTerrain)
+        self.name = name
+        self.population = population
+        self.industry = industry
+        self.terrain = terrain
+        self.store = store
+        self.is_underwater = isinstance(self.terrain, WaterTerrain)
 
-    def innEvent(self, pc) -> str:
-        pc.hit_points = pc.HitPointsMax
-        return "Your hitpoints have been restored, {}".format(pc.name)
+    def inn_event(self, character) -> str:
+        character.hit_points = character.HitPointsMax
+        return "Your hitpoints have been restored, {}".format(character.name)
 
 
 class Base(Town):
@@ -166,33 +163,28 @@ class Wilds(Space):
         self.null_event.probability -= event.probability
 
     def run_event(self, pc):
-        n = 1
-        result = numpy.random.choice(self.events, size=n, p=[event.probability for event in self.events])[0]
+        result = numpy.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
         result.run(pc)
 
 
 class World:
-    Name: str
-    Width: int
-    Height: int
-    Map: List[List[Space]]
 
     def __init__(self, name: str, width: int, height: int, starting_town: Town, water_height: float = .1,
                  mountain_floor: float = .7):
         super().__init__()
-        self.Name = name
-        self.Width = width
-        self.Height = height
+        self.name: str = name
+        self.width: int = width
+        self.height: int = height
         self.generationParams: Dict[str, float] = {
             "water": water_height,
             "mountains": mountain_floor
         }
-        self.Map = [[Space(x, y, Terrain()) for x in range(width)] for y in
-                    range(height)]
-        self.Towns: List[Town] = []
-        self.Wilds: List[Wilds] = []
-        self.Players: List[Actors.PlayerCharacter] = []
-        self.StartingTown: Town = starting_town
+        self.map: List[List[Space]] = [[Space(x, y, Terrain()) for x in range(width)] for y in
+                                       range(height)]
+        self.towns: List[Town] = []
+        self.wilds: List[Wilds] = []
+        self.players: List[Actors.PlayerCharacter] = []
+        self.starting_town: Town = starting_town
 
         self.generate_map()
 
@@ -201,28 +193,28 @@ class World:
 
     def generate_map(self):
         resolution = 0.2 * (
-                (self.Width + self.Height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
+                (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
         mountain_slice = random.random()
         water_threshold = self.generationParams["water"]  # Higher water-factor -> more water on map
         mountain_threshold = self.generationParams["mountains"]  # Lower mountain_thresh -> less mountains
-        for x in range(self.Width):
-            for y in range(self.Height):
+        for x in range(self.width):
+            for y in range(self.height):
                 # Land and water pass
-                self.Map[y][x] = Space(x, y, SandTerrain() if abs(
+                self.map[y][x] = Space(x, y, SandTerrain() if abs(
                     pnoise3(x / resolution, y / resolution, sand_slice)) > water_threshold else WaterTerrain())
 
                 # Mountains pass
-                if abs(pnoise3(x / resolution, y / resolution, mountain_slice)) > mountain_threshold and self.Map[y][
-                    x].Terrain.walkable:
-                    self.Map[y][x] = Space(x, y, MountainTerrain())
+                if abs(pnoise3(x / resolution, y / resolution, mountain_slice)) > mountain_threshold and self.map[y][
+                    x].terrain.walkable:
+                    self.map[y][x] = Space(x, y, MountainTerrain())
 
     def is_space_valid(self, space: Space) -> bool:
-        return (0 < space.X < self.Width - 1) and (0 < space.Y < self.Height - 1) and space.Terrain.walkable
+        return (0 < space.x < self.width - 1) and (0 < space.y < self.height - 1) and space.terrain.walkable
 
     def is_space_buildable(self, space: Space):
         assert self.is_space_valid(space), "Somehow trying to build on an impossible spot."
-        if space in self.Towns or space in self.Wilds:
+        if space in self.towns or space in self.wilds:
             return False
         return True
 
@@ -230,24 +222,24 @@ class World:
         fov = list(range(-sq_range, sq_range + 1))
         steps = product(fov, repeat=2)
         coords = (tuple(c + d for c, d in zip(space, delta)) for delta in steps)
-        return [self.Map[j][i] for i, j in coords if (0 <= i < self.Width) and (0 <= j < self.Height)]
+        return [self.map[j][i] for i, j in coords if (0 <= i < self.width) and (0 <= j < self.height)]
 
     def add_town(self, town: Town, is_starting_town: bool = False):
-        self.Towns.append(town)
-        town.Terrain = self.Map[town.Y][town.X].Terrain
-        self.Map[town.Y][town.X] = town
+        self.towns.append(town)
+        town.terrain = self.map[town.y][town.x].terrain
+        self.map[town.y][town.x] = town
         if is_starting_town:
-            self.StartingTown = town
+            self.starting_town = town
 
     def add_wilds(self, wilds: Wilds):
-        self.Wilds.append(wilds)
-        wilds.Terrain = self.Map[wilds.Y][wilds.X].Terrain
-        self.Map[wilds.Y][wilds.X] = wilds
+        self.wilds.append(wilds)
+        wilds.terrain = self.map[wilds.y][wilds.x].terrain
+        self.map[wilds.y][wilds.x] = wilds
 
     def add_actor(self, actor, space=None):
         if isinstance(actor, Actors.PlayerCharacter):
-            actor.location = self.StartingTown
-            self.Players.append(actor)
+            actor.location = self.starting_town
+            self.players.append(actor)
         elif space and self.is_space_valid(space):
             actor.Location = space
 
@@ -264,7 +256,7 @@ class World:
             if isinstance(player_character.weapon, Weapons.ProjectileWeapon) and player_character.weapon.is_empty:
                 response["fail_reason"] = "Your currently equipped weapon is empty!"
                 break
-            targets = [player for player in self.Players if player != player_character and player.location == loc]
+            targets = [player for player in self.players if player != player_character and player.location == loc]
             if len(targets):
                 target: Actors.PlayerCharacter = random.choice(targets)
                 player_character.weapon.on_damage()
@@ -282,11 +274,10 @@ class World:
                                               "Specify a direction (n,s,e,w,ne,se,sw,nw))"
                     break
                 loc += direction
-                loc = self.Map[loc.Y][loc.X]
+                loc = self.map[loc.y][loc.x]
                 dmg = player_character.weapon.calc_damage(player_character.location.distance(loc))
         return response
 
-    def handle_player_death(self, player_id):
-        player = [pc for pc in self.Players if pc.user_id == player_id][0]
-        player.location = self.StartingTown
-        player.hit_points = player.HitPointsMax
+    def handle_player_death(self, player: Actors.PlayerCharacter):
+        player.location = self.starting_town
+        player.hit_points = player.hit_points_max

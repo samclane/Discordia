@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from abc import ABC
 from typing import List

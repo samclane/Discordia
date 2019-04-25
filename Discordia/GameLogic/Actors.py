@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Union
 
 from Discordia.GameLogic import GameSpace, Items, Weapons
 
@@ -82,18 +82,18 @@ class Actor(AbstractActor, ABC):
 
     def attempt_move(self, shift: Tuple[int, int]) -> bool:
         new_space = self.location + shift
-        new_space = self.parent_world.Map[new_space.Y][new_space.X]
+        new_space = self.parent_world.map[new_space.y][new_space.x]
         if not self.parent_world.is_space_valid(new_space):
             return False
         else:
             self.location = new_space
-            map_space = self.parent_world.Map[self.location.Y][self.location.X]
+            map_space = self.parent_world.map[self.location.y][self.location.x]
             if isinstance(map_space, GameSpace.Wilds):
                 map_space.run_event(pc=self)
             return True
 
     @property
-    def hit_points(self):
+    def hit_points(self) -> int:
         return self._hit_points
 
     @hit_points.setter
@@ -114,8 +114,8 @@ class Actor(AbstractActor, ABC):
 class NPC(Actor, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.inventory: [] = []
-        self.flavor_text = "<No Flavor Text Set>"
+        self.inventory: List[Items.Equipment] = []
+        self.flavor_text: str = "<No Flavor Text Set>"
 
 
 class Enemy(NPC):
@@ -125,7 +125,7 @@ class Enemy(NPC):
         self.abilities: Dict[Any] = {}
         self.loot: List[Items.Equipment] = []
 
-    def on_death(self):
+    def on_death(self) -> List[Items.Equipment]:
         self.location: GameSpace.Space = GameSpace.Space.null_space()
         return self.loot
 
@@ -152,27 +152,26 @@ class WandererClass(PlayerClass):
 
 class PlayerCharacter(Actor):
 
-    def __init__(self, user_id, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.user_id: str = user_id
         self.class_: PlayerClass = WandererClass()
-        self._hit_points = self.HitPointsMax = self.class_.hit_points_max_base
+        self._hit_points = self.hit_points_max = self.class_.hit_points_max_base
         self.equipment_set: Items.EquipmentSet = Items.EquipmentSet()
         self.fov: int = self.fov_default
         self.inventory: List[Items.Equipment] = []
         self.currency: int = 1000
 
     @property
-    def weapon(self):
-        w = self.equipment_set.main_hand
-        if not isinstance(w, Weapons.Weapon):
+    def weapon(self) -> Union[Weapons.Weapon, None]:
+        wep = self.equipment_set.main_hand
+        if not isinstance(wep, Weapons.Weapon):
             return None
         else:
-            return w
+            return wep
 
     @property
-    def has_weapon_equipped(self):
+    def has_weapon_equipped(self) -> bool:
         return self.weapon is not None
 
     def equip(self, equipment):
@@ -189,4 +188,4 @@ class PlayerCharacter(Actor):
         # TODO Finish this
 
     def on_death(self):
-        self.parent_world.handle_player_death(self.user_id)
+        self.parent_world.handle_player_death(self)
