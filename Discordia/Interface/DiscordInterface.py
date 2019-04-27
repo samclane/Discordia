@@ -1,17 +1,19 @@
+from __future__ import annotations
 import asyncio
 import logging
+import functools
 
 import discord
 from discord.ext import commands
 
 from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
+from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException
 import Discordia.GameLogic.Actors as Actors
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
 Context = discord.ext.commands.context.Context
-
 
 class DiscordInterface(commands.Cog):
     def __init__(self, world_adapter: WorldAdapter):
@@ -76,7 +78,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            msg: str = f"Your coordinates are {character.location}."
+            msg = f"Your coordinates are {character.location}."
             if self.world_adapter.is_town(character.location):
                 msg += f"You are also in a town, {character.location.name}."
             if self.world_adapter.is_wilds(character.location):
@@ -86,3 +88,46 @@ class DiscordInterface(commands.Cog):
                            f"to create a character.")
         else:
             await ctx.send(msg)
+
+    @commands.group(invoke_without_context=True)
+    async def inventory(self, ctx: Context):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            if ctx.invoked_subcommand is None:
+                msg = f"{character.name}'s inventory:\n"
+                if len(character.inventory) == 0:
+                    msg += "\t(Empty)"
+                else:
+                    for index, item in enumerate(character.inventory):
+                        msg += f"\t#{index}\t{item}\n"
+                await ctx.send(msg)
+        except NotRegisteredException:
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+
+    @inventory.command()
+    async def equip(self, ctx: Context, index):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            item: Equipment = character.inventory[int(index)]
+            character.equip(item)
+        except NotRegisteredException:
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except IndexError:
+            await ctx.send(f"Given index {index} is invalid.")
+
+    @inventory.command()
+    async def unequip(self, ctx: Context, index):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            item: Equipment = character.inventory[int(index)]
+            character.unequip(item)
+        except NotRegisteredException:
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except IndexError:
+            await ctx.send(f"Given index {index} is invalid.")

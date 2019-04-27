@@ -4,10 +4,10 @@ import pickle
 import random
 from abc import ABC
 from itertools import product
-from math import sqrt
 from typing import List, Tuple, Dict, Any
 
 import numpy
+from math import sqrt
 from noise import pnoise3
 
 from Discordia.GameLogic import Events, Actors, Items, Weapons
@@ -63,23 +63,33 @@ class IndustryType(ABC):
 
 
 class NullIndustry(IndustryType):
-    Name = "None"
+    @property
+    def name(self) -> str:
+        return "None"
 
 
 class MiningIndustry(IndustryType):
-    Name = "Mining"
+    @property
+    def name(self) -> str:
+        return "Mining"
 
 
 class FarmingIndustry(IndustryType):
-    Name = "Farming"
+    @property
+    def name(self) -> str:
+        return "Farming"
 
 
 class SmithingIndustry(IndustryType):
-    Name = "Smithing"
+    @property
+    def name(self) -> str:
+        return "Smithing"
 
 
 class WoodworkingIndustry(IndustryType):
-    Name = "Woodworking"
+    @property
+    def name(self) -> str:
+        return "Woodworking"
 
 
 class Space:

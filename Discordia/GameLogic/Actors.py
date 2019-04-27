@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, Any, Union
 
 from Discordia.GameLogic import GameSpace, Items, Weapons
+from Discordia.GameLogic.Items import Equipment
 
 
 class BodyType(ABC):
@@ -174,11 +175,11 @@ class PlayerCharacter(Actor):
     def has_weapon_equipped(self) -> bool:
         return self.weapon is not None
 
-    def equip(self, equipment):
+    def equip(self, equipment: Equipment):
         self.equipment_set.equip(equipment)
         equipment.on_equip(self)
 
-    def unequip(self, equipment):
+    def unequip(self, equipment: Equipment):
         self.equipment_set.unequip(equipment)
         equipment.on_unequip(self)
 

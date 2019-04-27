@@ -32,4 +32,3 @@ class TestGeneral(unittest.TestCase):
         # Wait for 1 second then exit
         discord_thread.join(1)
         discord_interface.bot.loop.create_task(discord_interface.bot.close())
-        print("SAFE")

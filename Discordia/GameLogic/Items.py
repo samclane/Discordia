@@ -25,10 +25,10 @@ class Equipment(ABC):
     def __repr__(self):
         return "{} {}lbs ${} [{}]".format(self.name, self.weight_lb, self.base_value, 'X' if self.is_equipped else ' ')
 
-    def on_equip(self, player_character):
+    def on_equip(self, player_character: Actors.PlayerCharacter):
         self.is_equipped = True
 
-    def on_unequip(self, player_character):
+    def on_unequip(self, player_character: Actors.PlayerCharacter):
         self.is_equipped = False
 
 
