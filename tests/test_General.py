@@ -11,7 +11,7 @@ LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
 
-class TestDiscordServer(unittest.TestCase):
+class TestGeneral(unittest.TestCase):
 
     def test_connect_disconnect(self):
         # Start bot
@@ -24,8 +24,7 @@ class TestDiscordServer(unittest.TestCase):
         interface.bot.loop.create_task(interface.bot.close())
 
     def test_world_creation(self):
-        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT,
-                                GameSpace.Town(0, 0, "TODO_NAME"))
+        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         discord_interface = DiscordInterface(WorldAdapter(world))
         discord_thread = threading.Thread(target=lambda: discord_interface.bot.run(ConfigParser.DISCORD_TOKEN))
         discord_thread.start()

@@ -5,7 +5,8 @@ import discord
 from discord.ext import commands
 
 from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
-from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException
+from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException
+import Discordia.GameLogic.Actors as Actors
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
@@ -35,7 +36,7 @@ class DiscordInterface(commands.Cog):
     async def on_ready(self):
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
 
-    @commands.command(name='register')
+    @commands.command()
     async def register(self, ctx: Context):
         member: discord.Member = ctx.author
         LOG.info(f"[p]register called by {member.display_name}: <{member.id}>")
@@ -56,3 +57,32 @@ class DiscordInterface(commands.Cog):
         else:
             await ctx.send(f"User {member.display_name} has been registered! "
                            f"Or should I say {name}? Good luck out there, comrade!")
+
+    @commands.command()
+    async def equipment(self, ctx: Context):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            msg = "Equipment: \n" \
+                  "---------- \n" \
+                  "{}".format(str(character.equipment_set))
+            await ctx.send(msg)
+        except NotRegisteredException:
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+
+    @commands.command()
+    async def look(self, ctx: Context):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            msg: str = f"Your coordinates are {character.location}."
+            if self.world_adapter.is_town(character.location):
+                msg += f"You are also in a town, {character.location.name}."
+            if self.world_adapter.is_wilds(character.location):
+                msg += "You are also in the wilds."
+        except NotRegisteredException:
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        else:
+            await ctx.send(msg)

@@ -169,8 +169,7 @@ class Wilds(Space):
 
 class World:
 
-    def __init__(self, name: str, width: int, height: int, starting_town: Town, water_height: float = .1,
-                 mountain_floor: float = .7):
+    def __init__(self, name: str, width: int, height: int, water_height: float = .1, mountain_floor: float = .7):
         super().__init__()
         self.name: str = name
         self.width: int = width
@@ -184,7 +183,7 @@ class World:
         self.towns: List[Town] = []
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
-        self.starting_town: Town = starting_town
+        self.starting_town: Town = None
 
         self.generate_map()
 
@@ -209,12 +208,15 @@ class World:
                     x].terrain.walkable:
                     self.map[y][x] = Space(x, y, MountainTerrain())
 
+                if self.starting_town is None and self.is_space_buildable(self.map[y][x]):
+                    # Just puts town in first valid spot. Not very interesting.
+                    self.add_town(Town(x, y, "TODO Town name generator"), True)
+
     def is_space_valid(self, space: Space) -> bool:
         return (0 < space.x < self.width - 1) and (0 < space.y < self.height - 1) and space.terrain.walkable
 
-    def is_space_buildable(self, space: Space):
-        assert self.is_space_valid(space), "Somehow trying to build on an impossible spot."
-        if space in self.towns or space in self.wilds:
+    def is_space_buildable(self, space: Space) -> bool:
+        if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
             return False
         return True
 
