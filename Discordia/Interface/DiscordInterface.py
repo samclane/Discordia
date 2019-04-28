@@ -120,7 +120,7 @@ class DiscordInterface(commands.Cog):
 
     @commands.group()
     async def inventory(self, ctx: Context):
-        """Lists all the items in your inventory, and gives their id for further interaction"""
+        """Lists all the items in your inventory with ID #"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
@@ -249,7 +249,7 @@ class DiscordInterface(commands.Cog):
 
     @commands.command()
     async def attack(self, ctx: Context, *, direction: direction_vector = None):
-        """Have your character perform an attack. For ranged attacks, specify a direction:
+        """Have your character perform an attack, with optional direction:
         (n,s,e,w,ne,se,sw,nw)"""
         member = ctx.author
         try:
@@ -272,6 +272,7 @@ class DiscordInterface(commands.Cog):
 
     @commands.group()
     async def town(self, ctx: Context):
+        """Check if you're in a town."""
         member = ctx.author
         try:
             if ctx.invoked_subcommand is None:
@@ -287,6 +288,7 @@ class DiscordInterface(commands.Cog):
 
     @town.command()
     async def inn(self, ctx: Context):
+        """Rest to restore hitpoints."""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
