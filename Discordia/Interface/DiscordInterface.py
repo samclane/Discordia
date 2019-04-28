@@ -12,7 +12,7 @@ from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
 from Discordia.GameLogic import GameSpace
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException, \
-    InvalidSpaceException, NoWeaponEquippedException, RangedAttackException
+    InvalidSpaceException, NoWeaponEquippedException, RangedAttackException, CombatException
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
@@ -259,3 +259,5 @@ class DiscordInterface(commands.Cog):
                            f"weapon with {DISCORD_PREFIX}equip.")
         except RangedAttackException:
             await ctx.send(f"Player {member.display_name} tried to make a ranged attack without a ranged weapon.")
+        except CombatException as e:
+            await ctx.send(f"Attack failed: {str(e)}")

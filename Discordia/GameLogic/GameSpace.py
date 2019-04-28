@@ -3,6 +3,7 @@ from __future__ import annotations
 import pickle
 import random
 from abc import ABC
+from dataclasses import dataclass
 from itertools import product
 from typing import List, Tuple, Dict, Any
 
@@ -192,6 +193,14 @@ class Wilds(Space):
         result.run(pc)
 
 
+@dataclass
+class PlayerActionResponse:
+    is_successful: bool
+    damage: int
+    target: Actors.Actor
+    text: str
+
+
 class World:
 
     def __init__(self, name: str, width: int, height: int, water_height: float = .1, mountain_floor: float = .7):
@@ -278,34 +287,29 @@ class World:
         actors: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
         return actors
 
-    def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> Dict[str, Any]:
-        response: Dict[str, Any] = {
-            "success": False,
-            "damage": 0,
-            "target": None,
-            "fail_reason": "No targets found in that direction."
-        }
+    def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
+        response = PlayerActionResponse(False, 0, None, "No targets found in that direction")
         loc: Space = player_character.location
         dmg: int = player_character.weapon.damage
         while dmg > 0:
             if isinstance(player_character.weapon, Weapons.ProjectileWeapon) and player_character.weapon.is_empty:
-                response["fail_reason"] = "Your currently equipped weapon is empty!"
+                response.text = "Your currently equipped weapon is empty!"
                 break
             targets = [player for player in self.players if player != player_character and player.location == loc]
             if len(targets):
                 target: Actors.PlayerCharacter = random.choice(targets)
                 player_character.weapon.on_damage()
                 target.take_damage(dmg)
-                response["success"] = True
-                response["damage"] = dmg
-                response["target"] = target
+                response.is_successful = True
+                response.damage = dmg
+                response.target = target
                 break
             else:
                 if isinstance(player_character.weapon, Weapons.MeleeWeapon):
-                    response["fail_reason"] = "No other players in range of your Melee Weapon."
+                    response.text = "No other players in range of your Melee Weapon."
                     break
                 if direction == (0, 0):
-                    response["fail_reason"] = "No other players in current square. " \
+                    response.text = "No other players in current square. " \
                                               "Specify a direction (n,s,e,w,ne,se,sw,nw))"
                     break
                 loc += direction

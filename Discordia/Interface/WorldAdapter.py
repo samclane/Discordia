@@ -3,7 +3,7 @@
 from typing import Dict, Tuple, List
 
 from Discordia.GameLogic import Actors
-from Discordia.GameLogic.GameSpace import World, Space, Town, Wilds
+from Discordia.GameLogic.GameSpace import World, Space, Town, Wilds, Direction, PlayerActionResponse
 from Discordia.GameLogic.Weapons import RangedWeapon
 
 
@@ -34,6 +34,8 @@ class NoWeaponEquippedException(ItemRequirementException):
 class RangedAttackException(Exception):
     pass
 
+class CombatException(Exception):
+    pass
 
 
 class WorldAdapter:
@@ -83,9 +85,13 @@ class WorldAdapter:
         npcs: List[Actors.NPC] = self.world.get_npcs_in_region(self.world.get_adjacent_spaces(location, fov))
         return npcs
 
-    def attack(self, character: Actors.PlayerCharacter, direction: Tuple[int, int]):
+    def attack(self, character: Actors.PlayerCharacter, direction: Direction):
         if not character.has_weapon_equipped:
             raise NoWeaponEquippedException
         if direction and not isinstance(character.weapon, RangedWeapon):
             raise RangedAttackException
-        # TODO Continue writing function
+        response: PlayerActionResponse = self.world.attack(character, direction)
+        if not response.is_successful:
+            raise CombatException(response.text)
+
+
