@@ -5,13 +5,14 @@ import random
 from abc import ABC
 from dataclasses import dataclass
 from itertools import product
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict
 
 import numpy
 from math import sqrt
 from noise import pnoise3
 
 from Discordia.GameLogic import Events, Actors, Items, Weapons
+from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.StringGenerator import TownNameGenerator
 
 Direction = Tuple[int, int]
@@ -36,6 +37,9 @@ class Terrain(ABC):
 
     def __repr__(self) -> str:
         return str(self)
+
+    def __hash__(self):
+        return hash(self.id) + hash(self.walkable)
 
     @property
     def id(self) -> int:
@@ -143,6 +147,9 @@ class Space:
             return self.y
         raise ValueError("Item should be either 0 or 1")
 
+    def __hash__(self):
+        return hash(self.x) + (10*hash(self.y)) + (100*hash(self.terrain))
+
     @classmethod
     def null_space(cls):
         return cls(-1, -1)
@@ -199,6 +206,8 @@ class PlayerActionResponse:
     damage: int
     target: Actors.Actor
     text: str
+    items: List[Equipment]
+    currency: int
 
 
 class World:
@@ -284,8 +293,14 @@ class World:
     def get_npcs_in_region(self, spaces: List[Space]) -> List[Actors.NPC]:
         npc_locations: Dict[Actors.NPC, Space] = {npc: npc.location for npc in self.npcs}
         common_locations: List[Space] = list(set(npc_locations.values()).intersection(spaces))
-        actors: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
-        return actors
+        npcs: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
+        return npcs
+    
+    def get_players_in_region(self, spaces: List[Space]) -> List[Actors.PlayerCharacter]:
+        player_locations: Dict[Actors.PlayerCharacter, Space] = {player: player.location for player in self.players}
+        common_locations: List[Space] = list(set(player_locations.values()).intersection(spaces))
+        players: List[Actors.PlayerCharacter] = [player for player in self.players if player.location in common_locations]
+        return players
 
     def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
         response = PlayerActionResponse(False, 0, None, "No targets found in that direction")

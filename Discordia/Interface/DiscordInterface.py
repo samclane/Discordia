@@ -10,6 +10,7 @@ from discord.ext import commands
 import Discordia.GameLogic.Actors as Actors
 from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
 from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic.GameSpace import PlayerActionResponse
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException, \
     InvalidSpaceException, NoWeaponEquippedException, RangedAttackException, CombatException
@@ -103,8 +104,12 @@ class DiscordInterface(commands.Cog):
                 msg += "You are also in the wilds."
             nearby_npcs = self.world_adapter.get_nearby_npcs(character)
             if nearby_npcs:
-                msg += "There are also some NPCs nearby: "
-                ", ".join([str(npc) for npc in nearby_npcs])
+                msg += "There are some NPCs nearby: \n" +\
+                       ", ".join([str(npc) for npc in nearby_npcs])
+            nearby_players = self.world_adapter.get_nearby_players(character)
+            if nearby_players:
+                msg += "There are also some Players nearby: \n" +\
+                    ", ".join([player.name for player in nearby_players])
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `look`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
@@ -249,7 +254,10 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.attack(character, direction)
+            response: PlayerActionResponse = self.world_adapter.attack(character, direction)
+            await ctx.send(f"{character.name} deals {response.damage} to {response.target.name}.\n"
+                           f"\n"
+                           f" {response.text}")
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `attack`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
@@ -261,3 +269,30 @@ class DiscordInterface(commands.Cog):
             await ctx.send(f"Player {member.display_name} tried to make a ranged attack without a ranged weapon.")
         except CombatException as e:
             await ctx.send(f"Attack failed: {str(e)}")
+
+    @commands.group()
+    async def town(self, ctx: Context):
+        member = ctx.author
+        try:
+            if ctx.invoked_subcommand is None:
+                character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+                if self.world_adapter.is_town(character.location):
+                    await ctx.send(f"You're currently in {character.location.name}.")
+                else:
+                    await ctx.send(f"You're currently not in a town...")
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `town`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+
+    @town.command()
+    async def inn(self, ctx: Context):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            if self.world_adapter.is_town(character.location):
+                pass  # TODO
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `inn`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")

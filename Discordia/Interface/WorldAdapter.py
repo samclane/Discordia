@@ -85,7 +85,13 @@ class WorldAdapter:
         npcs: List[Actors.NPC] = self.world.get_npcs_in_region(self.world.get_adjacent_spaces(location, fov))
         return npcs
 
-    def attack(self, character: Actors.PlayerCharacter, direction: Direction):
+    def get_nearby_players(self, character: Actors.PlayerCharacter) -> List[Actors.PlayerCharacter]:
+        location: Space = character.location
+        fov: int = character.fov
+        players: List[Actors.PlayerCharacter] = self.world.get_players_in_region(self.world.get_adjacent_spaces(location, fov))
+        return players
+
+    def attack(self, character: Actors.PlayerCharacter, direction: Direction) -> PlayerActionResponse:
         if not character.has_weapon_equipped:
             raise NoWeaponEquippedException
         if direction and not isinstance(character.weapon, RangedWeapon):
@@ -93,5 +99,6 @@ class WorldAdapter:
         response: PlayerActionResponse = self.world.attack(character, direction)
         if not response.is_successful:
             raise CombatException(response.text)
+        return response
 
 
