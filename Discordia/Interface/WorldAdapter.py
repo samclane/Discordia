@@ -1,9 +1,10 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
 
-from typing import Dict
+from typing import Dict, Tuple, List
 
 from Discordia.GameLogic import Actors
 from Discordia.GameLogic.GameSpace import World, Space, Town, Wilds
+from Discordia.GameLogic.Weapons import RangedWeapon
 
 
 class NullWorldException(Exception):
@@ -16,6 +17,23 @@ class AlreadyRegisteredException(Exception):
 
 class NotRegisteredException(Exception):
     pass
+
+
+class InvalidSpaceException(Exception):
+    pass
+
+
+class ItemRequirementException(Exception):
+    pass
+
+
+class NoWeaponEquippedException(ItemRequirementException):
+    pass
+
+
+class RangedAttackException(Exception):
+    pass
+
 
 
 class WorldAdapter:
@@ -54,3 +72,20 @@ class WorldAdapter:
 
     def is_wilds(self, location: Space) -> bool:
         return isinstance(self.world.map[location.y][location.x], Wilds)
+
+    def move_player(self, character: Actors.PlayerCharacter, direction: Tuple[int, int]):
+        if not character.attempt_move(direction):
+            raise InvalidSpaceException("Trying to move to an unwalkable space.")
+
+    def get_nearby_npcs(self, character: Actors.PlayerCharacter) -> List[Actors.NPC]:
+        location: Space = character.location
+        fov: int = character.fov
+        npcs: List[Actors.NPC] = self.world.get_npcs_in_region(self.world.get_adjacent_spaces(location, fov))
+        return npcs
+
+    def attack(self, character: Actors.PlayerCharacter, direction: Tuple[int, int]):
+        if not character.has_weapon_equipped:
+            raise NoWeaponEquippedException
+        if direction and not isinstance(character.weapon, RangedWeapon):
+            raise RangedAttackException
+        # TODO Continue writing function

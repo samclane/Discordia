@@ -13,6 +13,20 @@ from noise import pnoise3
 from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.StringGenerator import TownNameGenerator
 
+Direction = Tuple[int, int]
+
+DIRECTION_VECTORS: Dict[str, Direction] = {
+    'n': (0, -1),
+    's': (0, 1),
+    'e': (1, 0),
+    'w': (-1, 0),
+    'ne': (1, -1),
+    'se': (1, 1),
+    'sw': (-1, 1),
+    'nw': (-1, -1),
+    None: (0, 0)
+}
+
 
 class Terrain(ABC):
 
@@ -194,6 +208,7 @@ class World:
         self.towns: List[Town] = []
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
+        self.npcs: List[Actors.NPC] = []
         self.starting_town: Town = None
 
         self.generate_map()
@@ -231,7 +246,7 @@ class World:
             return False
         return True
 
-    def get_adjacent_spaces(self, space, sq_range: int = 1) -> List[Space]:
+    def get_adjacent_spaces(self, space: Space, sq_range: int = 1) -> List[Space]:
         fov = list(range(-sq_range, sq_range + 1))
         steps = product(fov, repeat=2)
         coords = (tuple(c + d for c, d in zip(space, delta)) for delta in steps)
@@ -249,14 +264,21 @@ class World:
         wilds.terrain = self.map[wilds.y][wilds.x].terrain
         self.map[wilds.y][wilds.x] = wilds
 
-    def add_actor(self, actor, space=None):
+    def add_actor(self, actor: Actors.Actor, space: Space = None):
         if isinstance(actor, Actors.PlayerCharacter):
             actor.location = self.starting_town
             self.players.append(actor)
         elif space and self.is_space_valid(space):
-            actor.Location = space
+            actor.location = space
+            self.npcs.append(actor)
 
-    def attack(self, player_character: Actors.PlayerCharacter, direction: Tuple[int, int] = (0, 0)) -> Dict[str, Any]:
+    def get_npcs_in_region(self, spaces: List[Space]) -> List[Actors.NPC]:
+        npc_locations: Dict[Actors.NPC, Space] = {npc: npc.location for npc in self.npcs}
+        common_locations: List[Space] = list(set(npc_locations.values()).intersection(spaces))
+        actors: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
+        return actors
+
+    def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> Dict[str, Any]:
         response: Dict[str, Any] = {
             "success": False,
             "damage": 0,

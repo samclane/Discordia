@@ -1,24 +1,37 @@
 from __future__ import annotations
+
 import asyncio
 import logging
-import functools
+import time
 
 import discord
 from discord.ext import commands
 
-from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
-from Discordia.GameLogic.Items import Equipment
-from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException
 import Discordia.GameLogic.Actors as Actors
+from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
+from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic.Items import Equipment
+from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException, \
+    InvalidSpaceException, NoWeaponEquippedException, RangedAttackException
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
 Context = discord.ext.commands.context.Context
 
+
+def direction_vector(argument: str) -> GameSpace.Direction:
+    """A discord.py Converter for changing strings (n,s,e,w, and combos) to unit vector Tuple[int,int]"""
+    argument = argument.lower()
+    directions = GameSpace.DIRECTION_VECTORS
+    if argument not in directions.keys():
+        argument = None
+    return directions[argument]
+
+
 class DiscordInterface(commands.Cog):
     def __init__(self, world_adapter: WorldAdapter):
         self.bot: commands.Bot = commands.Bot(command_prefix=DISCORD_PREFIX)
-        self.bot.add_listener(self.on_ready, "on_ready")
+        self.bot.add_listener(self._on_ready, "on_ready")
         self.bot.add_cog(self)
         self.world_adapter: WorldAdapter = world_adapter
 
@@ -35,11 +48,12 @@ class DiscordInterface(commands.Cog):
             chk_phrase = True
         return chk_author and chk_channel and chk_phrase
 
-    async def on_ready(self):
+    async def _on_ready(self):
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
 
     @commands.command()
     async def register(self, ctx: Context):
+        """*START HERE* Make a new character in the world"""
         member: discord.Member = ctx.author
         LOG.info(f"[p]register called by {member.display_name}: <{member.id}>")
         try:
@@ -52,16 +66,18 @@ class DiscordInterface(commands.Cog):
             name: str = resp.clean_content.strip(DISCORD_PREFIX)
             self.world_adapter.register_player(member.id, player_name=name)
         except AlreadyRegisteredException:
-            LOG.warning("Player tried to re-register.")
+            LOG.warning(f"{member.display_name} tried to re-register.")
             await ctx.send(f"Player {member.display_name} is already registered.")
         except asyncio.TimeoutError:
-            await ctx.send(f"Took move than {DISCORD_MSG_TIMEOUT}s to respond...")
+            LOG.warning(f"Took more than {DISCORD_MSG_TIMEOUT}s for {member.display_name} to respond.")
+            await ctx.send(f"Took more than {DISCORD_MSG_TIMEOUT}s to respond...")
         else:
             await ctx.send(f"User {member.display_name} has been registered! "
                            f"Or should I say {name}? Good luck out there, comrade!")
 
     @commands.command()
     async def equipment(self, ctx: Context):
+        """List all equipped items on character"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
@@ -70,11 +86,13 @@ class DiscordInterface(commands.Cog):
                   "{}".format(str(character.equipment_set))
             await ctx.send(msg)
         except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `equipment`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
 
     @commands.command()
     async def look(self, ctx: Context):
+        """Describes your character's surroundings"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
@@ -83,14 +101,21 @@ class DiscordInterface(commands.Cog):
                 msg += f"You are also in a town, {character.location.name}."
             if self.world_adapter.is_wilds(character.location):
                 msg += "You are also in the wilds."
+            nearby_npcs = self.world_adapter.get_nearby_npcs(character)
+            if nearby_npcs:
+                msg += "There are also some NPCs nearby: "
+                ", ".join([str(npc) for npc in nearby_npcs])
         except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `look`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
         else:
             await ctx.send(msg)
+            # TODO Generate + send image
 
-    @commands.group(invoke_without_context=True)
+    @commands.group()
     async def inventory(self, ctx: Context):
+        """Lists all the items in your inventory, and gives their id for further interaction"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
@@ -103,31 +128,134 @@ class DiscordInterface(commands.Cog):
                         msg += f"\t#{index}\t{item}\n"
                 await ctx.send(msg)
         except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `inventory`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
 
     @inventory.command()
-    async def equip(self, ctx: Context, index):
+    async def equip(self, ctx: Context, index: int):
+        """Equip the item at the given index"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            item: Equipment = character.inventory[int(index)]
+            item: Equipment = character.inventory[index]
             character.equip(item)
         except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `equip`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
         except IndexError:
             await ctx.send(f"Given index {index} is invalid.")
 
     @inventory.command()
-    async def unequip(self, ctx: Context, index):
+    async def unequip(self, ctx: Context, index: int):
+        """Unequip the item at the given index"""
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            item: Equipment = character.inventory[int(index)]
+            item: Equipment = character.inventory[index]
             character.unequip(item)
         except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `unequip`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
         except IndexError:
             await ctx.send(f"Given index {index} is invalid.")
+
+    @commands.command()
+    async def north(self, ctx: Context):
+        """Move your character north"""
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            self.world_adapter.move_player(character, (0, -1))
+            character.last_time_moved = time.time()
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `north/up`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except InvalidSpaceException:
+            await ctx.send("Invalid direction `north`.")
+
+    @commands.command()
+    async def up(self, ctx: Context):
+        """Move your character north"""
+        await self.north(ctx)
+
+    @commands.command()
+    async def south(self, ctx: Context):
+        """Move your character south"""
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            self.world_adapter.move_player(character, (0, 1))
+            character.last_time_moved = time.time()
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `south/down`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except InvalidSpaceException:
+            await ctx.send("Invalid direction `south`.")
+
+    @commands.command()
+    async def down(self, ctx: Context):
+        """Move your character south"""
+        await self.south(ctx)
+
+    @commands.command()
+    async def east(self, ctx: Context):
+        """Move your character east"""
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            self.world_adapter.move_player(character, (1, 0))
+            character.last_time_moved = time.time()
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `east/right`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except InvalidSpaceException:
+            await ctx.send("Invalid direction `east`.")
+
+    @commands.command()
+    async def right(self, ctx: Context):
+        """Move your character east"""
+        await self.east(ctx)
+
+    @commands.command()
+    async def west(self, ctx: Context):
+        """Move your character west"""
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            self.world_adapter.move_player(character, (-1, 0))
+            character.last_time_moved = time.time()
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `west/left`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except InvalidSpaceException:
+            await ctx.send("Invalid direction `west`.")
+
+    @commands.command()
+    async def left(self, ctx: Context):
+        """Move your character west"""
+        await self.west(ctx)
+
+    @commands.command()
+    async def attack(self, ctx: Context, *, direction: direction_vector = None):
+        """Have your character perform an attack. For ranged attacks, specify a direction:
+        (n,s,e,w,ne,se,sw,nw)"""
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            self.world_adapter.attack(character, direction)
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `attack`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+        except NoWeaponEquippedException:
+            await ctx.send(f"Player {member.display_name} tried to attack without a weapon equipped. Try equipping a"
+                           f"weapon with {DISCORD_PREFIX}equip.")
+        except RangedAttackException:
+            await ctx.send(f"Player {member.display_name} tried to make a ranged attack without a ranged weapon.")
