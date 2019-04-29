@@ -100,5 +100,3 @@ class WorldAdapter:
         if not response.is_successful:
             raise CombatException(response.text)
         return response
-
-

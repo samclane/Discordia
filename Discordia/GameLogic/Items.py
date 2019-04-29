@@ -161,7 +161,7 @@ class Store:
 
     def __init__(self, inventory=None):
         super().__init__()
-        self.inventory: List[Equipment] = inventory if inventory else []
+        self.inventory: List[Equipment] = inventory if inventory is not None else []
         self.price_ratio: float = 1.0  # Lower means better buy/sell prices, higher means worse
 
     def get_price(self, item: Equipment) -> float:

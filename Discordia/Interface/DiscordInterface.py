@@ -104,12 +104,12 @@ class DiscordInterface(commands.Cog):
                 msg += "You are also in the wilds."
             nearby_npcs = self.world_adapter.get_nearby_npcs(character)
             if nearby_npcs:
-                msg += "There are some NPCs nearby: \n" +\
+                msg += "There are some NPCs nearby: \n" + \
                        ", ".join([str(npc) for npc in nearby_npcs])
             nearby_players = self.world_adapter.get_nearby_players(character)
             if nearby_players:
-                msg += "There are also some Players nearby: \n" +\
-                    ", ".join([player.name for player in nearby_players])
+                msg += "There are also some Players nearby: \n" + \
+                       ", ".join([player.name for player in nearby_players])
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `look`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
@@ -270,17 +270,16 @@ class DiscordInterface(commands.Cog):
         except CombatException as e:
             await ctx.send(f"Attack failed: {str(e)}")
 
-    @commands.group()
+    @commands.group(invoke_without_command=True)
     async def town(self, ctx: Context):
         """Check if you're in a town."""
         member = ctx.author
         try:
-            if ctx.invoked_subcommand is None:
-                character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-                if self.world_adapter.is_town(character.location):
-                    await ctx.send(f"You're currently in {character.location.name}.")
-                else:
-                    await ctx.send(f"You're currently not in a town...")
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            if self.world_adapter.is_town(character.location):
+                await ctx.send(f"You're currently in {character.location.name}.")
+            else:
+                await ctx.send(f"You're currently not in a town...")
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `town`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
@@ -293,8 +292,47 @@ class DiscordInterface(commands.Cog):
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
             if self.world_adapter.is_town(character.location):
-                pass  # TODO
+                resp: PlayerActionResponse = character.location.inn_event(character)
+                await ctx.send(resp.text)
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `inn`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
+
+    @town.group(invoke_without_command=True)
+    async def store(self, ctx: Context):
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            town: GameSpace.Town = character.location
+            if self.world_adapter.is_town(character.location):
+                if town.store is not None:
+                    msg = "Index\tName\tPrice\tCount\n"
+                    for idx, item in enumerate(set(town.store.inventory)):
+                        msg += "#{}\t{}\t${}\t{}\n".format(idx,
+                                                           item.Name,
+                                                           town.store.get_price(item),
+                                                           town.store.inventory.count(item))
+                    else:
+                        msg += "There are no items in the store at the moment. Please try again later."
+                else:
+                    msg = "There is no store in this town. Sorry..."
+                await ctx.send(msg)
+            else:
+                await ctx.send("You're not in a town. Find one before trying to use a store.")
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `inn`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+
+    @store.command()
+    async def buy(self, ctx: Context, index: int = None):
+        if index is None:
+            await ctx.send("You must give an item index to buy.")
+        LOG.info("DEBUG: `Buy` called")
+
+    @store.command()
+    async def sell(self, ctx:  Context, index: int = None):
+        if index is None:
+            await ctx.send("You must give an item index to sell.")
+        LOG.info("DEBUG: `Sell` called")

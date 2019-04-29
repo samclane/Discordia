@@ -173,9 +173,10 @@ class Town(Space):
         self.store = store
         self.is_underwater = isinstance(self.terrain, WaterTerrain)
 
-    def inn_event(self, character) -> str:
-        character.hit_points = character.HitPointsMax
-        return "Your hitpoints have been restored, {}".format(character.name)
+    def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
+        character.hit_points = character.hit_points_max
+        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0)
+        return resp
 
 
 class Base(Town):
