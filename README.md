@@ -37,3 +37,7 @@ Requires Python 3.7+
             * Purchase the item at the given index, adding it to your inventory.
         * `sell` [`index`] (Placeholder)
             * Sell an item from your inventory, removing it and giving you some money. 
+            
+# Attributions
+
+Sprites - [Kenney RPG Urban Pack](https://kenney.nl/assets/rpg-urban-pack)

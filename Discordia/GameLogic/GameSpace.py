@@ -82,7 +82,7 @@ class WaterTerrain(Terrain):
 class MountainTerrain(Terrain):
     id = 4
     walkable = True
-    sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
+    sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
 
 
 class IndustryType(ABC):
