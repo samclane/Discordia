@@ -229,6 +229,7 @@ class PlayerActionResponse:
 class WorldGenerationParameters:
     resolution_constant: float = 0.2
     water: float = .1
+    grass: float = .3
     mountains: float = .7
     wilds: float = .1
     towns: float = .003
@@ -261,8 +262,10 @@ class World:
                 (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
         mountain_slice = random.random()
+        grass_slice = random.random()
         water_threshold = self.gen_params.water  # Higher water-factor -> more water on map
         mountain_threshold = self.gen_params.mountains  # Lower mountain_thresh -> less mountains
+        grass_threshold = self.gen_params.grass
         for x in range(self.width):
             for y in range(self.height):
                 # Land and water pass
@@ -273,6 +276,10 @@ class World:
                 if abs(pnoise3(x / resolution, y / resolution, mountain_slice)) > mountain_threshold and self.map[y][
                     x].terrain.walkable:
                     self.map[y][x] = Space(x, y, MountainTerrain())
+
+                # Grass pass
+                if abs(pnoise3(x / resolution, y / resolution, grass_slice)) > grass_threshold:
+                    self.map[y][x] = Space(x, y, GrassTerrain())
 
                 if self.is_space_buildable(self.map[y][x]):
                     if random.random() <= self.gen_params.towns:
