@@ -329,10 +329,49 @@ class DiscordInterface(commands.Cog):
     async def buy(self, ctx: Context, index: int = None):
         if index is None:
             await ctx.send("You must give an item index to buy.")
-        LOG.info("DEBUG: `Buy` called")
+        else:
+            member = ctx.author
+            try:
+                character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+                town: GameSpace.Town = character.location
+                if self.world_adapter.is_town(character.location):
+                    if town.store is not None:
+                        if town.store.sell_item(index, character):
+                            await ctx.send(f"Item successfully bought.")
+                        else:
+                            await ctx.send(f"Not enough money")
+                    else:
+                        await ctx.send("Town doesn't have a store.")
+                else:
+                    await ctx.send("Please enter a town before trying to buy.")
+            except NotRegisteredException:
+                LOG.warning(f"Player {member.display_name} not registered: Tried to access `inn`")
+                await ctx.send(
+                    f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                    f"to create a character.")
 
     @store.command()
     async def sell(self, ctx:  Context, index: int = None):
         if index is None:
             await ctx.send("You must give an item index to sell.")
-        LOG.info("DEBUG: `Sell` called")
+        else:
+            member = ctx.author
+            try:
+                character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+                item: Equipment = character.inventory[index]
+                town: GameSpace.Town = character.location
+                if self.world_adapter.is_town(character.location):
+                    if town.store is not None:
+                        price = town.store.buy_item(item, character)
+                        await ctx.send(f"Successfully sold {item.name} for ${price}.")
+                    else:
+                        await ctx.send("Town doesn't have a store.")
+                else:
+                    await ctx.send("Please enter a town before trying to buy.")
+            except IndexError:
+                await ctx.send(f"Invalid index {index} given.")
+            except NotRegisteredException:
+                LOG.warning(f"Player {member.display_name} not registered: Tried to access `inn`")
+                await ctx.send(
+                    f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                    f"to create a character.")

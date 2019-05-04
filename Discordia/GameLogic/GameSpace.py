@@ -128,6 +128,7 @@ class Space(ABC):
         self.y: int = y
         self.terrain: Terrain = terrain
         self.sprite_path = SPRITE_FOLDER / "null_tile.png"
+        self.name = str(self)
 
     def __str__(self):
         return "({}, {})".format(self.x, self.y)
