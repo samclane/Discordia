@@ -44,7 +44,9 @@ class MainWindow(arcade.Window):
 
         # Set the viewport boundaries
         self.view_left = 0
+        self.view_left_change = 0
         self.view_bottom = 0
+        self.view_bottom_change = 0
 
         self.fps = FPSCounter()
 
@@ -89,24 +91,31 @@ class MainWindow(arcade.Window):
         arcade.draw_text(output, self.view_left + 10, self.view_bottom + 10, arcade.color.BLACK, 16)
         self.fps.tick()
 
+        arcade.set_viewport(self.view_left,
+                            DISPLAY_WIDTH + self.view_left,
+                            self.view_bottom,
+                            DISPLAY_HEIGHT + self.view_bottom)
+
     def on_key_press(self, symbol: int, modifiers: int):
         # Track if we need to change the viewport
-        changed = False
         if symbol == arcade.key.UP:
-            self.view_bottom += DISPLAY_SCROLL_SPEED
-            changed = True
+            self.view_bottom_change = DISPLAY_SCROLL_SPEED
         elif symbol == arcade.key.DOWN:
-            self.view_bottom -= DISPLAY_SCROLL_SPEED
-            changed = True
+            self.view_bottom_change = -DISPLAY_SCROLL_SPEED
         elif symbol == arcade.key.LEFT:
-            self.view_left -= DISPLAY_SCROLL_SPEED
-            changed = True
+            self.view_left_change = -DISPLAY_SCROLL_SPEED
         elif symbol == arcade.key.RIGHT:
-            self.view_left += DISPLAY_SCROLL_SPEED
-            changed = True
-        if changed:
+            self.view_left_change = DISPLAY_SCROLL_SPEED
+
+    def on_key_release(self, symbol: int, modifiers: int):
+        self.view_left_change = 0
+        self.view_bottom_change = 0
+
+    def update(self, delta_time: float):
+        self.view_bottom += self.view_bottom_change
+        self.view_left += self.view_left_change
+        if self.view_left_change != 0 or self.view_bottom_change != 0:
             arcade.set_viewport(self.view_left,
                                 DISPLAY_WIDTH + self.view_left,
                                 self.view_bottom,
                                 DISPLAY_HEIGHT + self.view_bottom)
-        # TODO Allow key-holding by using the update() method
