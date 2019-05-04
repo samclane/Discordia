@@ -97,7 +97,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            msg = f"Your coordinates are {character.location}. "
+            msg = f"Your coordinates are {character.location}. The terrain is {character.location.terrain.name}-y. "
             if self.world_adapter.is_town(character.location):
                 msg += f"You are also in a town, {character.location.name}. "
             if self.world_adapter.is_wilds(character.location):

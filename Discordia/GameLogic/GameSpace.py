@@ -54,35 +54,44 @@ class Terrain(ABC):
     def sprite_path(self) -> str:
         raise NotImplementedError
 
+    @property
+    def name(self) -> str:
+        raise NotImplementedError
+
 
 class NullTerrain(Terrain):
     id = 0
     walkable = False
     sprite_path = SPRITE_FOLDER / "null_tile.png"
+    name = "Null"
 
 
 class SandTerrain(Terrain):
     id = 1
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
+    name = "Sand"
 
 
 class GrassTerrain(Terrain):
     id = 2
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
+    name = "Grass"
 
 
 class WaterTerrain(Terrain):
     id = 3
     walkable = False
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
+    name = "Water"
 
 
 class MountainTerrain(Terrain):
     id = 4
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
+    name = "Mountain"
 
 
 class IndustryType(ABC):
