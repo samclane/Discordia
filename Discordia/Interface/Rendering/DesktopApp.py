@@ -53,20 +53,20 @@ class MainWindow(arcade.Window):
         # Statically build world sprites
         for space in self.world_adapter.iter_spaces():
             sprite = arcade.Sprite(space.terrain.sprite_path)
-            sprite.right = space.x * sprite.width
-            sprite.top = space.y * sprite.height
+            sprite.left = space.x * sprite.width
+            sprite.bottom = space.y * sprite.height
             self.terrain_list.append(sprite)
 
             if self.world_adapter.is_town(space):
                 sprite = arcade.Sprite(space.sprite_path)
-                sprite.right = space.x * sprite.width
-                sprite.top = space.y * sprite.height
+                sprite.left = space.x * sprite.width
+                sprite.bottom = space.y * sprite.height
                 self.town_list.append(sprite)
 
             elif self.world_adapter.is_wilds(space):
                 sprite = arcade.Sprite(space.sprite_path)
-                sprite.right = space.x * sprite.width
-                sprite.top = space.y * sprite.height
+                sprite.left = space.x * sprite.width
+                sprite.bottom = space.y * sprite.height
                 self.wilds_list.append(sprite)
 
             # TODO Finish drawing static content.
@@ -81,8 +81,8 @@ class MainWindow(arcade.Window):
 
         for player in self.world_adapter.iter_players():
             sprite = arcade.Sprite(player.sprite_path)
-            sprite.right = player.location.x * sprite.width
-            sprite.top = player.location.y * sprite.height
+            sprite.left = player.location.x * sprite.width
+            sprite.bottom = player.location.y * sprite.height
             sprite.draw()
 
         # Calculate FPS

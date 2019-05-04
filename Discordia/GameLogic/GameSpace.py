@@ -278,7 +278,7 @@ class World:
                     self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
 
     def is_space_valid(self, space: Space) -> bool:
-        return (0 < space.x < self.width - 1) and (0 < space.y < self.height - 1) and space.terrain.walkable
+        return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
 
     def is_space_buildable(self, space: Space) -> bool:
         if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
