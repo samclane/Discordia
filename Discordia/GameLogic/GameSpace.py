@@ -186,14 +186,21 @@ class Town(Space):
 
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
                  terrain: Terrain = NullTerrain(), store: Items.Store = None) -> None:
-        super(Town, self).__init__(x, y)
+        super(Town, self).__init__(x, y, terrain)
         self.name = name
         self.population = population
         self.industry = industry
-        self.terrain = terrain
         self.store = store
         self.is_underwater = isinstance(self.terrain, WaterTerrain)
         self.sprite_path = SPRITE_FOLDER / "Structures" / "town_default.png"
+
+    @classmethod
+    def generate_town(cls, x, y, terrain):
+        name = TownNameGenerator.generate_name()
+        population = random.randint(1, 1000)
+        industry = random.choice(IndustryType.__subclasses__())
+        store = Items.Store()  # TODO gen inventory
+        return cls(x, y, name, population, industry, terrain, store)
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
@@ -293,7 +300,7 @@ class World:
                 if self.is_space_buildable(self.map[y][x]):
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(Town(x, y, TownNameGenerator.generate_name()), self.starting_town is None)
+                        self.add_town(Town.generate_town(x, y, self.map[y][x].terrain), self.starting_town is None)
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
 

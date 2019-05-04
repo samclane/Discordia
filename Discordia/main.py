@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import pickle
 import threading
 from typing import Dict
@@ -25,12 +26,12 @@ def main():
     adapter = WorldAdapter(world)
 
     discord_interface = DiscordInterface(adapter)
-    discord_thread = threading.Thread(target=lambda: discord_interface.bot.run(ConfigParser.DISCORD_TOKEN))
+    discord_thread = threading.Thread(target=lambda: discord_interface.bot.run(ConfigParser.DISCORD_TOKEN), daemon=True)
     threads["discord_thread"] = discord_thread
     discord_thread.start()
 
     display = MainWindow(adapter)
-    arcade.run()
+    sys.exit(arcade.run())
 
 
 if __name__ == '__main__':
