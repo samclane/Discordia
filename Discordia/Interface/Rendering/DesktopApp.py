@@ -100,16 +100,19 @@ class MainWindow(arcade.Window):
         # Track if we need to change the viewport
         if symbol == arcade.key.UP:
             self.view_bottom_change = DISPLAY_SCROLL_SPEED
-        elif symbol == arcade.key.DOWN:
+        if symbol == arcade.key.DOWN:
             self.view_bottom_change = -DISPLAY_SCROLL_SPEED
-        elif symbol == arcade.key.LEFT:
+        if symbol == arcade.key.LEFT:
             self.view_left_change = -DISPLAY_SCROLL_SPEED
-        elif symbol == arcade.key.RIGHT:
+        if symbol == arcade.key.RIGHT:
             self.view_left_change = DISPLAY_SCROLL_SPEED
 
     def on_key_release(self, symbol: int, modifiers: int):
-        self.view_left_change = 0
-        self.view_bottom_change = 0
+        if symbol == arcade.key.UP or symbol == arcade.key.DOWN:
+            self.view_bottom_change = 0
+        if symbol == arcade.key.LEFT or symbol == arcade.key.RIGHT:
+            self.view_left_change = 0
+
 
     def update(self, delta_time: float):
         self.view_bottom += self.view_bottom_change

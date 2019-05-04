@@ -227,9 +227,11 @@ class PlayerActionResponse:
 
 @dataclass
 class WorldGenerationParameters:
+    resolution_constant: float = 0.2
     water: float = .1
     mountains: float = .7
     wilds: float = .1
+    towns: float = .003
 
 
 class World:
@@ -255,7 +257,7 @@ class World:
         pickle.dump(self, open("world.p", "wb"))
 
     def generate_map(self):
-        resolution = 0.2 * (
+        resolution = self.gen_params.resolution_constant * (
                 (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
         mountain_slice = random.random()
@@ -272,11 +274,12 @@ class World:
                     x].terrain.walkable:
                     self.map[y][x] = Space(x, y, MountainTerrain())
 
-                if self.starting_town is None and self.is_space_buildable(self.map[y][x]):
-                    # Just puts town in first valid spot. Not very interesting.
-                    self.add_town(Town(x, y, TownNameGenerator.generate_name()), True)
-                elif self.is_space_buildable(self.map[y][x]) and random.random() <= self.gen_params.wilds:
-                    self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
+                if self.is_space_buildable(self.map[y][x]):
+                    if random.random() <= self.gen_params.towns:
+                        # Just puts town in first valid spot. Not very interesting.
+                        self.add_town(Town(x, y, TownNameGenerator.generate_name()), self.starting_town is None)
+                    elif random.random() <= self.gen_params.wilds:
+                        self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
 
     def is_space_valid(self, space: Space) -> bool:
         return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
