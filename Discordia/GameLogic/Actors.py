@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, Any, Union
 
+from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
 
@@ -69,6 +70,10 @@ class AbstractActor(ABC):
     def on_death(self):
         pass
 
+    @property
+    def sprite_path(self) -> str:
+        raise NotImplementedError
+
 
 class Actor(AbstractActor, ABC):
 
@@ -110,6 +115,10 @@ class Actor(AbstractActor, ABC):
     @abstractmethod
     def on_death(self):
         pass
+
+    @property
+    def sprite_path(self) -> str:
+        return SPRITE_FOLDER / "Actors" / "null_actor.png"
 
 
 class NPC(Actor, ABC):

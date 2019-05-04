@@ -97,19 +97,19 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            msg = f"Your coordinates are {character.location}."
+            msg = f"Your coordinates are {character.location}. "
             if self.world_adapter.is_town(character.location):
-                msg += f"You are also in a town, {character.location.name}."
+                msg += f"You are also in a town, {character.location.name}. "
             if self.world_adapter.is_wilds(character.location):
-                msg += "You are also in the wilds."
+                msg += f"You are also in the wilds, {character.location.name}. "
             nearby_npcs = self.world_adapter.get_nearby_npcs(character)
             if nearby_npcs:
                 msg += "There are some NPCs nearby: \n" + \
                        ", ".join([str(npc) for npc in nearby_npcs])
             nearby_players = self.world_adapter.get_nearby_players(character)
-            if nearby_players:
-                msg += "There are also some Players nearby: \n" + \
-                       ", ".join([player.name for player in nearby_players])
+            if len(nearby_players) > 1:
+                msg += "\nThere are also some Players nearby: \n" + \
+                       ", ".join([player.name for player in nearby_players if player.name != character.name])
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `look`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
@@ -173,7 +173,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (0, -1))
+            self.world_adapter.move_player(character, (0, 1))
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `north/up`")
@@ -193,7 +193,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (0, 1))
+            self.world_adapter.move_player(character, (0, -1))
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `south/down`")

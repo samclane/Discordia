@@ -14,6 +14,10 @@ try:
     WORLD_NAME = config['World']['Name']
     WORLD_WIDTH = int(config['World']['Width'])
     WORLD_HEIGHT = int(config['World']['Height'])
+
+    DISPLAY_WIDTH = int(config['Display']['Width'])
+    DISPLAY_HEIGHT = int(config['Display']['Height'])
+    DISPLAY_SCROLL_SPEED = int(config['Display']['ScrollSpeed'])
 except Exception as exc:
     LOG.exception("Error loading config file:")
     raise exc

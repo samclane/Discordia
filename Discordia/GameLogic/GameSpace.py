@@ -11,9 +11,10 @@ import numpy
 from math import sqrt
 from noise import pnoise3
 
+from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
-from Discordia.GameLogic.StringGenerator import TownNameGenerator
+from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
 
 Direction = Tuple[int, int]
 
@@ -49,30 +50,39 @@ class Terrain(ABC):
     def walkable(self) -> bool:
         raise NotImplementedError
 
+    @property
+    def sprite_path(self) -> str:
+        raise NotImplementedError
+
 
 class NullTerrain(Terrain):
     id = 0
     walkable = False
+    sprite_path = SPRITE_FOLDER / "null_tile.png"
 
 
 class SandTerrain(Terrain):
     id = 1
     walkable = True
+    sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
 
 
 class GrassTerrain(Terrain):
     id = 2
     walkable = True
+    sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
 
 
 class WaterTerrain(Terrain):
     id = 3
     walkable = False
+    sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
 
 
 class MountainTerrain(Terrain):
     id = 4
     walkable = True
+    sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
 
 
 class IndustryType(ABC):
@@ -111,12 +121,13 @@ class WoodworkingIndustry(IndustryType):
         return "Woodworking"
 
 
-class Space:
+class Space(ABC):
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
+        self.sprite_path = SPRITE_FOLDER / "null_tile.png"
 
     def __str__(self):
         return "({}, {})".format(self.x, self.y)
@@ -148,7 +159,7 @@ class Space:
         raise ValueError("Item should be either 0 or 1")
 
     def __hash__(self):
-        return hash(self.x) + (10*hash(self.y)) + (100*hash(self.terrain))
+        return hash(self.x) + (10 * hash(self.y)) + (100 * hash(self.terrain))
 
     @classmethod
     def null_space(cls):
@@ -172,6 +183,7 @@ class Town(Space):
         self.terrain = terrain
         self.store = store
         self.is_underwater = isinstance(self.terrain, WaterTerrain)
+        self.sprite_path = SPRITE_FOLDER / "Structures" / "town_default.png"
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
@@ -191,6 +203,7 @@ class Wilds(Space):
         self.null_event: Events.Event = Events.Event(1.0, "Null Event")
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
+        self.sprite_path = SPRITE_FOLDER / "Structures" / "wilds_default.png"
 
     def add_event(self, event: Events.Event):
         self.events.append(event)
@@ -211,17 +224,22 @@ class PlayerActionResponse:
     currency: int
 
 
+@dataclass
+class WorldGenerationParameters:
+    water: float = .1
+    mountains: float = .7
+    wilds: float = .1
+
+
 class World:
 
-    def __init__(self, name: str, width: int, height: int, water_height: float = .1, mountain_floor: float = .7):
+    def __init__(self, name: str, width: int, height: int,
+                 generation_parameters: WorldGenerationParameters = WorldGenerationParameters()):
         super().__init__()
         self.name: str = name
         self.width: int = width
         self.height: int = height
-        self.generationParams: Dict[str, float] = {
-            "water": water_height,
-            "mountains": mountain_floor
-        }
+        self.gen_params: WorldGenerationParameters = generation_parameters
         self.map: List[List[Space]] = [[Space(x, y, Terrain()) for x in range(width)] for y in
                                        range(height)]
         self.towns: List[Town] = []
@@ -240,8 +258,8 @@ class World:
                 (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
         mountain_slice = random.random()
-        water_threshold = self.generationParams["water"]  # Higher water-factor -> more water on map
-        mountain_threshold = self.generationParams["mountains"]  # Lower mountain_thresh -> less mountains
+        water_threshold = self.gen_params.water  # Higher water-factor -> more water on map
+        mountain_threshold = self.gen_params.mountains  # Lower mountain_thresh -> less mountains
         for x in range(self.width):
             for y in range(self.height):
                 # Land and water pass
@@ -256,6 +274,8 @@ class World:
                 if self.starting_town is None and self.is_space_buildable(self.map[y][x]):
                     # Just puts town in first valid spot. Not very interesting.
                     self.add_town(Town(x, y, TownNameGenerator.generate_name()), True)
+                elif self.is_space_buildable(self.map[y][x]) and random.random() <= self.gen_params.wilds:
+                    self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
 
     def is_space_valid(self, space: Space) -> bool:
         return (0 < space.x < self.width - 1) and (0 < space.y < self.height - 1) and space.terrain.walkable
@@ -296,11 +316,12 @@ class World:
         common_locations: List[Space] = list(set(npc_locations.values()).intersection(spaces))
         npcs: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
         return npcs
-    
+
     def get_players_in_region(self, spaces: List[Space]) -> List[Actors.PlayerCharacter]:
         player_locations: Dict[Actors.PlayerCharacter, Space] = {player: player.location for player in self.players}
         common_locations: List[Space] = list(set(player_locations.values()).intersection(spaces))
-        players: List[Actors.PlayerCharacter] = [player for player in self.players if player.location in common_locations]
+        players: List[Actors.PlayerCharacter] = [player for player in self.players if
+                                                 player.location in common_locations]
         return players
 
     def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
@@ -326,7 +347,7 @@ class World:
                     break
                 if direction == (0, 0):
                     response.text = "No other players in current square. " \
-                                              "Specify a direction (n,s,e,w,ne,se,sw,nw))"
+                                    "Specify a direction (n,s,e,w,ne,se,sw,nw))"
                     break
                 loc += direction
                 loc = self.map[loc.y][loc.x]

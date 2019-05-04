@@ -1,6 +1,6 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
-
-from typing import Dict, Tuple, List
+from itertools import chain
+from typing import Dict, Tuple, List, Iterator
 
 from Discordia.GameLogic import Actors
 from Discordia.GameLogic.GameSpace import World, Space, Town, Wilds, Direction, PlayerActionResponse
@@ -33,6 +33,7 @@ class NoWeaponEquippedException(ItemRequirementException):
 
 class RangedAttackException(Exception):
     pass
+
 
 class CombatException(Exception):
     pass
@@ -100,3 +101,11 @@ class WorldAdapter:
         if not response.is_successful:
             raise CombatException(response.text)
         return response
+
+    def iter_spaces(self) -> Iterator[Space]:
+        for space in list(chain.from_iterable(self.world.map)):
+            yield space
+
+    def iter_players(self) -> Iterator[Actors.PlayerCharacter]:
+        for player in self._discord_player_map.values():
+            yield player

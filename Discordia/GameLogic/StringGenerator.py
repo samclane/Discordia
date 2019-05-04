@@ -1,30 +1,12 @@
 import random
+from abc import ABC
 from typing import List
 
 
-class TownNameGenerator:
-    _prefixes: List[str] = [
-        "New",
-        "Old",
-        "Lost"
-    ]
-
-    _roots: List[str] = [
-        "Luxem",
-        "Rodder",
-        "Halls",
-        "Alds",
-        "Brax"
-    ]
-
-    _postfixes: List[str] = [
-        "burg",
-        "borough",
-        "ton",
-        "town",
-        "ville",
-        "brooke"
-    ]
+class NameGenerator(ABC):
+    _prefixes: List[str]
+    _roots: List[str]
+    _postfixes: List[str]
 
     @classmethod
     def generate_name(cls) -> str:
@@ -34,3 +16,50 @@ class TownNameGenerator:
         name += random.choice(cls._roots)
         name += random.choice(cls._postfixes)
         return name
+
+
+class TownNameGenerator(NameGenerator):
+    _prefixes = [
+        "New",
+        "Old",
+        "Lost"
+    ]
+
+    _roots = [
+        "Luxem",
+        "Rodder",
+        "Halls",
+        "Alds",
+        "Brax"
+    ]
+
+    _postfixes = [
+        "burg",
+        "borough",
+        "ton",
+        "town",
+        "ville",
+        "brooke"
+    ]
+
+
+class WildsNameGenerator(NameGenerator):
+    _prefixes = [
+        "The",
+        "A",
+    ]
+
+    _roots = [
+        "Dark ",
+        "Foreboding ",
+        "Evil ",
+    ]
+
+    _postfixes = [
+        "Forrest",
+        "Swamp",
+        "Bog",
+        "Fen",
+        "Marsh"
+    ]
+
