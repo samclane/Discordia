@@ -45,4 +45,5 @@ class TestGeneral(unittest.TestCase):
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         adapter = WorldAdapter(world)
         window = DesktopApp.MainWindow(adapter)
+        window.test()
         arcade.quick_run(1)
