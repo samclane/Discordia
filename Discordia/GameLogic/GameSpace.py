@@ -266,7 +266,7 @@ class World:
         self.width: int = width
         self.height: int = height
         self.gen_params: WorldGenerationParameters = generation_parameters
-        self.map: List[List[Space]] = [[Space(x, y, Terrain()) for x in range(width)] for y in
+        self.map: List[List[Space]] = [[Space(x, y, NullTerrain()) for x in range(width)] for y in
                                        range(height)]
         self.towns: List[Town] = []
         self.wilds: List[Wilds] = []

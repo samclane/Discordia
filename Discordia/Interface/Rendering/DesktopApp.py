@@ -56,6 +56,8 @@ class MainWindow(arcade.Window):
 
         self.fps = FPSCounter()
 
+        self._draw_callback = lambda: None
+
         # Statically build world sprites
         for space in self.world_adapter.iter_spaces():
             sprite = arcade.Sprite(space.terrain.sprite_path)
@@ -87,6 +89,8 @@ class MainWindow(arcade.Window):
         self.town_list.draw()
         self.wilds_list.draw()
 
+        self._draw_callback()
+
         for player in self.world_adapter.iter_players():
             sprite = arcade.Sprite(player.sprite_path)
             sprite.left = player.location.x * sprite.width
@@ -115,7 +119,6 @@ class MainWindow(arcade.Window):
         if symbol == arcade.key.RIGHT:
             self.view_left_change = DISPLAY_SCROLL_SPEED
         if symbol == arcade.key.S:
-            LOG.info("`S` pressed, saving screenshot.")
             player: Actors.PlayerCharacter = next(self.world_adapter.iter_players())
             if player is not None:
                 self.get_player_view(player)
@@ -143,7 +146,13 @@ class MainWindow(arcade.Window):
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
         x = max(top_left_tile.x * self.base_cell_width, 0)
         y = max(top_left_tile.y * self.base_cell_height, 0)
-        player_view = arcade.get_image(x, y, ((character.fov * 2) + 1) * self.base_cell_width,
-                                       ((character.fov * 2) + 1) * self.base_cell_height)
+        width = ((character.fov * 2) + 1) * self.base_cell_width
+        height = ((character.fov * 2) + 1) * self.base_cell_height
+
+        # Debugging
+        LOG.info(f"Getting PlayerView: {character.name} {x} {y} {width} {height}")
+        self._draw_callback = lambda: arcade.draw_rectangle_outline(x+width/2, y+height/2, width, height, arcade.color.BLACK)
+
+        player_view = arcade.get_image(x, y, width, height)
         player_view.save(Path(f'./PlayerViews/{character.name}_screenshot.png'), 'PNG')
         # TODO Sometimes returns a blank view

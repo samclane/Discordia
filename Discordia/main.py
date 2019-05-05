@@ -25,12 +25,13 @@ def main():
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
     adapter = WorldAdapter(world)
 
+    display = MainWindow(adapter)
+
     discord_interface = DiscordInterface(adapter)
     discord_thread = threading.Thread(target=lambda: discord_interface.bot.run(ConfigParser.DISCORD_TOKEN), daemon=True)
     threads["discord_thread"] = discord_thread
     discord_thread.start()
 
-    display = MainWindow(adapter)
     sys.exit(arcade.run())
 
 
