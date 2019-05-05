@@ -156,6 +156,12 @@ class Space(ABC):
             return Space(self.x + other.x, self.y + other.y, other.terrain)
         else:
             return Space(self.x + int(other[0]), self.y + int(other[1]), NullTerrain())
+        
+    def __sub__(self, other):
+        if isinstance(other, Space):
+            return Space(self.x - other.x, self.y - other.y, other.terrain)
+        else:
+            return Space(self.x - int(other[0]), self.y - int(other[1]), NullTerrain())
 
     def __iter__(self):
         yield self.x
@@ -173,7 +179,7 @@ class Space(ABC):
 
     @classmethod
     def null_space(cls):
-        return cls(-1, -1)
+        return cls(1, 1)
 
     def distance(self, other) -> float:
         if isinstance(other, Space):

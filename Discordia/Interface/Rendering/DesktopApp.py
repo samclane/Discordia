@@ -3,12 +3,18 @@ Holds classes for the basic window and rendering surface for a Desktop view. Ima
 Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
 """
 import collections
+import logging
 import time
+from pathlib import Path
 
 import arcade
 
 from Discordia.ConfigParser import DISPLAY_WIDTH, DISPLAY_HEIGHT, WORLD_NAME, DISPLAY_SCROLL_SPEED
+from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.WorldAdapter import WorldAdapter
+
+
+LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 
 
 class FPSCounter:
@@ -38,7 +44,7 @@ class MainWindow(arcade.Window):
 
         self.world_adapter = world_adapter
 
-        self.terrain_list = arcade.SpriteList(use_spatial_hash=True)
+        self.terrain_list = arcade.SpriteList()
         self.town_list = arcade.SpriteList()
         self.wilds_list = arcade.SpriteList()
 
@@ -70,6 +76,8 @@ class MainWindow(arcade.Window):
                 self.wilds_list.append(sprite)
 
             # TODO Finish drawing static content.
+        self.base_cell_width = self.terrain_list[0].width
+        self.base_cell_height = self.terrain_list[0].height
 
     def on_draw(self):
         arcade.start_render()
@@ -106,13 +114,19 @@ class MainWindow(arcade.Window):
             self.view_left_change = -DISPLAY_SCROLL_SPEED
         if symbol == arcade.key.RIGHT:
             self.view_left_change = DISPLAY_SCROLL_SPEED
+        if symbol == arcade.key.S:
+            LOG.info("`S` pressed, saving screenshot.")
+            player: Actors.PlayerCharacter = next(self.world_adapter.iter_players())
+            if player is not None:
+                self.get_player_view(player)
+            else:
+                raise Exception("Player is None")
 
     def on_key_release(self, symbol: int, modifiers: int):
         if symbol == arcade.key.UP or symbol == arcade.key.DOWN:
             self.view_bottom_change = 0
         if symbol == arcade.key.LEFT or symbol == arcade.key.RIGHT:
             self.view_left_change = 0
-
 
     def update(self, delta_time: float):
         self.view_bottom += self.view_bottom_change
@@ -122,3 +136,14 @@ class MainWindow(arcade.Window):
                                 DISPLAY_WIDTH + self.view_left,
                                 self.view_bottom,
                                 DISPLAY_HEIGHT + self.view_bottom)
+
+    def get_player_view(self, character: Actors.PlayerCharacter):
+        # Need to find top left (x,y) of pixel in fov
+        # Find tile first
+        top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
+        x = max(top_left_tile.x * self.base_cell_width, 0)
+        y = max(top_left_tile.y * self.base_cell_height, 0)
+        player_view = arcade.get_image(x, y, ((character.fov * 2) + 1) * self.base_cell_width,
+                                       ((character.fov * 2) + 1) * self.base_cell_height)
+        player_view.save(Path(f'./PlayerViews/{character.name}_screenshot.png'), 'PNG')
+        # TODO Sometimes returns a blank view
