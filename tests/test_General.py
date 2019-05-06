@@ -2,6 +2,8 @@ import logging
 import unittest
 import threading
 import os
+from PIL import Image
+from pathlib import Path
 
 import arcade
 
@@ -47,3 +49,18 @@ class TestGeneral(unittest.TestCase):
         window = DesktopApp.MainWindow(adapter)
         window.test()
         arcade.quick_run(1)
+
+    def test_screenshot(self):
+        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+        adapter = WorldAdapter(world)
+        window = DesktopApp.MainWindow(adapter)
+
+        adapter.register_player(123, "<test>")
+        actor = adapter.get_player(123)
+        window.test()
+        window.get_player_view(actor)
+
+        im: Image = Image.open(Path("./PlayerViews/test_screenshot.png"))
+        a = im.getpixel((0, 0))[3]  # alpha (transparency) layer
+
+        self.assertNotEqual(a, 0, "Transparent screenshot taken.")

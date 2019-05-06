@@ -6,6 +6,7 @@ import collections
 import logging
 import time
 from pathlib import Path
+import re
 
 import arcade
 
@@ -154,5 +155,6 @@ class MainWindow(arcade.Window):
         self._draw_callback = lambda: arcade.draw_rectangle_outline(x+width/2, y+height/2, width, height, arcade.color.BLACK)
 
         player_view = arcade.get_image(x, y, width, height)
-        player_view.save(Path(f'./PlayerViews/{character.name}_screenshot.png'), 'PNG')
+        safename = ''.join([c for c in character.name if c not in ['<', '>', '\\', '/']])
+        player_view.save(Path(f'./PlayerViews/{safename}_screenshot.png'), 'PNG')
         # TODO Sometimes returns a blank view

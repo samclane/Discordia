@@ -53,6 +53,9 @@ class WorldAdapter:
         if self.is_registered(member_id):
             raise AlreadyRegisteredException("Member is already registered!")
 
+        # Forcibly strip evil characters
+        player_name = ''.join([c for c in player_name if c not in ['<', '>', '\\', '/']])
+
         # Create new PlayerCharacter and add him into the existing world
         new_player = Actors.PlayerCharacter(parent_world=self.world, name=player_name)
         self._discord_player_map[member_id] = new_player
