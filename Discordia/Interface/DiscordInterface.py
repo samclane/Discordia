@@ -110,13 +110,14 @@ class DiscordInterface(commands.Cog):
             if len(nearby_players) > 1:
                 msg += "\nThere are also some Players nearby: \n" + \
                        ", ".join([player.name for player in nearby_players if player.name != character.name])
+            screenshot_path = self.world_adapter.get_player_screenshot(character)
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `look`")
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
         else:
-            await ctx.send(msg)
-            # TODO Generate + send image
+            discord_file = discord.File(screenshot_path)
+            await ctx.send(msg, file=discord_file)
 
     @commands.group()
     async def inventory(self, ctx: Context):

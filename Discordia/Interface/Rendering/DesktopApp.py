@@ -2,18 +2,17 @@
 Holds classes for the basic window and rendering surface for a Desktop view. Image rendering should be independent.
 Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
 """
+from __future__ import annotations
+
 import collections
 import logging
 import time
 from pathlib import Path
-import re
 
 import arcade
 
 from Discordia.ConfigParser import DISPLAY_WIDTH, DISPLAY_HEIGHT, WORLD_NAME, DISPLAY_SCROLL_SPEED
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.Interface.WorldAdapter import WorldAdapter
-
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 
@@ -40,10 +39,11 @@ class FPSCounter:
 
 
 class MainWindow(arcade.Window):
-    def __init__(self, world_adapter: WorldAdapter):
-        super().__init__(width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT, title=f"Discordia: {WORLD_NAME}")
+    def __init__(self, world_adapter: WorldAdapter, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT):
+        super().__init__(width=width, height=height, title=f"Discordia: {WORLD_NAME}")
 
         self.world_adapter = world_adapter
+        self.world_adapter.add_renderer(self)
 
         self.terrain_list = arcade.SpriteList()
         self.town_list = arcade.SpriteList()
@@ -141,10 +141,12 @@ class MainWindow(arcade.Window):
                                 self.view_bottom,
                                 DISPLAY_HEIGHT + self.view_bottom)
 
-    def get_player_view(self, character: Actors.PlayerCharacter):
+    def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         # Need to find top left (x,y) of pixel in fov
         # Find tile first
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
+
+        # Then convert game-coordinates to pixel (x, y, width, height)
         x = max(top_left_tile.x * self.base_cell_width, 0)
         y = max(top_left_tile.y * self.base_cell_height, 0)
         width = ((character.fov * 2) + 1) * self.base_cell_width
@@ -152,9 +154,11 @@ class MainWindow(arcade.Window):
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x} {y} {width} {height}")
-        self._draw_callback = lambda: arcade.draw_rectangle_outline(x+width/2, y+height/2, width, height, arcade.color.BLACK)
+        #self._draw_callback = lambda: arcade.draw_rectangle_outline(x + width / 2, y + height / 2, width, height,
+        #                                                            arcade.color.BLACK)
 
+        # Take and save image
         player_view = arcade.get_image(x, y, width, height)
-        safename = ''.join([c for c in character.name if c not in ['<', '>', '\\', '/']])
-        player_view.save(Path(f'./PlayerViews/{safename}_screenshot.png'), 'PNG')
-        # TODO Sometimes returns a blank view
+        img_path = Path(f'./PlayerViews/{character.name}_screenshot.png')
+        player_view.save(img_path, 'PNG')
+        return str(img_path)

@@ -1,11 +1,8 @@
+import asyncio
 import logging
 import os
-import sys
 import pickle
-import threading
-from typing import Dict
 
-import arcade
 
 from Discordia import ConfigParser
 from Discordia.GameLogic import GameSpace
@@ -16,9 +13,12 @@ from Discordia.Interface.Rendering.DesktopApp import MainWindow
 LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
+async def update_display(display):
+    while True:
+        display.on_draw()
+        await asyncio.sleep(1/30)
 
 def main():
-    threads: Dict[str, threading.Thread] = {}
     if os.path.isfile(r'./world.p'):
         world: GameSpace.World = pickle.load(open(r'./world.p', 'rb'))
     else:
@@ -26,13 +26,16 @@ def main():
     adapter = WorldAdapter(world)
 
     display = MainWindow(adapter)
+    display.set_visible(0)
+    display.on_draw()
 
     discord_interface = DiscordInterface(adapter)
-    discord_thread = threading.Thread(target=lambda: discord_interface.bot.run(ConfigParser.DISCORD_TOKEN), daemon=True)
-    threads["discord_thread"] = discord_thread
-    discord_thread.start()
+    discord_interface.bot.loop.create_task(update_display(display))
+    discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+    # sys.exit(arcade.run())
+    # TODO Figure out how to exit
+    # TODO Add an arcade window for viewing the world render
 
-    sys.exit(arcade.run())
 
 
 if __name__ == '__main__':

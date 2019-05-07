@@ -1,4 +1,5 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
+from __future__ import annotations
 from itertools import chain
 from typing import Dict, Tuple, List, Iterator
 
@@ -43,9 +44,13 @@ class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
     """
-    def __init__(self, gameworld: World = None):
+    def __init__(self, gameworld: World):
         self.world: World = gameworld
+        self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
+
+    def add_renderer(self, window):
+        self._renderer = window
 
     def register_player(self, member_id: int, player_name: str):
         if not self.world:
@@ -112,3 +117,8 @@ class WorldAdapter:
     def iter_players(self) -> Iterator[Actors.PlayerCharacter]:
         for player in self._discord_player_map.values():
             yield player
+
+    def get_player_screenshot(self, character: Actors.PlayerCharacter) -> str:
+        if self._renderer is not None:
+            path = self._renderer.get_player_view(character)
+            return path
