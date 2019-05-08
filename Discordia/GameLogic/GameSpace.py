@@ -156,7 +156,7 @@ class Space(ABC):
             return Space(self.x + other.x, self.y + other.y, other.terrain)
         else:
             return Space(self.x + int(other[0]), self.y + int(other[1]), NullTerrain())
-        
+
     def __sub__(self, other):
         if isinstance(other, Space):
             return Space(self.x - other.x, self.y - other.y, other.terrain)
@@ -193,12 +193,12 @@ class Town(Space):
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
                  terrain: Terrain = NullTerrain(), store: Items.Store = None) -> None:
         super(Town, self).__init__(x, y, terrain)
-        self.name = name
-        self.population = population
-        self.industry = industry
-        self.store = store
-        self.is_underwater = isinstance(self.terrain, WaterTerrain)
-        self.sprite_path = SPRITE_FOLDER / "Structures" / "town_default.png"
+        self.name: str = name
+        self.population: int = population
+        self.industry: IndustryType = industry
+        self.store: Items.Store = store
+        self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
+        self.sprite_path: str = SPRITE_FOLDER / "Structures" / "town_default.png"
 
     @classmethod
     def generate_town(cls, x, y, terrain):
@@ -223,7 +223,7 @@ class Wilds(Space):
     def __init__(self, x, y, name):
         super(Wilds, self).__init__(x, y)
         self.name: str = name
-        self.null_event: Events.Event = Events.Event(1.0, "Null Event")
+        self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
         self.sprite_path = SPRITE_FOLDER / "Structures" / "wilds_default.png"

@@ -1,10 +1,10 @@
-from Discordia.GameLogic.Items import Armor, HeadArmor, ChestArmor, LegArmor, FootArmor, MainHandEquipment, \
-    OffHandEquipment, FullyImplemented
 from random import random
+
+from Discordia.GameLogic.Items import HeadArmor, FullyImplemented
 
 
 class Helmet(HeadArmor):
-    def __init__(self, coverage: float = 0., *args, **kwargs):
+    def __init__(self, *args, coverage: float = 0., **kwargs):
         super().__init__(*args, **kwargs)
         self.coverage = coverage  # Pct. of head the helmet covers. [0, 1]
 

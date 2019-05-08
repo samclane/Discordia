@@ -63,3 +63,42 @@ class WildsNameGenerator(NameGenerator):
         "Marsh"
     ]
 
+
+class CharacterNameGenerator(NameGenerator):
+    _roots = [
+        "",
+        "A. ",
+        "F. ",
+    ]
+
+    _postfixes = [
+        "Smith",
+        "Jones",
+        "Lee"
+    ]
+
+    @classmethod
+    def male_name(cls):
+        cls._prefixes = [
+            "Matthew",
+            "Mark",
+            "Luke",
+            "John"
+        ]
+
+        cls._roots.append("Son of ")
+
+        return cls()
+
+    @classmethod
+    def female_name(cls):
+        cls._prefixes = [
+            "Susan",
+            "Karen",
+            "Jessie",
+            "Sarah"
+        ]
+
+        cls._roots.append("Daughter of ")
+
+        return cls()

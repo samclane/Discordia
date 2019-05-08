@@ -1,5 +1,6 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
 from __future__ import annotations
+
 from itertools import chain
 from typing import Dict, Tuple, List, Iterator
 
@@ -44,6 +45,7 @@ class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
     """
+
     def __init__(self, gameworld: World):
         self.world: World = gameworld
         self._renderer = None
@@ -97,7 +99,8 @@ class WorldAdapter:
     def get_nearby_players(self, character: Actors.PlayerCharacter) -> List[Actors.PlayerCharacter]:
         location: Space = character.location
         fov: int = character.fov
-        players: List[Actors.PlayerCharacter] = self.world.get_players_in_region(self.world.get_adjacent_spaces(location, fov))
+        players: List[Actors.PlayerCharacter] = self.world.get_players_in_region(
+            self.world.get_adjacent_spaces(location, fov))
         return players
 
     def attack(self, character: Actors.PlayerCharacter, direction: Direction) -> PlayerActionResponse:

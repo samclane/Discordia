@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, Any, Union
 
@@ -50,6 +51,9 @@ class Mechanical(BodyType):
 
 
 class AbstractActor(ABC):
+    """
+    Defines an interface to interact with all generic Actor objects
+    """
 
     def attempt_move(self, shift: Tuple[int, int]) -> bool:
         pass
@@ -77,7 +81,8 @@ class AbstractActor(ABC):
 
 class Actor(AbstractActor, ABC):
 
-    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<Unnamed>", body_type: BodyType = Humanoid()):
+    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<Unnamed>",
+                 body_type: BodyType = Humanoid()):
         self.parent_world = parent_world
         self._hit_points = self.hit_points_max = hp
         self.name = name
@@ -91,12 +96,11 @@ class Actor(AbstractActor, ABC):
         new_space = self.parent_world.map[new_space.y][new_space.x]
         if not self.parent_world.is_space_valid(new_space):
             return False
-        else:
-            self.location = new_space
-            map_space = self.parent_world.map[self.location.y][self.location.x]
-            if isinstance(map_space, GameSpace.Wilds):
-                map_space.run_event(pc=self)
-            return True
+        self.location = new_space
+        map_space = self.parent_world.map[self.location.y][self.location.x]
+        if isinstance(map_space, GameSpace.Wilds):
+            map_space.run_event(pc=self)
+        return True
 
     @property
     def hit_points(self) -> int:
@@ -127,17 +131,16 @@ class NPC(Actor, ABC):
         self.inventory: List[Items.Equipment] = []
         self.flavor_text: str = "<No Flavor Text Set>"
 
+    def on_death(self) -> List[Items.Equipment]:
+        self.location: GameSpace.Space = GameSpace.Space.null_space()
+        return self.inventory
+
 
 class Enemy(NPC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.base_attack: int = 0
         self.abilities: Dict[Any] = {}
-        self.loot: List[Items.Equipment] = []
-
-    def on_death(self) -> List[Items.Equipment]:
-        self.location: GameSpace.Space = GameSpace.Space.null_space()
-        return self.loot
 
 
 class PlayerClass(ABC):
@@ -177,8 +180,7 @@ class PlayerCharacter(Actor):
         wep = self.equipment_set.main_hand
         if not isinstance(wep, Weapons.Weapon):
             return None
-        else:
-            return wep
+        return wep
 
     @property
     def has_weapon_equipped(self) -> bool:
@@ -195,7 +197,6 @@ class PlayerCharacter(Actor):
     def take_damage(self, damage: int):
         damage -= self.equipment_set.armor_count
         self.hit_points -= damage
-        # TODO Finish this
 
     def on_death(self):
         self.parent_world.handle_player_death(self)

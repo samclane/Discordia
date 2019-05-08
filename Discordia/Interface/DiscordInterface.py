@@ -352,7 +352,7 @@ class DiscordInterface(commands.Cog):
                     f"to create a character.")
 
     @store.command()
-    async def sell(self, ctx:  Context, index: int = None):
+    async def sell(self, ctx: Context, index: int = None):
         if index is None:
             await ctx.send("You must give an item index to sell.")
         else:

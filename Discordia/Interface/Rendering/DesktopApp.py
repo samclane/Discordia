@@ -154,7 +154,7 @@ class MainWindow(arcade.Window):
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x} {y} {width} {height}")
-        #self._draw_callback = lambda: arcade.draw_rectangle_outline(x + width / 2, y + height / 2, width, height,
+        # self._draw_callback = lambda: arcade.draw_rectangle_outline(x + width / 2, y + height / 2, width, height,
         #                                                            arcade.color.BLACK)
 
         # Take and save image

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import uuid
 from abc import ABC
 from typing import List
@@ -8,19 +9,23 @@ from Discordia.GameLogic import Actors
 
 class Event(ABC):
 
-    def __init__(self, probability: float, flavor: str):
+    def __init__(self, probability: float, flavor_text: str):
         self.probability: float = probability
         self.uid: str = str(uuid.uuid4())
-        self.flavor_text: str = flavor
+        self.flavor_text: str = flavor_text
 
-    def run(self, player_character):
-        print("Error: Tried to run a generic event or class didn't implement run. Please use an event subclass.")
+    @classmethod
+    def null_event(cls):
+        return cls(1.0, "<Null Event>")
+
+    def run(self, player_character: Actors.PlayerCharacter):
+        raise NotImplementedError("Player {} tried to run a <Null Event>", player_character.name)
 
 
 class CombatEvent(Event):
 
-    def __init__(self, probability: float, flavor: str, enemies: list, conditions=None):
-        super().__init__(probability, flavor)
+    def __init__(self, probability: float, flavor_text: str, enemies: list, conditions=None):
+        super().__init__(probability, flavor_text)
         self.enemies: List[Actors.Enemy] = enemies
         self.SpecialConditions: [] = conditions
 
@@ -30,8 +35,8 @@ class CombatEvent(Event):
 
 class EncounterEvent(Event):
 
-    def __init__(self, probability: float, flavor: str, choices_dict: dict, npc=None):
-        super().__init__(probability, flavor)
+    def __init__(self, probability: float, flavor_text: str, choices_dict: dict, npc=None):
+        super().__init__(probability, flavor_text)
         self.ChoiceDict = choices_dict
         self.NPCInvolved = npc
 
@@ -43,8 +48,8 @@ class EncounterEvent(Event):
 
 class MerchantEvent(Event):
 
-    def __init__(self, probability, flavor, items):
-        super().__init__(probability, flavor)
+    def __init__(self, probability, flavor_text, items):
+        super().__init__(probability, flavor_text)
         self.Items: {} = items
 
     def run(self, player_character):
