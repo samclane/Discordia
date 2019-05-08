@@ -1,4 +1,5 @@
 noise
+numpy
 discord
 arcade
 pillow
