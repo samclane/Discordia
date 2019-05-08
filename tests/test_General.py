@@ -62,7 +62,7 @@ class TestGeneral(unittest.TestCase):
 
     def test_screenshot(self):
 
-        for n in range(1):
+        for n in range(10):
             from Discordia.Interface.Rendering import DesktopApp
 
             print(f"Test {n}:")
@@ -73,8 +73,8 @@ class TestGeneral(unittest.TestCase):
             pid = random.randint(0, 65535)
             adapter.register_player(pid, "<test>")
             actor = adapter.get_player(pid)
-            window.update(1/60)
             window.on_draw()
+            window.update(1/60)
             window.get_player_view(actor)
             im: Image = Image.open(Path("./PlayerViews/test_screenshot.png"))
             self.assertFalse(all(p == (0, 0, 0, 255) for p in im.getdata()), "Black screenshot taken")

@@ -4,6 +4,7 @@ Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverhead
 """
 from __future__ import annotations
 
+import asyncio
 import collections
 import logging
 import time
@@ -162,3 +163,9 @@ class MainWindow(arcade.Window):
         img_path = Path(f'./PlayerViews/{character.name}_screenshot.png')
         player_view.save(img_path, 'PNG')
         return str(img_path)
+
+
+async def update_display(display):
+    while True:
+        display.on_draw()
+        await asyncio.sleep(1 / 60)
