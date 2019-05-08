@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from itertools import product
 from typing import List, Tuple, Dict
 
-import numpy
 from math import sqrt
 from noise import pnoise3
 
@@ -233,7 +232,8 @@ class Wilds(Space):
         self.null_event.probability -= event.probability
 
     def run_event(self, pc):
-        result = numpy.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
+        # result = numpy.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
+        result = random.choice(self.events)  # TODO Add probability distribution
         result.run(pc)
 
 
