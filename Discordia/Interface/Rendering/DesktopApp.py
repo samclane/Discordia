@@ -12,7 +12,8 @@ from pathlib import Path
 
 import arcade
 
-from Discordia.ConfigParser import DISPLAY_WIDTH, DISPLAY_HEIGHT, WORLD_NAME, DISPLAY_SCROLL_SPEED
+from Discordia.ConfigParser import DISPLAY_WIDTH, DISPLAY_HEIGHT, WORLD_NAME, DISPLAY_SCROLL_SPEED, WORLD_HEIGHT, \
+    WORLD_WIDTH
 from Discordia.GameLogic import Actors, GameSpace
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
@@ -40,7 +41,7 @@ class FPSCounter:
 
 
 class MainWindow(arcade.Window):
-    def __init__(self, world_adapter: WorldAdapter, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT):
+    def __init__(self, world_adapter: WorldAdapter, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT, is_renderer:bool = False):
         super().__init__(width=width, height=height, title=f"Discordia: {WORLD_NAME}")
 
         self.world_adapter = world_adapter
@@ -82,6 +83,18 @@ class MainWindow(arcade.Window):
             # TODO Finish drawing static content.
         self.base_cell_width = self.terrain_list[0].width
         self.base_cell_height = self.terrain_list[0].height
+
+        if is_renderer:
+            self.adjust_viewport_to_world()
+
+        self.on_draw()
+
+    def adjust_viewport_to_world(self):
+        width = self.base_cell_width * WORLD_WIDTH
+        height = self.base_cell_height * WORLD_HEIGHT
+        self.set_size(width, height)
+        self.set_visible(0)
+        # TODO This doesn't actually resize anything...
 
     def on_draw(self):
         arcade.start_render()

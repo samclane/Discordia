@@ -88,7 +88,7 @@ class Actor(AbstractActor, ABC):
         self.name = name
         self.body_type = body_type
         self.location: GameSpace.Space = GameSpace.Space.null_space()
-        self.fov_default = 1
+        self.fov_default = 2
         self.last_time_moved = 0
 
     def attempt_move(self, shift: Tuple[int, int]) -> bool:

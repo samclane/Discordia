@@ -25,12 +25,24 @@ def windowed_test(test):
     return test_wrapper
 
 
+def clean_screenshots():
+    folder = "../Discordia/PlayerViews"
+    for file_ in os.listdir(folder):
+        file_path = os.path.join(folder, file_)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            raise e
+
+
 class TestGeneral(unittest.TestCase):
 
     def setUp(self):
         """Change to the directory where main.py will be ran"""
         os.chdir("../Discordia/")
         self.discord_interface = None
+        clean_screenshots()
 
     def test_connect_disconnect(self):
         # Start bot
@@ -57,18 +69,18 @@ class TestGeneral(unittest.TestCase):
 
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         adapter = WorldAdapter(world)
-        window = DesktopApp.MainWindow(adapter)
+        window = DesktopApp.MainWindow(adapter, is_renderer=True)
         window.test()
 
     def test_screenshot(self):
 
-        for n in range(10):
+        for n in range(1):
             from Discordia.Interface.Rendering import DesktopApp
 
             print(f"Test {n}:")
             world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
             adapter = WorldAdapter(world)
-            window = DesktopApp.MainWindow(adapter, 10000, 10000)
+            window = DesktopApp.MainWindow(adapter, is_renderer=True)
             window.set_visible(False)
             pid = random.randint(0, 65535)
             adapter.register_player(pid, "<test>")
@@ -84,5 +96,6 @@ class TestGeneral(unittest.TestCase):
 
     def doCleanups(self) -> None:
         super().doCleanups()
+        clean_screenshots()
         if self.discord_interface is not None:
             self.discord_interface.bot.loop.create_task(self.discord_interface.bot.close())

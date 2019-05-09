@@ -22,13 +22,13 @@ def main():
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
     adapter = WorldAdapter(world)
 
-    display = MainWindow(adapter)
-    display.set_visible(0)
-    display.on_draw()
+    display = MainWindow(adapter, is_renderer=True)
 
     discord_interface = DiscordInterface(adapter)
     discord_interface.bot.loop.create_task(update_display(display))
     discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+
+
 
     # TODO Figure out how to exit
     # TODO Add an arcade window for viewing the world render
