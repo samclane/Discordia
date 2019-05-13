@@ -141,7 +141,7 @@ class Space(ABC):
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
-        self.sprite_path = self.terrain.sprite_path
+        self.sprite_path = self.terrain.sprite_path  # TODO This is sloppy and is probably causing the sprite dupe bug.
         self.name = str(self)
 
     def __str__(self):

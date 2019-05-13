@@ -31,6 +31,7 @@ class MainWindow:
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
 
+        # DEBUG: Call a function on every draw to check if things are alright.
         self._draw_callback = lambda: None
 
         self.canvas_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for y in
@@ -39,7 +40,6 @@ class MainWindow:
         self.rendered_canvas = ph.gridstack(self.canvas_map)
         self.rendered_canvas.name = WINDOW_NAME
 
-        # TODO Finish drawing static content.
         self.base_cell_width = self.canvas_map[0][0].width
         self.base_cell_height = self.canvas_map[0][0].height
 
@@ -61,33 +61,25 @@ class MainWindow:
         self.rendered_canvas.show(1)
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
-        # Should probably render each view from scratch, so we dont' have to deal with pixel -> grid conversion.
-        # TODO
-
-        # Need to find top left (x,y) of pixel in fov
+        # Need to find top left coordinate
         # Find tile first
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
 
         # Then convert game-coordinates to pixel (x, y, width, height)
-        x = max(top_left_tile.x * self.base_cell_width, 0)
-        y = max(top_left_tile.y * self.base_cell_height, 0)
-        width = ((character.fov * 2) + 1) * self.base_cell_width
-        height = ((character.fov * 2) + 1) * self.base_cell_height
+        #x = max(top_left_tile.x * self.base_cell_width, 0)
+        #y = max(top_left_tile.y * self.base_cell_height, 0)
+        #width = ((character.fov * 2) + 1) * self.base_cell_width
+        #height = ((character.fov * 2) + 1) * self.base_cell_height
+        x = max(top_left_tile.x, 0)
+        y = max(top_left_tile.y, 0)
+        width = height = ((character.fov * 2) + 1)
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x} {y} {width} {height}")
-        # self._draw_callback = lambda: arcade.draw_rectangle_outline(x + width / 2, y + height / 2, width, height,
-        #                                                            arcade.color.BLACK)
-
-        # Take and save image
-        # player_view = arcade.get_image(x, y, width, height)
-        esp_path = Path(f'./PlayerViews/{character.name}_screenshot.eps')
-        self.postscript(file=esp_path, colormode='color')
-        img = Image.open(esp_path)  # TODO GhostScript isn't installed; can't open file. OSError.
+        view = [self.canvas_map[i][x:x+width] for i in range(y, y+height)]
+        img = ph.gridstack(view)
         img_path = f'./PlayerViews/{character.name}_screenshot.png'
-        img.save(img_path, 'PNG')
-        # ImageGrab.grab((x, y, width, height)).save(img_path) # TODO doesn't select canvas
-        # player_view.save(img_path, 'PNG')
+        img.save(img_path)
         return str(img_path)
 
 

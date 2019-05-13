@@ -15,14 +15,6 @@ LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
 
-def windowed_test(test):
-    # TODO Does nothing
-    def test_wrapper(*args, **kwargs):
-        test(*args, **kwargs)
-
-    return test_wrapper
-
-
 def clean_screenshots():
     folder = "../Discordia/PlayerViews"
     for file_ in os.listdir(folder):
