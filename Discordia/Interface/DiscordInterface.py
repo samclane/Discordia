@@ -10,7 +10,7 @@ from discord.ext import commands
 import Discordia.GameLogic.Actors as Actors
 from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
 from Discordia.GameLogic import GameSpace
-from Discordia.GameLogic.GameSpace import PlayerActionResponse
+from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTORS
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException, \
     InvalidSpaceException, NoWeaponEquippedException, RangedAttackException, CombatException
@@ -174,7 +174,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (0, 1))
+            self.world_adapter.move_player(character, DIRECTION_VECTORS['n'])
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `north/up`")
@@ -194,7 +194,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (0, -1))
+            self.world_adapter.move_player(character, DIRECTION_VECTORS['s'])
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `south/down`")
@@ -214,7 +214,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (1, 0))
+            self.world_adapter.move_player(character, DIRECTION_VECTORS['e'])
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `east/right`")
@@ -234,7 +234,7 @@ class DiscordInterface(commands.Cog):
         member = ctx.author
         try:
             character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, (-1, 0))
+            self.world_adapter.move_player(character, DIRECTION_VECTORS['w'])
             character.last_time_moved = time.time()
         except NotRegisteredException:
             LOG.warning(f"Player {member.display_name} not registered: Tried to access `west/left`")

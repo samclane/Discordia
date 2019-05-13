@@ -1,161 +1,69 @@
 """
 Holds classes for the basic window and rendering surface for a Desktop view. Image rendering should be independent.
 Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
+
 """
 from __future__ import annotations
 
-import asyncio
-import collections
 import logging
-import time
 from pathlib import Path
 
-import arcade
+import numpy as np  # TODO Factor this out
+import pixelhouse as ph
 
-from Discordia.ConfigParser import DISPLAY_WIDTH, DISPLAY_HEIGHT, WORLD_NAME, DISPLAY_SCROLL_SPEED, WORLD_HEIGHT, \
-    WORLD_WIDTH
+from Discordia.ConfigParser import WORLD_HEIGHT, WORLD_WIDTH
 from Discordia.GameLogic import Actors, GameSpace
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
+WINDOW_NAME = "Discordia"
 
 
-class FPSCounter:
-    """Taken from http://arcade.academy/examples/stress_test_collision.html"""
-
-    def __init__(self):
-        self.time = time.perf_counter()
-        self.frame_times = collections.deque(maxlen=60)
-
-    def tick(self):
-        t1 = time.perf_counter()
-        dt = t1 - self.time
-        self.time = t1
-        self.frame_times.append(dt)
-
-    def get_fps(self):
-        total_time = sum(self.frame_times)
-        if total_time == 0:
-            return 0
-        else:
-            return len(self.frame_times) / sum(self.frame_times)
+def black_to_transparent(canvas: ph.Canvas) -> ph.Canvas:
+    # TODO Refactor this out
+    black_pixels = np.all(canvas.img == [0, 0, 0, 0], axis=-1)
+    transparent_canvas = canvas.copy()
+    transparent_canvas[~black_pixels, 3] = 255  # Change alpha to 255
+    return transparent_canvas
 
 
-class MainWindow(arcade.Window):
-    def __init__(self, world_adapter: WorldAdapter, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT, is_renderer:bool = False):
-        super().__init__(width=width, height=height, title=f"Discordia: {WORLD_NAME}")
-
+class MainWindow:
+    def __init__(self, world_adapter: WorldAdapter):
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
 
-        self.terrain_list = arcade.SpriteList()
-        self.town_list = arcade.SpriteList()
-        self.wilds_list = arcade.SpriteList()
-
-        # Set the viewport boundaries
-        self.view_left = 0
-        self.view_left_change = 0
-        self.view_bottom = 0
-        self.view_bottom_change = 0
-
-        self.fps = FPSCounter()
-
         self._draw_callback = lambda: None
 
-        # Statically build world sprites
-        for space in self.world_adapter.iter_spaces():
-            sprite = arcade.Sprite(space.terrain.sprite_path)
-            sprite.left = space.x * sprite.width
-            sprite.bottom = space.y * sprite.height
-            self.terrain_list.append(sprite)
+        self.canvas_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for y in
+                            range(WORLD_HEIGHT)] for x in range(WORLD_WIDTH)]
 
-            if self.world_adapter.is_town(space):
-                sprite = arcade.Sprite(space.sprite_path)
-                sprite.left = space.x * sprite.width
-                sprite.bottom = space.y * sprite.height
-                self.town_list.append(sprite)
+        self.rendered_canvas = ph.gridstack(self.canvas_map)
+        self.rendered_canvas.name = WINDOW_NAME
 
-            elif self.world_adapter.is_wilds(space):
-                sprite = arcade.Sprite(space.sprite_path)
-                sprite.left = space.x * sprite.width
-                sprite.bottom = space.y * sprite.height
-                self.wilds_list.append(sprite)
-
-            # TODO Finish drawing static content.
-        self.base_cell_width = self.terrain_list[0].width
-        self.base_cell_height = self.terrain_list[0].height
-
-        if is_renderer:
-            self.adjust_viewport_to_world()
-
-        self.on_draw()
-
-    def adjust_viewport_to_world(self):
-        width = self.base_cell_width * WORLD_WIDTH
-        height = self.base_cell_height * WORLD_HEIGHT
-        self.set_size(width, height)
-        self.set_visible(0)
-        # TODO This doesn't actually resize anything...
+        # TODO Finish drawing static content.
+        self.base_cell_width = self.canvas_map[0][0].width
+        self.base_cell_height = self.canvas_map[0][0].height
 
     def on_draw(self):
-        arcade.start_render()
+        for y, row in enumerate(self.canvas_map):
+            for x, cnv in enumerate(row):
+                with cnv.layer() as layer:
+                    layer += black_to_transparent(ph.load(self.world_adapter.world.map[y][x].sprite_path_string))
+        for player in self.world_adapter.iter_players():
+            x, y = player.location.x, player.location.y
+            with self.canvas_map[y][x].layer() as layer:
+                layer += black_to_transparent(ph.load(player.sprite_path_string))
 
-        # Draw static content
-        self.terrain_list.draw()
-        self.town_list.draw()
-        self.wilds_list.draw()
+        self.rendered_canvas = ph.gridstack(self.canvas_map)
+        self.rendered_canvas.name = WINDOW_NAME
 
         self._draw_callback()
 
-        for player in self.world_adapter.iter_players():
-            sprite = arcade.Sprite(player.sprite_path)
-            sprite.left = player.location.x * sprite.width
-            sprite.bottom = player.location.y * sprite.height
-            sprite.draw()
-
-        # Calculate FPS
-        fps = self.fps.get_fps()
-        output = f"FPS: {fps:3.0f}"
-        arcade.draw_text(output, self.view_left + 10, self.view_bottom + 10, arcade.color.BLACK, 16)
-        self.fps.tick()
-
-        arcade.set_viewport(self.view_left,
-                            DISPLAY_WIDTH + self.view_left,
-                            self.view_bottom,
-                            DISPLAY_HEIGHT + self.view_bottom)
-
-    def on_key_press(self, symbol: int, modifiers: int):
-        # Track if we need to change the viewport
-        if symbol == arcade.key.UP:
-            self.view_bottom_change = DISPLAY_SCROLL_SPEED
-        if symbol == arcade.key.DOWN:
-            self.view_bottom_change = -DISPLAY_SCROLL_SPEED
-        if symbol == arcade.key.LEFT:
-            self.view_left_change = -DISPLAY_SCROLL_SPEED
-        if symbol == arcade.key.RIGHT:
-            self.view_left_change = DISPLAY_SCROLL_SPEED
-        if symbol == arcade.key.S:
-            player: Actors.PlayerCharacter = next(self.world_adapter.iter_players())
-            if player is not None:
-                self.get_player_view(player)
-            else:
-                raise Exception("Player is None")
-
-    def on_key_release(self, symbol: int, modifiers: int):
-        if symbol == arcade.key.UP or symbol == arcade.key.DOWN:
-            self.view_bottom_change = 0
-        if symbol == arcade.key.LEFT or symbol == arcade.key.RIGHT:
-            self.view_left_change = 0
-
-    def update(self, delta_time: float):
-        self.view_bottom += self.view_bottom_change
-        self.view_left += self.view_left_change
-        if self.view_left_change != 0 or self.view_bottom_change != 0:
-            arcade.set_viewport(self.view_left,
-                                DISPLAY_WIDTH + self.view_left,
-                                self.view_bottom,
-                                DISPLAY_HEIGHT + self.view_bottom)
+        self.rendered_canvas.show(1)
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
+        # Should probably render each view from scratch, so we dont' have to deal with pixel -> grid conversion.
+        # TODO
+
         # Need to find top left (x,y) of pixel in fov
         # Find tile first
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
@@ -172,13 +80,17 @@ class MainWindow(arcade.Window):
         #                                                            arcade.color.BLACK)
 
         # Take and save image
-        player_view = arcade.get_image(x, y, width, height)
-        img_path = Path(f'./PlayerViews/{character.name}_screenshot.png')
-        player_view.save(img_path, 'PNG')
+        # player_view = arcade.get_image(x, y, width, height)
+        esp_path = Path(f'./PlayerViews/{character.name}_screenshot.eps')
+        self.postscript(file=esp_path, colormode='color')
+        img = Image.open(esp_path)  # TODO GhostScript isn't installed; can't open file. OSError.
+        img_path = f'./PlayerViews/{character.name}_screenshot.png'
+        img.save(img_path, 'PNG')
+        # ImageGrab.grab((x, y, width, height)).save(img_path) # TODO doesn't select canvas
+        # player_view.save(img_path, 'PNG')
         return str(img_path)
 
 
-async def update_display(display):
+def update_display(display: MainWindow):
     while True:
         display.on_draw()
-        await asyncio.sleep(1 / 60)

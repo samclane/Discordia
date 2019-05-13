@@ -124,6 +124,10 @@ class Actor(AbstractActor, ABC):
     def sprite_path(self) -> str:
         return SPRITE_FOLDER / "Actors" / "null_actor.png"
 
+    @property
+    def sprite_path_string(self) -> str:
+        return str(self.sprite_path)
+
 
 class NPC(Actor, ABC):
     def __init__(self, *args, **kwargs):

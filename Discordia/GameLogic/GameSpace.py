@@ -5,9 +5,10 @@ import random
 from abc import ABC
 from dataclasses import dataclass
 from itertools import product
+from pathlib import Path
 from typing import List, Tuple, Dict
 
-import numpy
+import numpy as np
 from math import sqrt
 from noise import pnoise3
 
@@ -51,8 +52,12 @@ class Terrain(ABC):
         raise NotImplementedError
 
     @property
-    def sprite_path(self) -> str:
+    def sprite_path(self) -> Path:
         raise NotImplementedError
+
+    @property
+    def sprite_path_string(self) -> str:
+        return str(self.sprite_path)
 
     @property
     def name(self) -> str:
@@ -136,7 +141,7 @@ class Space(ABC):
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
-        self.sprite_path = SPRITE_FOLDER / "null_tile.png"
+        self.sprite_path = self.terrain.sprite_path
         self.name = str(self)
 
     def __str__(self):
@@ -176,6 +181,10 @@ class Space(ABC):
 
     def __hash__(self):
         return hash(self.x) + (10 * hash(self.y)) + (100 * hash(self.terrain))
+
+    @property
+    def sprite_path_string(self):
+        return str(self.sprite_path)
 
     @classmethod
     def null_space(cls):
@@ -233,7 +242,7 @@ class Wilds(Space):
         self.null_event.probability -= event.probability
 
     def run_event(self, pc):
-        result = numpy.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
+        result = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
         result.run(pc)
 
 

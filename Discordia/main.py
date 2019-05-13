@@ -1,7 +1,8 @@
 import logging
 import os
-import sys
 import pickle
+import sys
+import threading
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -22,14 +23,15 @@ def main():
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
     adapter = WorldAdapter(world)
 
-    display = MainWindow(adapter, is_renderer=True)
+    display = MainWindow(adapter)
 
+    threading.Thread(target=update_display, args=(display,)).start()
     discord_interface = DiscordInterface(adapter)
-    discord_interface.bot.loop.create_task(update_display(display))
+    # discord_interface.bot.loop.create_task(update_display(display))
+    # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
     discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
-
-
+    LOG.info("Discordia Server has successfully started.")
     # TODO Figure out how to exit
     # TODO Add an arcade window for viewing the world render
 
