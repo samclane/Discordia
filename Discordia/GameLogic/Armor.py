@@ -1,9 +1,9 @@
 from random import random
 
-from Discordia.GameLogic.Items import HeadArmor, FullyImplemented
+from Discordia.GameLogic.Items import HeadArmorAbstract, FullyImplemented
 
 
-class Helmet(HeadArmor):
+class Helmet(HeadArmorAbstract):
     def __init__(self, *args, coverage: float = 0., **kwargs):
         super().__init__(*args, **kwargs)
         self.coverage = coverage  # Pct. of head the helmet covers. [0, 1]

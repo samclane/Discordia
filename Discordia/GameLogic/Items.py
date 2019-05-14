@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC
 from typing import List
 
 from Discordia.GameLogic import Actors
+
+LOG = logging.getLogger("Discordia.GameLogic.Items")
 
 
 class FullyImplemented:
@@ -33,7 +36,7 @@ class Equipment(ABC):
         self.is_equipped = False
 
 
-class Armor(Equipment, ABC):
+class ArmorAbstract(Equipment, ABC):
 
     def __init__(self, armor_count=0, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,19 +56,19 @@ class Armor(Equipment, ABC):
         pass
 
 
-class HeadArmor(Armor, ABC):
+class HeadArmorAbstract(ArmorAbstract, ABC):
     name: str = "Head"
 
 
-class ChestArmor(Armor, ABC):
+class ChestArmorAbstract(ArmorAbstract, ABC):
     name: str = "Chest"
 
 
-class LegArmor(Armor, ABC):
+class LegArmorAbstract(ArmorAbstract, ABC):
     name: str = "Legs"
 
 
-class FootArmor(Armor, ABC):
+class FootArmorAbstract(ArmorAbstract, ABC):
     name: str = "Feet"
 
 
@@ -80,10 +83,10 @@ class OffHandEquipment(Equipment, ABC):
 class EquipmentSet:
 
     def __init__(self):
-        self.head: HeadArmor = HeadArmor()
-        self.chest: ChestArmor = ChestArmor()
-        self.legs: LegArmor = LegArmor()
-        self.feet: FootArmor = FootArmor()
+        self.head: HeadArmorAbstract = HeadArmorAbstract()
+        self.chest: ChestArmorAbstract = ChestArmorAbstract()
+        self.legs: LegArmorAbstract = LegArmorAbstract()
+        self.feet: FootArmorAbstract = FootArmorAbstract()
         self.main_hand: MainHandEquipment = MainHandEquipment()
         self.off_hand: OffHandEquipment = OffHandEquipment()
 
@@ -110,7 +113,7 @@ class EquipmentSet:
         yield self.off_hand
 
     @property
-    def armor_set(self) -> List[Armor]:
+    def armor_set(self) -> List[ArmorAbstract]:
         armor_list = [self.head,
                       self.chest,
                       self.legs,
@@ -126,13 +129,13 @@ class EquipmentSet:
         return sum([armor.armour_count for armor in self.armor_set])
 
     def equip(self, equipment: Equipment):
-        if isinstance(equipment, HeadArmor):
+        if isinstance(equipment, HeadArmorAbstract):
             self.head = equipment
-        if isinstance(equipment, ChestArmor):
+        if isinstance(equipment, ChestArmorAbstract):
             self.chest = equipment
-        if isinstance(equipment, LegArmor):
+        if isinstance(equipment, LegArmorAbstract):
             self.legs = equipment
-        if isinstance(equipment, FootArmor):
+        if isinstance(equipment, FootArmorAbstract):
             self.feet = equipment
         if isinstance(equipment, MainHandEquipment):
             self.main_hand = equipment
@@ -142,14 +145,14 @@ class EquipmentSet:
             raise ValueError("Equipment was not of recognized type.")
 
     def unequip(self, equipment: Equipment):
-        if isinstance(equipment, HeadArmor):
-            self.head = HeadArmor()
-        if isinstance(equipment, ChestArmor):
-            self.chest = ChestArmor()
-        if isinstance(equipment, LegArmor):
-            self.legs = LegArmor()
-        if isinstance(equipment, FootArmor):
-            self.feet = FootArmor()
+        if isinstance(equipment, HeadArmorAbstract):
+            self.head = HeadArmorAbstract()
+        if isinstance(equipment, ChestArmorAbstract):
+            self.chest = ChestArmorAbstract()
+        if isinstance(equipment, LegArmorAbstract):
+            self.legs = LegArmorAbstract()
+        if isinstance(equipment, FootArmorAbstract):
+            self.feet = FootArmorAbstract()
         if isinstance(equipment, MainHandEquipment):
             self.main_hand = MainHandEquipment()
         if isinstance(equipment, OffHandEquipment):
@@ -158,30 +161,3 @@ class EquipmentSet:
             raise ValueError("Equipment was not of recognized type.")
 
 
-class Store:
-
-    def __init__(self, inventory=None):
-        super().__init__()
-        self.inventory: List[Equipment] = inventory if inventory is not None else []
-        self.price_ratio: float = 1.0  # Lower means better buy/sell prices, higher means worse
-
-    def get_price(self, item: Equipment) -> float:
-        return item.base_value * self.price_ratio
-
-    def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
-        # Get an instance of the item from the Store's inventory
-        item = [item for item in self.inventory if isinstance(item, type(list(set(self.inventory))[index]))][0]
-        price = self.get_price(item)
-        if player_character.currency < price:
-            return False
-        self.inventory.remove(item)
-        player_character.currency -= price
-        player_character.inventory.append(item)
-        return True
-
-    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> float:
-        self.inventory.append(item)
-        price = item.base_value / self.price_ratio
-        player_character.currency += price
-        player_character.inventory.remove(item)
-        return price

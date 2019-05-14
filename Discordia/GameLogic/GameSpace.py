@@ -6,6 +6,7 @@ from abc import ABC
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
+import random
 from typing import List, Tuple, Dict
 
 import numpy as np
@@ -13,8 +14,8 @@ from math import sqrt
 from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import Events, Actors, Items, Weapons
-from Discordia.GameLogic.Items import Equipment
+from Discordia.GameLogic import Events, Actors, Items, Weapons, Armor
+from Discordia.GameLogic.Items import Equipment, LOG
 from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
 
 Direction = Tuple[int, int]
@@ -200,12 +201,12 @@ class Space(ABC):
 class Town(Space):
 
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
-                 terrain: Terrain = NullTerrain(), store: Items.Store = None) -> None:
+                 terrain: Terrain = NullTerrain(), store: Store = None) -> None:
         super(Town, self).__init__(x, y, terrain)
         self.name: str = name
         self.population: int = population
         self.industry: IndustryType = industry
-        self.store: Items.Store = store
+        self.store: Store = store
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
         self.sprite_path: str = SPRITE_FOLDER / "Structures" / "town_default.png"
 
@@ -214,7 +215,7 @@ class Town(Space):
         name = TownNameGenerator.generate_name()
         population = random.randint(1, 1000)
         industry = random.choice(IndustryType.__subclasses__())
-        store = Items.Store()  # TODO gen inventory
+        store = Store.generate_store()
         return cls(x, y, name, population, industry, terrain, store)
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
@@ -294,8 +295,8 @@ class World:
         sand_slice = random.random()
         mountain_slice = random.random()
         grass_slice = random.random()
-        water_threshold = self.gen_params.water  # Higher water-factor -> more water on map
-        mountain_threshold = self.gen_params.mountains  # Lower mountain_thresh -> less mountains
+        water_threshold = self.gen_params.water  # Higher factor -> more Spaces on the map
+        mountain_threshold = self.gen_params.mountains
         grass_threshold = self.gen_params.grass
         for x in range(self.width):
             for y in range(self.height):
@@ -399,3 +400,42 @@ class World:
     def handle_player_death(self, player: Actors.PlayerCharacter):
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
+
+
+class Store:
+
+    def __init__(self, inventory=None):
+        super().__init__()
+        self.inventory: List[Equipment] = inventory if inventory is not None else []
+        self.price_ratio: float = 1.0  # Lower means better buy/sell prices, higher means worse
+
+    @classmethod
+    def generate_store(cls):
+        inventory: List[Equipment] = []
+        for item in Weapons.ImplementedWeaponsList + Armor.ImplementedArmorList:
+            item: Equipment = item
+            if random.random() > 0.2:
+                LOG.info(f"Added item {item}")
+                inventory.append(item)
+        return cls(inventory)
+
+    def get_price(self, item: Equipment) -> float:
+        return item.base_value * self.price_ratio
+
+    def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
+        # Get an instance of the item from the Store's inventory
+        item = [item for item in self.inventory if isinstance(item, type(list(set(self.inventory))[index]))][0]
+        price = self.get_price(item)
+        if player_character.currency < price:
+            return False
+        self.inventory.remove(item)
+        player_character.currency -= price
+        player_character.inventory.append(item)
+        return True
+
+    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> float:
+        self.inventory.append(item)
+        price = item.base_value / self.price_ratio
+        player_character.currency += price
+        player_character.inventory.remove(item)
+        return price
