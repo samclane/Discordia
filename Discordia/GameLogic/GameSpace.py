@@ -230,8 +230,8 @@ class Base(Town):
 
 class Wilds(Space):
 
-    def __init__(self, x, y, name):
-        super(Wilds, self).__init__(x, y)
+    def __init__(self, x, y, name, terrain: Terrain = NullTerrain()):
+        super().__init__(x, y, terrain)
         self.name: str = name
         self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
@@ -246,6 +246,10 @@ class Wilds(Space):
         result = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
         result.run(pc)
 
+    @classmethod
+    def generate_wilds(cls, x, y, terrain: Terrain):
+        name = WildsNameGenerator.generate_name()
+        return cls(x, y, name, terrain)
 
 @dataclass
 class PlayerActionResponse:
@@ -318,7 +322,7 @@ class World:
                         # Just puts town in first valid spot. Not very interesting.
                         self.add_town(Town.generate_town(x, y, self.map[y][x].terrain), self.starting_town is None)
                     elif random.random() <= self.gen_params.wilds:
-                        self.add_wilds(Wilds(x, y, WildsNameGenerator.generate_name()))
+                        self.add_wilds(Wilds.generate_wilds(x, y, self.map[y][x].terrain))
 
     def is_space_valid(self, space: Space) -> bool:
         return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
@@ -343,7 +347,7 @@ class World:
 
     def add_wilds(self, wilds: Wilds):
         self.wilds.append(wilds)
-        wilds.terrain = self.map[wilds.y][wilds.x].terrain
+        wilds.terrain = self.map[wilds.y][wilds.x]
         self.map[wilds.y][wilds.x] = wilds
 
     def add_actor(self, actor: Actors.Actor, space: Space = None):

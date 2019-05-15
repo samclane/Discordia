@@ -70,13 +70,16 @@ class MainWindow:
         #y = max(top_left_tile.y * self.base_cell_height, 0)
         #width = ((character.fov * 2) + 1) * self.base_cell_width
         #height = ((character.fov * 2) + 1) * self.base_cell_height
-        x = max(top_left_tile.x, 0)
-        y = max(top_left_tile.y, 0)
+        x1 = max(top_left_tile.x, 0)
+        y1 = max(top_left_tile.y, 0)
         width = height = ((character.fov * 2) + 1)
+        x2 = max(top_left_tile.x+width, 0)
+        y2 = max(top_left_tile.y+height, 0)
+
 
         # Debugging
-        LOG.info(f"Getting PlayerView: {character.name} {x} {y} {width} {height}")
-        view = [self.canvas_map[i][x:x+width] for i in range(y, y+height)]
+        LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
+        view = [self.canvas_map[i][x1:x2] for i in range(y1, y2)]
         img = ph.gridstack(view)
         img_path = f'./PlayerViews/{character.name}_screenshot.png'
         img.save(img_path)
