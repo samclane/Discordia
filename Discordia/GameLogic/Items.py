@@ -17,7 +17,7 @@ class FullyImplemented:
 
 class Equipment(ABC):
 
-    def __init__(self, name: str = "Empty", weight_lb: float = 0, base_value: int = 0):
+    def __init__(self, name: str = "Empty", weight_lb: float = 0, base_value: int = 0, *args, **kwargs):
         self.name: name = name
         self.weight_lb: float = weight_lb
         self.base_value: int = base_value

@@ -407,8 +407,3 @@ class BluntWeapon(MeleeWeapon, ABC):
 
 class Hammer(BluntWeapon, MainHandEquipment):
     pass
-
-
-ImplementedWeaponsList: list = FullyImplemented.__subclasses__()
-
-ImplementedWeaponsDict: dict = {cls.__name__: cls for cls in FullyImplemented.__subclasses__()}

@@ -412,8 +412,8 @@ class Store:
     @classmethod
     def generate_store(cls):
         inventory: List[Equipment] = []
-        for item in Weapons.ImplementedWeaponsList + Armor.ImplementedArmorList:
-            item: Equipment = item
+        for item_class in Items.FullyImplemented.__subclasses__():
+            item: Equipment = item_class()
             if random.random() > 0.2:
                 LOG.info(f"Added item {item}")
                 inventory.append(item)

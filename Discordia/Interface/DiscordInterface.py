@@ -308,14 +308,15 @@ class DiscordInterface(commands.Cog):
             town: GameSpace.Town = character.location
             if self.world_adapter.is_town(character.location):
                 if town.store is not None:
-                    msg = "Index\tName\tPrice\tCount\n"
-                    for idx, item in enumerate(set(town.store.inventory)):
-                        msg += "#{}\t{}\t${}\t{}\n".format(idx,
-                                                           item.Name,
-                                                           town.store.get_price(item),
-                                                           town.store.inventory.count(item))
+                    if len(town.store.inventory) == 0:
+                        msg = "There are no items in the store at the moment. Please try again later."
                     else:
-                        msg += "There are no items in the store at the moment. Please try again later."
+                        msg = "Index\tName\tPrice\tCount\n"
+                        for idx, item in enumerate(set(town.store.inventory)):
+                            msg += "#{}\t{}\t${}\t{}\n".format(idx,
+                                                               item.name,
+                                                               town.store.get_price(item),
+                                                               town.store.inventory.count(item))
                 else:
                     msg = "There is no store in this town. Sorry..."
                 await ctx.send(msg)

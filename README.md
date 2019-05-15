@@ -2,7 +2,7 @@
 ## The highly-anticipated re-release of DiscordMUD
 ### Coming Soon
 
-![Screenshot](./screenshots/screenshot1.png)
+![Screenshot](screenshots/screen1.png)
 
 Requires Python 3.7+
 

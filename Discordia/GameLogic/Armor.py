@@ -29,8 +29,3 @@ class SSh68(Helmet, FullyImplemented):
                          armor_count=1,
                          name=self.name,
                          weightlb=3.31)
-
-
-ImplementedArmorList: list = FullyImplemented.__subclasses__()  # TODO This sucks delete it
-
-ImplementedArmorDict: dict = {cls.__name__: cls for cls in FullyImplemented.__subclasses__()}
