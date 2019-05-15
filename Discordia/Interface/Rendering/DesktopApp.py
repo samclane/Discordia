@@ -34,8 +34,8 @@ class MainWindow:
         # DEBUG: Call a function on every draw to check if things are alright.
         self._draw_callback = lambda: None
 
-        self.canvas_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for y in
-                            range(WORLD_HEIGHT)] for x in range(WORLD_WIDTH)]
+        self.canvas_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for x in
+                            range(WORLD_WIDTH)] for y in range(WORLD_HEIGHT)]
 
         self.rendered_canvas = ph.gridstack(self.canvas_map)
         self.rendered_canvas.name = WINDOW_NAME
