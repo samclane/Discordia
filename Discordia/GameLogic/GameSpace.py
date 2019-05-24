@@ -3,10 +3,9 @@ from __future__ import annotations
 import pickle
 import random
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-import random
 from typing import List, Tuple, Dict
 
 import numpy as np
@@ -14,7 +13,7 @@ from math import sqrt
 from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import Events, Actors, Items, Weapons, Armor
+from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment, LOG
 from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
 
@@ -251,14 +250,15 @@ class Wilds(Space):
         name = WildsNameGenerator.generate_name()
         return cls(x, y, name, terrain)
 
+
 @dataclass
 class PlayerActionResponse:
-    is_successful: bool
-    damage: int
-    target: Actors.Actor
-    text: str
-    items: List[Equipment]
-    currency: int
+    is_successful: bool = False
+    damage: int = 0
+    target: Actors.Actor = None
+    text: str = ""
+    items: List[Equipment] = field(default_factory=list)
+    currency: int = 0
 
 
 @dataclass
@@ -320,7 +320,7 @@ class World:
                 if self.is_space_buildable(self.map[y][x]):
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(Town.generate_town(x, y, self.map[y][x].terrain), self.starting_town is None)
+                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain), self.starting_town is None)
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(Wilds.generate_wilds(x, y, self.map[y][x].terrain))
 
@@ -347,7 +347,7 @@ class World:
 
     def add_wilds(self, wilds: Wilds):
         self.wilds.append(wilds)
-        wilds.terrain = self.map[wilds.y][wilds.x]
+        wilds.terrain = self.map[wilds.y][wilds.x].terrain
         self.map[wilds.y][wilds.x] = wilds
 
     def add_actor(self, actor: Actors.Actor, space: Space = None):
@@ -371,8 +371,8 @@ class World:
                                                  player.location in common_locations]
         return players
 
-    def attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
-        response = PlayerActionResponse(False, 0, None, "No targets found in that direction")
+    def pvp_attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
+        response = PlayerActionResponse(text="No targets found in that direction")
         loc: Space = player_character.location
         dmg: int = player_character.weapon.damage
         while dmg > 0:

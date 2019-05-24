@@ -108,7 +108,7 @@ class WorldAdapter:
             raise NoWeaponEquippedException
         if direction and not isinstance(character.weapon, RangedWeapon):
             raise RangedAttackException
-        response: PlayerActionResponse = self.world.attack(character, direction)
+        response: PlayerActionResponse = self.world.pvp_attack(character, direction)
         if not response.is_successful:
             raise CombatException(response.text)
         return response

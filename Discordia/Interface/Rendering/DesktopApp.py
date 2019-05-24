@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 
-import numpy as np  # TODO Factor this out
+import numpy as np
 import pixelhouse as ph
 
 from Discordia.ConfigParser import WORLD_HEIGHT, WORLD_WIDTH
@@ -20,7 +19,7 @@ WINDOW_NAME = "Discordia"
 
 
 def black_to_transparent(canvas: ph.Canvas) -> ph.Canvas:
-    # TODO Refactor this out
+    # TODO This is still needed for some reason. Let ph dev know.
     black_pixels = np.all(canvas.img == [0, 0, 0, 0], axis=-1)
     transparent_canvas = canvas.copy()
     transparent_canvas[~black_pixels, 3] = 255  # Change alpha to 255
@@ -67,16 +66,15 @@ class MainWindow:
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
 
         # Then convert game-coordinates to pixel (x, y, width, height)
-        #x = max(top_left_tile.x * self.base_cell_width, 0)
-        #y = max(top_left_tile.y * self.base_cell_height, 0)
-        #width = ((character.fov * 2) + 1) * self.base_cell_width
-        #height = ((character.fov * 2) + 1) * self.base_cell_height
+        # x = max(top_left_tile.x * self.base_cell_width, 0)
+        # y = max(top_left_tile.y * self.base_cell_height, 0)
+        # width = ((character.fov * 2) + 1) * self.base_cell_width
+        # height = ((character.fov * 2) + 1) * self.base_cell_height
         x1 = max(top_left_tile.x, 0)
         y1 = max(top_left_tile.y, 0)
         width = height = ((character.fov * 2) + 1)
-        x2 = max(top_left_tile.x+width, 0)
-        y2 = max(top_left_tile.y+height, 0)
-
+        x2 = max(top_left_tile.x + width, 0)
+        y2 = max(top_left_tile.y + height, 0)
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")

@@ -159,5 +159,3 @@ class EquipmentSet:
             self.off_hand = OffHandEquipment()
         else:
             raise ValueError("Equipment was not of recognized type.")
-
-
