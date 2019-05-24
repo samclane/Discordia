@@ -6,6 +6,7 @@ Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverhead
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 import numpy as np  # TODO Factor this out
@@ -89,3 +90,4 @@ class MainWindow:
 def update_display(display: MainWindow):
     while True:
         display.on_draw()
+        time.sleep(1)
