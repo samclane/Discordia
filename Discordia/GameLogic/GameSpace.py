@@ -141,7 +141,7 @@ class Space(ABC):
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
-        self.sprite_path = self.terrain.sprite_path  # TODO This is sloppy and is probably causing the sprite dupe bug.
+        self.sprite_path = self.terrain.sprite_path  # This feels sloppy but I think it still works conceptually
         self.name = str(self)
 
     def __str__(self):
@@ -188,7 +188,7 @@ class Space(ABC):
 
     @classmethod
     def null_space(cls):
-        return cls(1, 1)
+        return cls(None, None)
 
     def distance(self, other) -> float:
         if isinstance(other, Space):
@@ -241,9 +241,9 @@ class Wilds(Space):
         self.events.append(event)
         self.null_event.probability -= event.probability
 
-    def run_event(self, pc):
+    def run_event(self, pc) -> List[PlayerActionResponse]:
         result = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
-        result.run(pc)
+        return list(result.run(pc))
 
     @classmethod
     def generate_wilds(cls, x, y, terrain: Terrain):

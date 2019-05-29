@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import List
 
 import discord
 from discord.ext import commands
@@ -168,85 +169,66 @@ class DiscordInterface(commands.Cog):
         except IndexError:
             await ctx.send(f"Given index {index} is invalid.")
 
+    async def _move_player(self, ctx, direction):
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(ctx.author.id)
+            results: List[PlayerActionResponse] = self.world_adapter.move_player(character, direction)
+
+            # If any Events happen, let the PC know step-by-step
+            if results:
+                for r in results:
+                    await ctx.send(r.text)
+                    if not r.is_successful:
+                        break
+
+            character.last_time_moved = time.time()
+        except NotRegisteredException:
+            LOG.warning(f"Player {ctx.author.display_name} not registered: Tried to access movement.")
+            await ctx.send(
+                f"User {ctx.author.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                f"to create a character.")
+        except InvalidSpaceException:
+            await ctx.send("Invalid direction.")
+
     @commands.command()
     async def north(self, ctx: Context):
         """Move your character north"""
-        member = ctx.author
-        try:
-            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, DIRECTION_VECTORS['n'])
-            character.last_time_moved = time.time()
-        except NotRegisteredException:
-            LOG.warning(f"Player {member.display_name} not registered: Tried to access `north/up`")
-            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
-                           f"to create a character.")
-        except InvalidSpaceException:
-            await ctx.send("Invalid direction `north`.")
+        await self._move_player(ctx, DIRECTION_VECTORS['n'])
 
     @commands.command()
     async def up(self, ctx: Context):
         """Move your character north"""
-        await self.north(ctx)
+        await self._move_player(ctx, DIRECTION_VECTORS['n'])
 
     @commands.command()
     async def south(self, ctx: Context):
         """Move your character south"""
-        member = ctx.author
-        try:
-            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, DIRECTION_VECTORS['s'])
-            character.last_time_moved = time.time()
-        except NotRegisteredException:
-            LOG.warning(f"Player {member.display_name} not registered: Tried to access `south/down`")
-            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
-                           f"to create a character.")
-        except InvalidSpaceException:
-            await ctx.send("Invalid direction `south`.")
+        await self._move_player(ctx, DIRECTION_VECTORS['s'])
 
     @commands.command()
     async def down(self, ctx: Context):
         """Move your character south"""
-        await self.south(ctx)
+        await self._move_player(ctx, DIRECTION_VECTORS['s'])
 
     @commands.command()
     async def east(self, ctx: Context):
         """Move your character east"""
-        member = ctx.author
-        try:
-            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, DIRECTION_VECTORS['e'])
-            character.last_time_moved = time.time()
-        except NotRegisteredException:
-            LOG.warning(f"Player {member.display_name} not registered: Tried to access `east/right`")
-            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
-                           f"to create a character.")
-        except InvalidSpaceException:
-            await ctx.send("Invalid direction `east`.")
+        await self._move_player(ctx, DIRECTION_VECTORS['e'])
 
     @commands.command()
     async def right(self, ctx: Context):
         """Move your character east"""
-        await self.east(ctx)
+        await self._move_player(ctx, DIRECTION_VECTORS['e'])
 
     @commands.command()
     async def west(self, ctx: Context):
         """Move your character west"""
-        member = ctx.author
-        try:
-            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
-            self.world_adapter.move_player(character, DIRECTION_VECTORS['w'])
-            character.last_time_moved = time.time()
-        except NotRegisteredException:
-            LOG.warning(f"Player {member.display_name} not registered: Tried to access `west/left`")
-            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
-                           f"to create a character.")
-        except InvalidSpaceException:
-            await ctx.send("Invalid direction `west`.")
+        await self._move_player(ctx, DIRECTION_VECTORS['w'])
 
     @commands.command()
     async def left(self, ctx: Context):
         """Move your character west"""
-        await self.west(ctx)
+        await self._move_player(ctx, DIRECTION_VECTORS['w'])
 
     @commands.command()
     async def attack(self, ctx: Context, *, direction: direction_vector = None):

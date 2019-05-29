@@ -91,16 +91,17 @@ class Actor(AbstractActor, ABC):
         self.fov_default = 2
         self.last_time_moved = 0
 
-    def attempt_move(self, shift: Tuple[int, int]) -> bool:
+    def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
         new_space = self.location + shift
         new_space = self.parent_world.map[new_space.y][new_space.x]
         if not self.parent_world.is_space_valid(new_space):
-            return False
+            return list()
         self.location = new_space
         map_space = self.parent_world.map[self.location.y][self.location.x]
         if isinstance(map_space, GameSpace.Wilds):
-            map_space.run_event(pc=self)
-        return True
+            return map_space.run_event(pc=self)
+        else:
+            return list()
 
     @property
     def hit_points(self) -> int:
@@ -109,8 +110,11 @@ class Actor(AbstractActor, ABC):
     @hit_points.setter
     def hit_points(self, value):
         self._hit_points = min(max(value, 0), self.hit_points_max)
-        if self._hit_points == 0:
+        if self._hit_points <= 0:
             self.on_death()
+
+    def take_damage(self, damage: int):
+        self.hit_points -= damage
 
     @property
     def is_dead(self) -> bool:
