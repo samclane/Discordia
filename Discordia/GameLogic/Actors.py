@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, Any, Union
 
@@ -81,7 +82,7 @@ class AbstractActor(ABC):
 
 class Actor(AbstractActor, ABC):
 
-    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<Unnamed>",
+    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<XXX>",
                  body_type: BodyType = Humanoid()):
         self.parent_world = parent_world
         self._hit_points = self.hit_points_max = hp
@@ -95,13 +96,13 @@ class Actor(AbstractActor, ABC):
         new_space = self.location + shift
         new_space = self.parent_world.map[new_space.y][new_space.x]
         if not self.parent_world.is_space_valid(new_space):
-            return list()
+            return [GameSpace.PlayerActionResponse(False, text="Invalid direction")]
         self.location = new_space
         map_space = self.parent_world.map[self.location.y][self.location.x]
         if isinstance(map_space, GameSpace.Wilds):
             return map_space.run_event(pc=self)
         else:
-            return list()
+            return [GameSpace.PlayerActionResponse(True, text="Moved Successfully")]
 
     @property
     def hit_points(self) -> int:
@@ -137,11 +138,20 @@ class NPC(Actor, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.inventory: List[Items.Equipment] = []
-        self.flavor_text: str = "<No Flavor Text Set>"
+        self.flavor_text: str = "<XXX>"
 
     def on_death(self) -> List[Items.Equipment]:
         self.location: GameSpace.Space = GameSpace.Space.null_space()
         return self.inventory
+
+    @classmethod
+    def generate(cls):
+        return cls(
+            None,
+            1,
+            "<Generated NPC Name>",
+            random.choice(BodyType.__subclasses__())()
+        )
 
 
 class Enemy(NPC):
@@ -149,6 +159,8 @@ class Enemy(NPC):
         super().__init__(*args, **kwargs)
         self.base_attack: int = 0
         self.abilities: Dict[Any] = {}
+
+    # TODO generate() method
 
 
 class PlayerClass(ABC):

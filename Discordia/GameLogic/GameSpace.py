@@ -41,7 +41,7 @@ class Terrain(ABC):
         return str(self)
 
     def __hash__(self):
-        return hash(self.id) + hash(self.walkable)
+        return hash(self.id) + hash(self.walkable)  # FIXME Will cause collisions
 
     @property
     def id(self) -> int:
@@ -238,17 +238,25 @@ class Wilds(Space):
         self.sprite_path = SPRITE_FOLDER / "Structures" / "wilds_default.png"
 
     def add_event(self, event: Events.Event):
-        self.events.append(event)
-        self.null_event.probability -= event.probability
+        if event.probability < self.null_event.probability:
+            self.events.append(event)
+            self.null_event.probability -= event.probability
+        else:
+            LOG.info("Tried to add an event with P > NullP")
+            # FIXME
 
     def run_event(self, pc) -> List[PlayerActionResponse]:
         result = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
         return list(result.run(pc))
 
     @classmethod
-    def generate_wilds(cls, x, y, terrain: Terrain):
+    def generate_wilds(cls, x, y, terrain: Terrain, num_events=3) -> Wilds:
         name = WildsNameGenerator.generate_name()
-        return cls(x, y, name, terrain)
+        wilds = cls(x, y, name, terrain)
+        for _ in range(num_events):
+            event = Events.generate_event()
+            wilds.add_event(event)
+        return wilds
 
 
 @dataclass
@@ -320,7 +328,8 @@ class World:
                 if self.is_space_buildable(self.map[y][x]):
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain), self.starting_town is None)
+                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain),
+                                      self.starting_town is None)
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(Wilds.generate_wilds(x, y, self.map[y][x].terrain))
 
@@ -371,7 +380,8 @@ class World:
                                                  player.location in common_locations]
         return players
 
-    def pvp_attack(self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)) -> PlayerActionResponse:
+    def pvp_attack(self, player_character: Actors.PlayerCharacter,
+                   direction: Direction = (0, 0)) -> PlayerActionResponse:
         response = PlayerActionResponse(text="No targets found in that direction")
         loc: Space = player_character.location
         dmg: int = player_character.weapon.damage
