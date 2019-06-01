@@ -46,7 +46,7 @@ class CombatEvent(Event):
             while not enemy.is_dead:
                 attack_response = GameSpace.PlayerActionResponse()
                 # Damage is always calculated at full power (min distance)
-                dmg = player_character.weapon.damage  # TODO Weapon can be none
+                dmg = player_character.weapon.damage or 0
                 player_character.weapon.on_damage()
                 enemy.take_damage(dmg)
                 attack_response.is_successful = True

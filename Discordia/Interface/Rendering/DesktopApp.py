@@ -53,12 +53,12 @@ class MainWindow:
             with self.canvas_map[y][x].layer() as layer:
                 layer += black_to_transparent(ph.load(player.sprite_path_string))
 
-        self.rendered_canvas = ph.gridstack(self.canvas_map)
+        self.rendered_canvas: ph.Canvas = ph.gridstack(self.canvas_map)
         self.rendered_canvas.name = WINDOW_NAME
 
         self._draw_callback()
 
-        self.rendered_canvas.show(1)
+        self.rendered_canvas.show(250)
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         # Need to find top left coordinate
@@ -88,4 +88,3 @@ class MainWindow:
 def update_display(display: MainWindow):
     while True:
         display.on_draw()
-        time.sleep(1)

@@ -32,7 +32,6 @@ def main():
     # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
     LOG.info("Discordia Server has successfully started.")
-    update_display(display)
     # TODO Figure out how to exit
 
 

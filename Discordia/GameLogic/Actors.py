@@ -145,7 +145,7 @@ class NPC(Actor, ABC):
         return self.inventory
 
     @classmethod
-    def generate(cls):
+    def generate(cls) -> NPC:
         return cls(
             None,
             1,
