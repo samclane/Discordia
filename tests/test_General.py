@@ -8,8 +8,8 @@ from pathlib import Path
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.Rendering import DesktopApp
 from Discordia.Interface.WorldAdapter import WorldAdapter
+from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
 
 LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
@@ -27,65 +27,30 @@ def clean_screenshots():
 
 
 class TestGeneral(unittest.TestCase):
+    NUM_USERS = 10
 
-    def setUp(self):
-        """Change to the directory where main.py will be ran"""
-        os.chdir("../Discordia/")
-        self.discord_interface = None
+    def setUp(self) -> None:
+        os.chdir(Path("../Discordia/"))
+
+        self.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+        self.adapter = WorldAdapter(self.world)
+        self.display = MainWindow(self.adapter)
+        threading.Thread(target=update_display, args=(self.display,)).start()
+        discord_interface = DiscordInterface(self.adapter)
+        threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
+
+        # discord_interface.bot.loop.create_task(update_display(self.display))
+        # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+
+        LOG.info("Discordia Server has successfully started.")
+
+        for idx in range(self.NUM_USERS):
+            self.adapter.register_player(idx, player_name=f"User{idx}")
+
+    def test_names(self):
+        for idx in range(self.NUM_USERS):
+            user = self.adapter.get_player(idx)
+            self.assertEqual(user.name, f"User{idx}")
+
+    def tearDown(self) -> None:
         clean_screenshots()
-
-    def test_connect_disconnect(self):
-        # Start bot
-        world = GameSpace.World(ConfigParser.WORLD_NAME, 10, 10)
-        adapter = WorldAdapter(world)
-        self.discord_interface = DiscordInterface(adapter)
-        run_thread = threading.Thread(target=lambda: self.discord_interface.bot.run(ConfigParser.DISCORD_TOKEN))
-        run_thread.start()
-
-        # Wait for 1 second then exit
-        run_thread.join(1)
-
-    def test_world_creation(self):
-        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-        self.discord_interface = DiscordInterface(WorldAdapter(world))
-        discord_thread = threading.Thread(target=lambda: self.discord_interface.bot.run(ConfigParser.DISCORD_TOKEN))
-        discord_thread.start()
-
-        # Wait for 1 second then exit
-        discord_thread.join(1)
-
-    @windowed_test
-    def test_rendering(self):
-
-        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-        adapter = WorldAdapter(world)
-        window = DesktopApp.MainWindow(adapter)
-        window.test()
-
-    def test_screenshot(self):
-
-        for n in range(1):
-            from Discordia.Interface.Rendering import DesktopApp
-
-            print(f"Test {n}:")
-            world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-            adapter = WorldAdapter(world)
-            window = DesktopApp.MainWindow(adapter, 10000, 10000)
-            window.set_visible(False)
-            pid = random.randint(0, 65535)
-            adapter.register_player(pid, "<test>")
-            actor = adapter.get_player(pid)
-            actor.location = world.map[ConfigParser.WORLD_HEIGHT - 1][ConfigParser.WORLD_WIDTH - 1]
-            window.on_draw()
-            window.update(1 / 60)
-            window.get_player_view(actor)
-            im: Image = Image.open(Path("./PlayerViews/test_screenshot.png"))
-            self.assertFalse(all(p == (0, 0, 0, 255) for p in im.getdata()), "Black screenshot taken")
-            self.assertFalse(any(p == (0, 0, 0, 0) for p in im.getdata()), "Transparent screenshot pixels found.")
-            # Note: Screenshots appear distorted. But they're not transparent. Using a giant window might work.
-
-    def doCleanups(self) -> None:
-        super().doCleanups()
-        clean_screenshots()
-        if self.discord_interface is not None:
-            self.discord_interface.bot.loop.create_task(self.discord_interface.bot.close())

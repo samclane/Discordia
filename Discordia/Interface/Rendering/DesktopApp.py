@@ -58,7 +58,7 @@ class MainWindow:
 
         self._draw_callback()
 
-        self.rendered_canvas.show(250)
+        self.rendered_canvas.show(40)
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         # Need to find top left coordinate

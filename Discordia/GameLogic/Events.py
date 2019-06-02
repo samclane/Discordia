@@ -25,7 +25,7 @@ class Event(ABC):
         raise NotImplementedError("Tried to initialize a generic event")
 
 
-NUM_ENEMIES = 5  # TODO Un-hardcode this
+MAX_NUM_ENEMIES = 5  # TODO Un-hardcode this
 
 
 class CombatEvent(Event):
@@ -44,10 +44,14 @@ class CombatEvent(Event):
             kill_response = GameSpace.PlayerActionResponse()
 
             while not enemy.is_dead:
+                # TODO An infinite loop can appear here.
                 attack_response = GameSpace.PlayerActionResponse()
                 # Damage is always calculated at full power (min distance)
-                dmg = player_character.weapon.damage or 0
-                player_character.weapon.on_damage()
+                if not player_character.has_weapon_equipped:
+                    dmg = 0
+                else:
+                    dmg = player_character.weapon.damage
+                    player_character.weapon.on_damage()
                 enemy.take_damage(dmg)
                 attack_response.is_successful = True
                 attack_response.damage = dmg
@@ -89,7 +93,7 @@ class CombatEvent(Event):
     def generate(cls):
         probability = random.random()
         flavor_text = "<Generated CombatEvent>"
-        enemies = [Actors.Enemy.generate() for _ in range(random.randint(1, NUM_ENEMIES))]
+        enemies = [Actors.Enemy.generate() for _ in range(random.randint(1, MAX_NUM_ENEMIES + 1))]
         return cls(probability, flavor_text, enemies)
 
 
@@ -102,8 +106,7 @@ class EncounterEvent(Event):
         self.npc_involved = npc
 
     def run(self, player_character):
-        if self.flavor_text:
-            yield GameSpace.PlayerActionResponse(text=self.flavor_text)
+        yield GameSpace.PlayerActionResponse(text=self.flavor_text)
 
     @classmethod
     def generate(cls):
