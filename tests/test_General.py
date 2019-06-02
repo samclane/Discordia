@@ -5,6 +5,8 @@ import threading
 import unittest
 from pathlib import Path
 
+from PIL import Image
+
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.DiscordInterface import DiscordInterface
@@ -30,12 +32,14 @@ class TestGeneral(unittest.TestCase):
     NUM_USERS = 10
 
     def setUp(self) -> None:
+        assert self.NUM_USERS != 0
+
         os.chdir(Path("../Discordia/"))
 
         self.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         self.adapter = WorldAdapter(self.world)
         self.display = MainWindow(self.adapter)
-        threading.Thread(target=update_display, args=(self.display,)).start()
+        threading.Thread(target=update_display, args=(self.display,), daemon=True).start()
         discord_interface = DiscordInterface(self.adapter)
         threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
 
@@ -49,8 +53,19 @@ class TestGeneral(unittest.TestCase):
 
     def test_names(self):
         for idx in range(self.NUM_USERS):
-            user = self.adapter.get_player(idx)
-            self.assertEqual(user.name, f"User{idx}")
+            player = self.adapter.get_player(idx)
+            self.assertEqual(player.name, f"User{idx}")
+            self.assertEqual(player.location, self.world.starting_town)
+
+    def test_screenshot(self):
+        for idx in range(self.NUM_USERS):
+            player = self.adapter.get_player(idx)
+            self.adapter.get_player_screenshot(player)
+            img: Image.Image = Image.open(Path(f"./PlayerViews/User{idx}_screenshot.png"))
+            self.assertFalse(all(p == (0, 0, 0, 255) for p in img.getdata()), "Black screenshot taken")
+            self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
+            self.assertGreater(img.height, 1)
+            self.assertGreater(img.width, 1)
 
     def tearDown(self) -> None:
         clean_screenshots()

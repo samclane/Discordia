@@ -43,7 +43,7 @@ class MainWindow:
         self.base_cell_width = self.canvas_map[0][0].width
         self.base_cell_height = self.canvas_map[0][0].height
 
-    def on_draw(self):
+    def on_draw(self, show_window=False):
         for y, row in enumerate(self.canvas_map):
             for x, cnv in enumerate(row):
                 with cnv.layer() as layer:
@@ -58,7 +58,8 @@ class MainWindow:
 
         self._draw_callback()
 
-        self.rendered_canvas.show(40)
+        if show_window:
+            self.rendered_canvas.show(40)
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         # Need to find top left coordinate
