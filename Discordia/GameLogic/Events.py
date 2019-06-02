@@ -15,10 +15,12 @@ class Event(ABC):
 
     @classmethod
     def null_event(cls):
-        return cls(1.0, "<Null Event>")
+        evt = cls(1.0, "<Null Event>")
+        evt.run = lambda _: None
+        return evt
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
-        pass
+        raise NotImplementedError("Tried to run a generic event")
 
     @classmethod
     def generate(cls):
@@ -37,18 +39,17 @@ class CombatEvent(Event):
         self.special_conditions: [] = conditions
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
-        print("We're in event combat!")
         # Just mow the enemies down in order
         victory_response = GameSpace.PlayerActionResponse()
         for enemy in self.enemies:
             kill_response = GameSpace.PlayerActionResponse()
 
             while not enemy.is_dead:
-                # TODO An infinite loop can appear here.
+                # WARN An infinite loop can appear here.
                 attack_response = GameSpace.PlayerActionResponse()
                 # Damage is always calculated at full power (min distance)
                 if not player_character.has_weapon_equipped:
-                    dmg = 0
+                    dmg = 1
                 else:
                     dmg = player_character.weapon.damage
                     player_character.weapon.on_damage()
@@ -106,7 +107,7 @@ class EncounterEvent(Event):
         self.npc_involved = npc
 
     def run(self, player_character):
-        yield GameSpace.PlayerActionResponse(text=self.flavor_text)
+        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
 
     @classmethod
     def generate(cls):
@@ -124,7 +125,7 @@ class MerchantEvent(Event):
         self.items: {} = items
 
     def run(self, player_character):
-        yield GameSpace.PlayerActionResponse(text=self.flavor_text)
+        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
 
     @classmethod
     def generate(cls):

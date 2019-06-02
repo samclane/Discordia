@@ -13,6 +13,8 @@ from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
 
+os.chdir(Path("../Discordia/"))
+
 LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
@@ -30,11 +32,11 @@ def clean_screenshots():
 
 class TestGeneral(unittest.TestCase):
     NUM_USERS = 10
+    NUM_STEPS = 100000
+    NUM_STEP_VIEW = NUM_STEPS + 1  # TURNED OFF
 
     def setUp(self) -> None:
         assert self.NUM_USERS != 0
-
-        os.chdir(Path("../Discordia/"))
 
         self.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         self.adapter = WorldAdapter(self.world)
@@ -67,5 +69,54 @@ class TestGeneral(unittest.TestCase):
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
+    def test_move_randomly(self):
+        failcount = 0
+        for step in range(self.NUM_STEPS):
+            for idx in range(self.NUM_USERS):
+                direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
+                player = self.adapter.get_player(idx)
+                result = player.attempt_move(direction)
+                if len(result) == 1:
+                    if not result[0].is_successful:
+                        failcount += 1
+                LOG.info(result)
+            if step % self.NUM_STEP_VIEW == 0:
+                self.display.rendered_canvas.show()
+        self.assertNotEqual(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
+        LOG.info(f"Failcount: {failcount}")
+
     def tearDown(self) -> None:
         clean_screenshots()
+
+
+class TestStress(unittest.TestCase):
+    NUM_USERS = 3
+    NUM_WORLDS = 25
+
+    def setUp(self) -> None:
+        assert self.NUM_USERS > 0
+        assert self.NUM_WORLDS > 0
+        self.worlds = []
+        self.adapters = []
+        self.displays = []
+        for _ in range(self.NUM_WORLDS):
+            world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+            adapter = WorldAdapter(world)
+            display = MainWindow(adapter)
+            threading.Thread(target=update_display, args=(display,), daemon=True).start()
+            for idx in range(self.NUM_USERS):
+                adapter.register_player(idx, player_name=f"User{idx}")
+            self.worlds.append(world)
+            self.adapters.append(adapter)
+            self.displays.append(display)
+
+    def test_screenshot(self):
+        for adapter in self.adapters:
+            for idx in range(self.NUM_USERS):
+                player = adapter.get_player(idx)
+                adapter.get_player_screenshot(player)
+                img: Image.Image = Image.open(Path(f"./PlayerViews/User{idx}_screenshot.png"))
+                self.assertFalse(all(p == (0, 0, 0, 255) for p in img.getdata()), "Black screenshot taken")
+                self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
+                self.assertGreater(img.height, 1)
+                self.assertGreater(img.width, 1)

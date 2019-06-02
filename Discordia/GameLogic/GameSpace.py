@@ -238,16 +238,18 @@ class Wilds(Space):
         self.sprite_path = SPRITE_FOLDER / "Structures" / "wilds_default.png"
 
     def add_event(self, event: Events.Event):
-        if event.probability < self.null_event.probability:
-            self.events.append(event)
-            self.null_event.probability -= event.probability
-        else:
-            LOG.info("Tried to add an event with P > NullP")
-            # FIXME
+        if event.probability > self.null_event.probability:
+            event.probability = self.null_event.probability
+        self.events.append(event)
+        self.null_event.probability -= event.probability
+        assert self.null_event.probability >= 0
 
     def run_event(self, pc) -> List[PlayerActionResponse]:
-        result = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
-        return list(result.run(pc))
+        chosen_event = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
+        results = chosen_event.run(pc)
+        if results is None:
+            results = [PlayerActionResponse()]
+        return list(results)
 
     @classmethod
     def generate_wilds(cls, x, y, terrain: Terrain, num_events=3) -> Wilds:

@@ -94,7 +94,10 @@ class Actor(AbstractActor, ABC):
 
     def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
         new_space = self.location + shift
-        new_space = self.parent_world.map[new_space.y][new_space.x]
+        try:  # TODO Ugly hack
+            new_space = self.parent_world.map[new_space.y][new_space.x]
+        except IndexError:
+            return [GameSpace.PlayerActionResponse(False, text="Invalid direction")]
         if not self.parent_world.is_space_valid(new_space):
             return [GameSpace.PlayerActionResponse(False, text="Invalid direction")]
         self.location = new_space
@@ -157,7 +160,7 @@ class NPC(Actor, ABC):
 class Enemy(NPC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.base_attack: int = 0
+        self.base_attack: int = 1
         self.abilities: Dict[Any] = {}
 
     # TODO generate() method
