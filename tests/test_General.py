@@ -77,8 +77,8 @@ class TestGeneral(unittest.TestCase):
                 result = player.attempt_move(direction)
                 if len(result) == 1 and not result[0].is_successful:
                     failcount += 1
-                elif len(result[0].text):
-                    LOG.info(result)
+                # elif len(result[0].text):
+                #     LOG.info(result)
 
         self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
         LOG.info(f"Failcount: {failcount}")

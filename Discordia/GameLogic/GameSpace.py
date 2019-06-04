@@ -153,10 +153,7 @@ class Space(ABC):
         return str((self.x, self.y, self.terrain))
 
     def __eq__(self, other):
-        if isinstance(other, Space):
-            return self.x == other.x and self.y == other.y
-        else:
-            return self.x == other[0] and self.y == other[1]
+        return self.x == other[0] and self.y == other[1]
 
     def __add__(self, other) -> Space:
         if isinstance(other, Space):
@@ -189,10 +186,7 @@ class Space(ABC):
         return str(self.sprite_path)
 
     def distance(self, other) -> float:
-        if isinstance(other, Space):
-            return sqrt(abs(self.x - other.x) ** 2 + abs(self.y - other.y) ** 2)
-        else:
-            return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
+        return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
 
 class Town(Space):
