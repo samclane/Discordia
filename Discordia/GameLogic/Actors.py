@@ -88,24 +88,19 @@ class Actor(AbstractActor, ABC):
         self._hit_points = self.hit_points_max = hp
         self.name = name
         self.body_type = body_type
-        self.location: GameSpace.Space = GameSpace.Space.null_space()
+        self.location: GameSpace.Space = None
         self.fov_default = 2
         self.last_time_moved = 0
 
     def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
-        new_space = self.location + shift
-        try:  # TODO Ugly hack
-            new_space = self.parent_world.map[new_space.y][new_space.x]
-        except IndexError:
-            return [GameSpace.PlayerActionResponse(False, text="Invalid direction")]
-        if not self.parent_world.is_space_valid(new_space):
-            return [GameSpace.PlayerActionResponse(False, text="Invalid direction")]
-        self.location = new_space
-        map_space = self.parent_world.map[self.location.y][self.location.x]
-        if isinstance(map_space, GameSpace.Wilds):
-            return map_space.run_event(pc=self)
+        new_coords = self.location + shift
+        if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
+            return [GameSpace.PlayerActionResponse(False)]
+        self.location = self.parent_world.map[new_coords.y][new_coords.x]
+        if isinstance(self.location, GameSpace.Wilds):
+            return self.location.run_event(player=self)
         else:
-            return [GameSpace.PlayerActionResponse(True, text="Moved Successfully")]
+            return [GameSpace.PlayerActionResponse(True)]
 
     @property
     def hit_points(self) -> int:
@@ -144,7 +139,7 @@ class NPC(Actor, ABC):
         self.flavor_text: str = "<XXX>"
 
     def on_death(self) -> List[Items.Equipment]:
-        self.location: GameSpace.Space = GameSpace.Space.null_space()
+        self.location = None
         return self.inventory
 
     @classmethod

@@ -87,6 +87,6 @@ class MainWindow:
         return str(img_path)
 
 
-def update_display(display: MainWindow):
+def update_display(display: MainWindow, show_window=False):
     while True:
-        display.on_draw()
+        display.on_draw(show_window=show_window)

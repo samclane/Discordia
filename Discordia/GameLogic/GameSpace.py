@@ -160,9 +160,9 @@ class Space(ABC):
 
     def __add__(self, other) -> Space:
         if isinstance(other, Space):
-            return Space(self.x + other.x, self.y + other.y, other.terrain)
+            return Space(max(self.x + other.x, 0), max(self.y + other.y, 0), other.terrain)
         else:
-            return Space(self.x + int(other[0]), self.y + int(other[1]), NullTerrain())
+            return Space(max(self.x + int(other[0]), 0), max(self.y + int(other[1]), 0), NullTerrain())
 
     def __sub__(self, other):
         if isinstance(other, Space):
@@ -187,10 +187,6 @@ class Space(ABC):
     @property
     def sprite_path_string(self):
         return str(self.sprite_path)
-
-    @classmethod
-    def null_space(cls):
-        return cls(None, None)
 
     def distance(self, other) -> float:
         if isinstance(other, Space):
@@ -246,9 +242,9 @@ class Wilds(Space):
         self.null_event.probability -= event.probability
         assert self.null_event.probability >= 0
 
-    def run_event(self, pc) -> List[PlayerActionResponse]:
+    def run_event(self, player) -> List[PlayerActionResponse]:
         chosen_event = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
-        results = chosen_event.run(pc)
+        results = chosen_event.run(player)
         if results is None:
             results = [PlayerActionResponse()]
         return list(results)
@@ -339,6 +335,11 @@ class World:
 
     def is_space_valid(self, space: Space) -> bool:
         return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
+
+    def is_coords_valid(self, x: int, y: int):
+        if (0 <= x <= self.width - 1) and (0 <= y <= self.height - 1):
+            return self.map[y][x].terrain.walkable
+        return False
 
     def is_space_buildable(self, space: Space) -> bool:
         if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
