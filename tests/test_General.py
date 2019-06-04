@@ -33,7 +33,6 @@ def clean_screenshots():
 class TestGeneral(unittest.TestCase):
     NUM_USERS = 10
     NUM_STEPS = 100000
-    NUM_STEP_VIEW = NUM_STEPS + 1  # TURNED OFF
 
     def setUp(self) -> None:
         assert self.NUM_USERS != 0
@@ -79,10 +78,7 @@ class TestGeneral(unittest.TestCase):
                 if len(result) == 1:
                     if not result[0].is_successful:
                         failcount += 1
-                LOG.info(result)
-            if step % self.NUM_STEP_VIEW == 0:
-                self.display.rendered_canvas.show()
-        self.assertNotEqual(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
+        self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
         LOG.info(f"Failcount: {failcount}")
 
     def tearDown(self) -> None:
@@ -90,8 +86,9 @@ class TestGeneral(unittest.TestCase):
 
 
 class TestStress(unittest.TestCase):
-    NUM_USERS = 3
-    NUM_WORLDS = 25
+    NUM_STEPS = 100000
+    NUM_USERS = 100
+    NUM_WORLDS = 3
 
     def setUp(self) -> None:
         assert self.NUM_USERS > 0
@@ -99,13 +96,18 @@ class TestStress(unittest.TestCase):
         self.worlds = []
         self.adapters = []
         self.displays = []
-        for _ in range(self.NUM_WORLDS):
+        self.threads = {}
+        for idx in range(self.NUM_WORLDS):
             world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
             adapter = WorldAdapter(world)
             display = MainWindow(adapter)
-            threading.Thread(target=update_display, args=(display,), daemon=True).start()
-            for idx in range(self.NUM_USERS):
-                adapter.register_player(idx, player_name=f"User{idx}")
+
+            self.threads[idx] = threading.Thread(target=update_display, args=(display,), daemon=True)
+            self.threads[idx].start()
+
+            for pid in range(self.NUM_USERS):
+                adapter.register_player(pid, player_name=f"User{pid}")
+
             self.worlds.append(world)
             self.adapters.append(adapter)
             self.displays.append(display)
@@ -120,3 +122,20 @@ class TestStress(unittest.TestCase):
                 self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
                 self.assertGreater(img.height, 1)
                 self.assertGreater(img.width, 1)
+
+    def test_move_randomly(self):
+        for adapter in self.adapters:
+            failcount = 0
+            for step in range(self.NUM_STEPS):
+                for idx in range(self.NUM_USERS):
+                    direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
+                    player = adapter.get_player(idx)
+                    result = player.attempt_move(direction)
+                    if len(result) == 1:
+                        if not result[0].is_successful:
+                            failcount += 1
+            self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
+            LOG.info(f"Failcount: {failcount}")
+
+    def tearDown(self) -> None:
+        clean_screenshots()

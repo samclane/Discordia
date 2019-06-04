@@ -138,6 +138,8 @@ class WoodworkingIndustry(IndustryType):
 class Space(ABC):
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
+        if x < 0 or y < 0:
+            raise ValueError(f"Negative coordinate given: {min(x, y)}")
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
@@ -164,9 +166,9 @@ class Space(ABC):
 
     def __sub__(self, other):
         if isinstance(other, Space):
-            return Space(self.x - other.x, self.y - other.y, other.terrain)
+            return Space(max(self.x - other.x, 0), max(self.y - other.y, 0), other.terrain)
         else:
-            return Space(self.x - int(other[0]), self.y - int(other[1]), NullTerrain())
+            return Space(max(self.x - int(other[0]), 0), max(self.y - int(other[1]), 0), NullTerrain())
 
     def __iter__(self):
         yield self.x

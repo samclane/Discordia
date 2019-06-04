@@ -65,6 +65,7 @@ class MainWindow:
         # Need to find top left coordinate
         # Find tile first
         top_left_tile: GameSpace.Space = character.location - (character.fov, character.fov)
+        assert top_left_tile.x >= 0 and top_left_tile.y >= 0, "Negative coordinates"
 
         # Then convert game-coordinates to pixel (x, y, width, height)
         # x = max(top_left_tile.x * self.base_cell_width, 0)
