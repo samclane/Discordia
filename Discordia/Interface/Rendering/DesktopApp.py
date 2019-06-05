@@ -72,18 +72,26 @@ class MainWindow:
         # y = max(top_left_tile.y * self.base_cell_height, 0)
         # width = ((character.fov * 2) + 1) * self.base_cell_width
         # height = ((character.fov * 2) + 1) * self.base_cell_height
-        x1 = max(top_left_tile.x, 0)
-        y1 = max(top_left_tile.y, 0)
+        x1 = min(max(top_left_tile.x, 0), WORLD_WIDTH)
+        y1 = min(max(top_left_tile.y, 0), WORLD_HEIGHT)
         width = height = ((character.fov * 2) + 1)
-        x2 = max(top_left_tile.x + width, 0)
-        y2 = max(top_left_tile.y + height, 0)
+        x2 = min(max(top_left_tile.x + width, 0), WORLD_WIDTH)
+        y2 = min(max(top_left_tile.y + height, 0), WORLD_HEIGHT)
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
-        view = [self.canvas_map[i][x1:x2] for i in range(y1, y2)]
+        try:
+            view = [self.canvas_map[i][x1:x2] for i in range(y1, y2)]
+        except IndexError as e:
+            raise e
         img = ph.gridstack(view)
         img_path = f'./PlayerViews/{character.name}_screenshot.png'
         img.save(img_path)
+        return str(img_path)
+
+    def get_world_view(self) -> str:
+        img_path = f"./PlayerViews/world_{int(time.time())}.png"
+        self.rendered_canvas.save(img_path)
         return str(img_path)
 
 

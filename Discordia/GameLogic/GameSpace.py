@@ -262,6 +262,10 @@ class PlayerActionResponse:
     items: List[Equipment] = field(default_factory=list)
     currency: int = 0
 
+    @property
+    def failed(self):
+        return not self.is_successful
+
 
 @dataclass
 class WorldGenerationParameters:
