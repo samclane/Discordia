@@ -77,10 +77,10 @@ class TestGeneral(unittest.TestCase):
                 if result[0].damage:
                     LOG.info(result)
 
-        self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
+        self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every movement attempt.")
         LOG.info(f"Failcount: {failcount}")
 
     def tearDown(self) -> None:
         self.display.on_draw()
         self.display.get_world_view()
-        # clean_screenshots()
+        clean_screenshots()

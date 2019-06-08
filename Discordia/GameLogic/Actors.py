@@ -16,6 +16,9 @@ class BodyType(ABC):
     def size_code(self):
         raise NotImplementedError
 
+    def __str__(self):
+        return self.__class__.__name__
+
 
 class Humanoid(BodyType):
 
@@ -93,6 +96,15 @@ class Actor(AbstractActor, ABC):
         self.fov_default = 2
         self.last_time_moved = 0
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        attrdict = []
+        for attr in [a for a in self.__dict__ if not a.startswith('__')]:
+            attrdict.append(f"{attr}: {getattr(self, attr)}")
+        return f"{self.__class__.__name__}(" + ', '.join(attrdict) + ')'
+
     def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
         new_coords = self.location + shift
         if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
@@ -137,7 +149,8 @@ class NPC(Actor, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.inventory: List[Items.Equipment] = []
-        self.flavor_text: str = "<XXX>"
+        self.flavor_text: str = "<NONE>"
+        self.base_attack = 1
 
     def on_death(self) -> List[Items.Equipment]:
         self.location = None
