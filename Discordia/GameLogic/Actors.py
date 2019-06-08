@@ -83,7 +83,7 @@ class AbstractActor(ABC):
 
 class Actor(AbstractActor, ABC):
 
-    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<XXX>",
+    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<NONE>",
                  body_type: BodyType = Humanoid()):
         self.parent_world = parent_world
         self._hit_points = self.hit_points_max = hp
@@ -155,15 +155,6 @@ class NPC(Actor, ABC):
             name,
             random.choice(BodyType.__subclasses__())()
         )
-
-
-class Enemy(NPC):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.base_attack: int = 1
-        self.abilities: Dict[Any] = {}
-
-    # TODO generate() method
 
 
 class PlayerClass(ABC):

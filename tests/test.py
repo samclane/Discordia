@@ -36,7 +36,7 @@ class TestGeneral(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        assert cls.NUM_USERS != 0
+        assert cls.NUM_USERS > 0
 
         cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         cls.adapter = WorldAdapter(cls.world)

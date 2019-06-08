@@ -33,9 +33,9 @@ MAX_NUM_ENEMIES = 5  # TODO Un-hardcode this
 class CombatEvent(Event):
 
     def __init__(self, probability: float, flavor_text: str,
-                 enemies: List[Actors.Enemy], conditions=None):
+                 enemies: List[Actors.NPC], conditions=None):
         super().__init__(probability, flavor_text)
-        self.enemies: List[Actors.Enemy] = enemies
+        self.enemies: List[Actors.NPC] = enemies
         self.special_conditions: [] = conditions
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
@@ -94,7 +94,7 @@ class CombatEvent(Event):
     def generate(cls):
         probability = random.random()
         flavor_text = "<Generated CombatEvent>"
-        enemies = [Actors.Enemy.generate() for _ in range(random.randint(1, MAX_NUM_ENEMIES + 1))]
+        enemies = [Actors.NPC.generate() for _ in range(random.randint(1, MAX_NUM_ENEMIES + 1))]
         return cls(probability, flavor_text, enemies)
 
 
