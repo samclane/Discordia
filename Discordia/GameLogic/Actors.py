@@ -7,6 +7,7 @@ from typing import Tuple, List, Dict, Any, Union
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
+from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
 
 
 class BodyType(ABC):
@@ -144,10 +145,14 @@ class NPC(Actor, ABC):
 
     @classmethod
     def generate(cls) -> NPC:
+        if random.random() > .5:
+            name = CharacterNameGenerator.male_name().generate_name()
+        else:
+            name = CharacterNameGenerator.female_name().generate_name()
         return cls(
             None,
             1,
-            "<Generated NPC Name>",
+            name,
             random.choice(BodyType.__subclasses__())()
         )
 

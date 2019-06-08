@@ -32,7 +32,7 @@ def clean_screenshots():
 
 class TestGeneral(unittest.TestCase):
     NUM_USERS = 10
-    NUM_STEPS = 5_000
+    NUM_STEPS = 100_000
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -74,8 +74,8 @@ class TestGeneral(unittest.TestCase):
                 result = player.attempt_move(direction)
                 if len(result) == 1 and result[0].failed:
                     failcount += 1
-                # elif len(result[0].text):
-                #     LOG.info(result)
+                if result[0].damage:
+                    LOG.info(result)
 
         self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every single movement attempt.")
         LOG.info(f"Failcount: {failcount}")

@@ -80,10 +80,7 @@ class MainWindow:
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
-        try:
-            view = [self.canvas_map[i][x1:x2] for i in range(y1, y2)]
-        except IndexError as e:
-            raise e
+        view = [self.canvas_map[i][x1:x2] for i in range(y1, y2)]
         img = ph.gridstack(view)
         img_path = f'./PlayerViews/{character.name}_screenshot.png'
         img.save(img_path)

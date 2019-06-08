@@ -1,5 +1,6 @@
 import random
 from abc import ABC
+from string import ascii_uppercase
 from typing import List
 
 
@@ -65,11 +66,7 @@ class WildsNameGenerator(NameGenerator):
 
 
 class CharacterNameGenerator(NameGenerator):
-    _roots = [
-        "",
-        "A. ",
-        "F. ",
-    ]
+    _roots = [c + "." for c in ascii_uppercase] + [""]
 
     _postfixes = [
         "Smith",
@@ -88,7 +85,7 @@ class CharacterNameGenerator(NameGenerator):
 
         cls._roots.append("Son of ")
 
-        return cls()
+        return cls
 
     @classmethod
     def female_name(cls):
@@ -101,4 +98,4 @@ class CharacterNameGenerator(NameGenerator):
 
         cls._roots.append("Daughter of ")
 
-        return cls()
+        return cls
