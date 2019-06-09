@@ -41,13 +41,13 @@ class CombatEvent(Event):
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
         # Just mow the enemies down in order
-        victory_response = GameSpace.PlayerActionResponse()
+        victory_response = GameSpace.PlayerActionResponse(source=player_character)
         for enemy in self.enemies:
-            kill_response = GameSpace.PlayerActionResponse()
+            kill_response = GameSpace.PlayerActionResponse(source=player_character)
 
             while not enemy.is_dead:
                 # WARN An infinite loop can appear here.
-                attack_response = GameSpace.PlayerActionResponse()
+                attack_response = GameSpace.PlayerActionResponse(source=player_character)
                 # Damage is always calculated at full power (min distance)
                 if not player_character.has_weapon_equipped:
                     dmg = 1
@@ -61,7 +61,7 @@ class CombatEvent(Event):
                 attack_response.text = f"{player_character.name} does {dmg} dmg to {enemy.name}."
                 yield attack_response
 
-                defense_response = GameSpace.PlayerActionResponse()
+                defense_response = GameSpace.PlayerActionResponse(source=player_character)
                 dmg = enemy.base_attack
                 player_character.take_damage(dmg)
                 defense_response.damage = dmg
@@ -109,7 +109,7 @@ class EncounterEvent(Event):
         self.npc_involved = npc
 
     def run(self, player_character) -> Iterator[GameSpace.PlayerActionResponse]:
-        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
+        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
 
     @classmethod
     def generate(cls) -> EncounterEvent:
@@ -127,7 +127,7 @@ class MerchantEvent(Event):
         self.items: {} = items
 
     def run(self, player_character):
-        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
+        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
 
     @classmethod
     def generate(cls) -> MerchantEvent:

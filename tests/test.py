@@ -9,9 +9,10 @@ from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic.Actors import PlayerCharacter
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
+from Discordia.Interface.WorldAdapter import WorldAdapter
 
 os.chdir(Path("../Discordia/"))
 
@@ -58,17 +59,19 @@ class TestGeneral(unittest.TestCase):
 
         cls.display.on_draw()
 
+    def _move_randomly(self):
+        for idx in range(self.NUM_USERS):
+            direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
+            player = self.adapter.get_player(idx)
+            yield player.attempt_move(direction)
+
     def test_1_move_randomly(self):
         """
-        Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at least
-        some of the time.
+        Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at least some of the time.
         """
         fail_count = 0
         for step in range(self.NUM_STEPS):
-            for idx in range(self.NUM_USERS):
-                direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
-                player = self.adapter.get_player(idx)
-                result = player.attempt_move(direction)
+            for result in self._move_randomly():
                 if len(result) == 1 and result[0].failed:
                     fail_count += 1
 
@@ -76,6 +79,10 @@ class TestGeneral(unittest.TestCase):
         LOG.info(f"Successes: {(self.NUM_USERS * self.NUM_STEPS) - fail_count} - Failcount: {fail_count}")
 
     def test_2_screenshot(self):
+        """
+        Ensure that all actors are able to take pictures that aren't completely transparent or black
+        :return:
+        """
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
@@ -84,6 +91,33 @@ class TestGeneral(unittest.TestCase):
             self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
+
+    def test_3_buying_power(self):
+        """
+        Have randomly moving users buy weapons from towns they encounter
+        :return:
+        """
+        successes = 0
+        for idx in range(self.NUM_USERS):
+            player = self.adapter.get_player(idx)
+            player.currency += 1000
+        for step in range(self.NUM_STEPS):
+            for result in self._move_randomly():
+                if len(result) == 1 and result[0].failed:
+                    pass
+                player: PlayerCharacter = result[0].source
+                if self.adapter.is_town(player.location):
+                    if player.location.store.inventory:
+                        town: GameSpace.Town = player.location
+                        index = random.randint(0, len(set(town.store.inventory)))
+                        if town.store.sell_item(index, player):
+                            item = player.inventory[-1]
+                            player.equip(item)
+                            self.assertTrue(player.has_weapon_equipped)
+                            self.assertTrue(player.weapon == item)
+                            self.assertIsNotNone(player.weapon)
+                            successes += 1
+        LOG.info(f"Buying Successes: {successes}")
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

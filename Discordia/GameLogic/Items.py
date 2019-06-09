@@ -129,33 +129,37 @@ class EquipmentSet:
         return sum([armor.armour_count for armor in self.armor_set])
 
     def equip(self, equipment: Equipment):
-        if isinstance(equipment, HeadArmorAbstract):
+        equipment_type = type(equipment)
+        if issubclass(equipment_type, HeadArmorAbstract):
             self.head = equipment
-        if isinstance(equipment, ChestArmorAbstract):
+        elif issubclass(equipment_type, ChestArmorAbstract):
             self.chest = equipment
-        if isinstance(equipment, LegArmorAbstract):
+        elif issubclass(equipment_type, LegArmorAbstract):
             self.legs = equipment
-        if isinstance(equipment, FootArmorAbstract):
+        elif issubclass(equipment_type, FootArmorAbstract):
             self.feet = equipment
-        if isinstance(equipment, MainHandEquipment):
+        elif issubclass(equipment_type, MainHandEquipment):
             self.main_hand = equipment
-        if isinstance(equipment, OffHandEquipment):
+        elif issubclass(equipment_type, OffHandEquipment):
             self.off_hand = equipment
         else:
-            raise ValueError("Equipment was not of recognized type.")
+            err = f"Equipment was not of recognized type: {type(equipment)}"
+            raise ValueError(err)
 
     def unequip(self, equipment: Equipment):
-        if isinstance(equipment, HeadArmorAbstract):
+        equipment_type = type(equipment)
+        if issubclass(equipment_type, HeadArmorAbstract):
             self.head = HeadArmorAbstract()
-        if isinstance(equipment, ChestArmorAbstract):
+        elif issubclass(equipment_type, ChestArmorAbstract):
             self.chest = ChestArmorAbstract()
-        if isinstance(equipment, LegArmorAbstract):
+        elif issubclass(equipment_type, LegArmorAbstract):
             self.legs = LegArmorAbstract()
-        if isinstance(equipment, FootArmorAbstract):
+        elif issubclass(equipment_type, FootArmorAbstract):
             self.feet = FootArmorAbstract()
-        if isinstance(equipment, MainHandEquipment):
+        elif issubclass(equipment_type, MainHandEquipment):
             self.main_hand = MainHandEquipment()
-        if isinstance(equipment, OffHandEquipment):
+        elif issubclass(equipment_type, OffHandEquipment):
             self.off_hand = OffHandEquipment()
         else:
-            raise ValueError("Equipment was not of recognized type.")
+            err = f"Equipment was not of recognized type: {type(equipment)}"
+            raise ValueError(err)

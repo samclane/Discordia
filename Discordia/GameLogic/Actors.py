@@ -108,12 +108,12 @@ class Actor(AbstractActor, ABC):
     def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
         new_coords = self.location + shift
         if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
-            return [GameSpace.PlayerActionResponse(False)]
+            return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
         self.location = self.parent_world.map[new_coords.y][new_coords.x]
         if isinstance(self.location, GameSpace.Wilds):
             return self.location.run_event(player=self)
         else:
-            return [GameSpace.PlayerActionResponse(True)]
+            return [GameSpace.PlayerActionResponse(is_successful=True, source=self)]
 
     @property
     def hit_points(self) -> int:

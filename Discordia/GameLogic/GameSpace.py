@@ -211,7 +211,7 @@ class Town(Space):
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
-        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0)
+        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0, source=character)
         return resp
 
 
@@ -240,7 +240,7 @@ class Wilds(Space):
         chosen_event = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
         results = chosen_event.run(player)
         if results is None:
-            results = [PlayerActionResponse()]
+            results = [PlayerActionResponse(source=player)]
         return list(results)
 
     @classmethod
@@ -261,6 +261,7 @@ class PlayerActionResponse:
     text: str = ""
     items: List[Equipment] = field(default_factory=list)
     currency: int = 0
+    source: Actors.Actor = None
 
     @property
     def failed(self):
@@ -385,7 +386,7 @@ class World:
 
     def pvp_attack(self, player_character: Actors.PlayerCharacter,
                    direction: Direction = (0, 0)) -> PlayerActionResponse:
-        response = PlayerActionResponse(text="No targets found in that direction")
+        response = PlayerActionResponse(text="No targets found in that direction", source=player_character)
         loc: Space = player_character.location
         dmg: int = player_character.weapon.damage
         while dmg > 0:
@@ -441,7 +442,10 @@ class Store:
 
     def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
-        item = [item for item in self.inventory if isinstance(item, type(list(set(self.inventory))[index]))][0]
+        try:
+            item = [item for item in self.inventory if issubclass(type(item), type(list(set(self.inventory))[index]))][0]
+        except IndexError:
+            return False
         price = self.get_price(item)
         if player_character.currency < price:
             return False
