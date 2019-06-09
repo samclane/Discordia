@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def clean_screenshots():
+    """ Delete all files in the screenshot folder """
     folder = "../Discordia/PlayerViews"
     for file_ in os.listdir(folder):
         file_path = os.path.join(folder, file_)
@@ -31,12 +32,14 @@ def clean_screenshots():
 
 
 class TestGeneral(unittest.TestCase):
-    NUM_USERS = 10
-    NUM_STEPS = 100_000
+    NUM_USERS = 100
+    NUM_STEPS = 1_000
 
     @classmethod
     def setUpClass(cls) -> None:
         assert cls.NUM_USERS > 0
+
+        clean_screenshots()
 
         cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
         cls.adapter = WorldAdapter(cls.world)
@@ -55,7 +58,24 @@ class TestGeneral(unittest.TestCase):
 
         cls.display.on_draw()
 
-    def test_screenshot(self):
+    def test_1_move_randomly(self):
+        """
+        Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at least
+        some of the time.
+        """
+        fail_count = 0
+        for step in range(self.NUM_STEPS):
+            for idx in range(self.NUM_USERS):
+                direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
+                player = self.adapter.get_player(idx)
+                result = player.attempt_move(direction)
+                if len(result) == 1 and result[0].failed:
+                    fail_count += 1
+
+        self.assertLess(fail_count, self.NUM_USERS * self.NUM_STEPS, "Failed every movement attempt.")
+        LOG.info(f"Successes: {(self.NUM_USERS * self.NUM_STEPS) - fail_count} - Failcount: {fail_count}")
+
+    def test_2_screenshot(self):
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
@@ -65,23 +85,7 @@ class TestGeneral(unittest.TestCase):
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
-    def test_move_randomly(self):
-        failcount = 0
-        for step in range(self.NUM_STEPS):
-            for idx in range(self.NUM_USERS):
-                direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
-                player = self.adapter.get_player(idx)
-                result = player.attempt_move(direction)
-                if len(result) == 1 and result[0].failed:
-                    failcount += 1
-                if result[0].damage:
-                    LOG.info(result)
-
-        self.assertLess(failcount, self.NUM_USERS * self.NUM_STEPS, "Failed every movement attempt.")
-        LOG.info(f"Failcount: {failcount}")
-
     def tearDown(self) -> None:
-        print("Miss Count: ", self.display._sprite_cache.miss_count)
+        LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
         self.display.on_draw()
         self.display.get_world_view()
-        clean_screenshots()

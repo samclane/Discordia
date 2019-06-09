@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import numpy as np
 from abc import ABC
 from typing import List, Iterator, Type
 
@@ -27,7 +28,7 @@ class Event(ABC):
         raise NotImplementedError("Tried to initialize a generic event")
 
 
-MAX_NUM_ENEMIES = 5  # TODO Un-hardcode this
+AVG_NUM_ENEMIES = 5  # TODO Un-hardcode this
 
 
 class CombatEvent(Event):
@@ -93,8 +94,9 @@ class CombatEvent(Event):
     @classmethod
     def generate(cls):
         probability = random.random()
+        num_enemies = round(abs(np.random.normal(AVG_NUM_ENEMIES)))
         flavor_text = "<Generated CombatEvent>"
-        enemies = [Actors.NPC.generate() for _ in range(random.randint(1, MAX_NUM_ENEMIES + 1))]
+        enemies = [Actors.NPC.generate() for _ in range(num_enemies)]
         return cls(probability, flavor_text, enemies)
 
 
@@ -106,11 +108,11 @@ class EncounterEvent(Event):
         self.choice_dict = choices_dict
         self.npc_involved = npc
 
-    def run(self, player_character):
+    def run(self, player_character) -> Iterator[GameSpace.PlayerActionResponse]:
         yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
 
     @classmethod
-    def generate(cls):
+    def generate(cls) -> EncounterEvent:
         probability = random.random()
         npc_involved = Actors.NPC.generate()
         flavor_text = f"<Encountered NPC {npc_involved.name} (p={probability})>"
@@ -128,7 +130,7 @@ class MerchantEvent(Event):
         yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text)
 
     @classmethod
-    def generate(cls):
+    def generate(cls) -> MerchantEvent:
         probability = random.random()
         flavor_text = f"<Generated MerchantEvent>"
         items = {}
