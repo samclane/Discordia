@@ -145,7 +145,7 @@ class Actor(AbstractActor, ABC):
         return str(self.sprite_path)
 
 
-class NPC(Actor, ABC):
+class NPC(Actor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.inventory: List[Items.Equipment] = []

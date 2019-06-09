@@ -81,6 +81,7 @@ class TestGeneral(unittest.TestCase):
         LOG.info(f"Failcount: {failcount}")
 
     def tearDown(self) -> None:
+        print("Miss Count: ", self.display._sprite_cache.miss_count)
         self.display.on_draw()
         self.display.get_world_view()
         clean_screenshots()
