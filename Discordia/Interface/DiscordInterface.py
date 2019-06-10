@@ -177,7 +177,8 @@ class DiscordInterface(commands.Cog):
             # If any Events happen, let the PC know step-by-step
             if results:
                 for r in results:
-                    await ctx.send(r.text)
+                    if r.text:
+                        await ctx.send(r.text)
                     if not r.is_successful:
                         break
 

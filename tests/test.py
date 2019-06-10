@@ -53,7 +53,7 @@ class TestGeneral(unittest.TestCase):
         # discord_interface.bot.loop.create_task(update_display(cls.display))
         # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
-        LOG.info("Discordia Server has successfully started.")
+        LOG.info("Discordia server started")
 
         for idx in range(cls.NUM_USERS):
             cls.adapter.register_player(idx, player_name=f"User{idx}")
@@ -61,6 +61,9 @@ class TestGeneral(unittest.TestCase):
         cls.display.on_draw()
 
     def _move_randomly(self):
+        """
+        All users move one step in a random direction, if they can
+        """
         for idx in range(self.NUM_USERS):
             direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
             player = self.adapter.get_player(idx)
