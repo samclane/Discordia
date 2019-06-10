@@ -211,7 +211,8 @@ class Town(Space):
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
-        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0, source=character)
+        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0,
+                                    source=character)
         return resp
 
 
@@ -416,6 +417,7 @@ class World:
         return response
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
+        LOG.info(f"Player {self.name} has died")
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
 
@@ -443,7 +445,8 @@ class Store:
     def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
         try:
-            item = [item for item in self.inventory if issubclass(type(item), type(list(set(self.inventory))[index]))][0]
+            item = [item for item in self.inventory if issubclass(type(item), type(list(set(self.inventory))[index]))][
+                0]
         except IndexError:
             return False
         price = self.get_price(item)

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import random
-import numpy as np
 from abc import ABC
 from typing import List, Iterator, Type
+
+import numpy as np
 
 from Discordia.GameLogic import Actors, GameSpace
 
@@ -76,7 +77,8 @@ class CombatEvent(Event):
                 kill_response.items += enemy.on_death()
                 kill_response.is_successful = True
                 player_character.inventory += kill_response.items
-                kill_response.text = f"{player_character.name} kills {enemy.name}, receiving {','.join(kill_response.items)}"
+                kill_response.text = f"{player_character.name} kills {enemy.name}, " \
+                    f"receiving {','.join(kill_response.items)}"
                 yield kill_response
             else:
                 break

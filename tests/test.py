@@ -42,7 +42,8 @@ class TestGeneral(unittest.TestCase):
 
         clean_screenshots()
 
-        cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+        # cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+        cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH*2, ConfigParser.WORLD_HEIGHT*2)
         cls.adapter = WorldAdapter(cls.world)
         cls.display = MainWindow(cls.adapter)
         threading.Thread(target=update_display, args=(cls.display,), daemon=True).start()
@@ -81,7 +82,6 @@ class TestGeneral(unittest.TestCase):
     def test_2_screenshot(self):
         """
         Ensure that all actors are able to take pictures that aren't completely transparent or black
-        :return:
         """
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
@@ -95,12 +95,11 @@ class TestGeneral(unittest.TestCase):
     def test_3_buying_power(self):
         """
         Have randomly moving users buy weapons from towns they encounter
-        :return:
         """
         successes = 0
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
-            player.currency += 1000
+            player.currency += 10000
         for step in range(self.NUM_STEPS):
             for result in self._move_randomly():
                 if len(result) == 1 and result[0].failed:

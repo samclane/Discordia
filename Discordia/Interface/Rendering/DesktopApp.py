@@ -12,7 +12,6 @@ from collections import defaultdict
 import numpy as np
 import pixelhouse as ph
 
-from Discordia.ConfigParser import WORLD_HEIGHT, WORLD_WIDTH
 from Discordia.GameLogic import Actors, GameSpace
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
@@ -55,7 +54,7 @@ class MainWindow:
         self._draw_callback = lambda: None
 
         self.terrain_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for x in
-                             range(WORLD_WIDTH)] for y in range(WORLD_HEIGHT)]
+                             range(self.world_adapter.width)] for y in range(self.world_adapter.height)]
 
         self.rendered_canvas = ph.gridstack(self.terrain_map)
         self.rendered_canvas.name = WINDOW_NAME
@@ -94,11 +93,11 @@ class MainWindow:
         # y = max(top_left_tile.y * self.base_cell_height, 0)
         # width = ((character.fov * 2) + 1) * self.base_cell_width
         # height = ((character.fov * 2) + 1) * self.base_cell_height
-        x1 = min(max(top_left_tile.x, 0), WORLD_WIDTH)
-        y1 = min(max(top_left_tile.y, 0), WORLD_HEIGHT)
+        x1 = min(max(top_left_tile.x, 0), self.world_adapter.width)
+        y1 = min(max(top_left_tile.y, 0), self.world_adapter.height)
         width = height = ((character.fov * 2) + 1)
-        x2 = min(max(top_left_tile.x + width, 0), WORLD_WIDTH)
-        y2 = min(max(top_left_tile.y + height, 0), WORLD_HEIGHT)
+        x2 = min(max(top_left_tile.x + width, 0), self.world_adapter.width)
+        y2 = min(max(top_left_tile.y + height, 0), self.world_adapter.height)
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")

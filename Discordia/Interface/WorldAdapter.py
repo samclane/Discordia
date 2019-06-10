@@ -51,6 +51,14 @@ class WorldAdapter:
         self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
 
+    @property
+    def width(self):
+        return self.world.width
+
+    @property
+    def height(self):
+        return self.world.height
+
     def add_renderer(self, window):
         self._renderer = window
 
