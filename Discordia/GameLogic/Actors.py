@@ -6,7 +6,7 @@ from typing import Tuple, List, Union
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace, Items, Weapons
-from Discordia.GameLogic.Items import Equipment
+from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
 from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
 
 
@@ -212,6 +212,9 @@ class PlayerCharacter(Actor):
         self.fov: int = self.fov_default
         self.inventory: List[Items.Equipment] = []
         self.currency: int = 1000
+
+        self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
+        self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
 
     @property
     def weapon(self) -> Union[Weapons.Weapon, None]:

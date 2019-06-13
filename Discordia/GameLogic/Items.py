@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC
-from typing import List
+from typing import List, Type
 
 from Discordia.GameLogic import Actors
 
@@ -97,12 +97,12 @@ class EquipmentSet:
                "Feet: {}\r\n" \
                "MainHand: {}\r\n" \
                "OffHand: {}\r\n".format(
-            self.head.name,
-            self.chest.name,
-            self.legs.name,
-            self.feet.name,
-            self.main_hand.name,
-            self.off_hand.name)
+                self.head.name,
+                self.chest.name,
+                self.legs.name,
+                self.feet.name,
+                self.main_hand.name,
+                self.off_hand.name)
 
     def __iter__(self):
         yield self.head
@@ -128,22 +128,23 @@ class EquipmentSet:
     def armor_count(self) -> int:
         return sum([armor.armour_count for armor in self.armor_set])
 
-    def equip(self, equipment: Equipment):
-        equipment_type = type(equipment)
-        if issubclass(equipment_type, HeadArmorAbstract):
+    def equip(self, equipment: Equipment, equipment_type: Type[Equipment] = None):
+        if equipment_type is None:
+            equipment_type = type(equipment)
+        if equipment_type == HeadArmorAbstract or issubclass(equipment_type, HeadArmorAbstract):
             self.head = equipment
-        elif issubclass(equipment_type, ChestArmorAbstract):
+        elif equipment_type == ChestArmorAbstract or issubclass(equipment_type, ChestArmorAbstract):
             self.chest = equipment
-        elif issubclass(equipment_type, LegArmorAbstract):
+        elif equipment_type == LegArmorAbstract or issubclass(equipment_type, LegArmorAbstract):
             self.legs = equipment
-        elif issubclass(equipment_type, FootArmorAbstract):
+        elif equipment_type == FootArmorAbstract or issubclass(equipment_type, FootArmorAbstract):
             self.feet = equipment
-        elif issubclass(equipment_type, MainHandEquipment):
+        elif equipment_type == MainHandEquipment or issubclass(equipment_type, MainHandEquipment):
             self.main_hand = equipment
-        elif issubclass(equipment_type, OffHandEquipment):
+        elif equipment_type == OffHandEquipment or issubclass(equipment_type, OffHandEquipment):
             self.off_hand = equipment
         else:
-            err = f"Equipment was not of recognized type: {type(equipment)}"
+            err = f"Equipment was not of recognized type: {equipment}"
             raise ValueError(err)
 
     def unequip(self, equipment: Equipment):

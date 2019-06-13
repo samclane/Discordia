@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
-from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic import GameSpace, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
@@ -120,10 +120,21 @@ class TestGeneral(unittest.TestCase):
                             player.equip(item)
                             self.assertTrue(player.has_weapon_equipped)
                             self.assertTrue(player.weapon == item)
+                            self.assertFalse(isinstance(player.weapon, Weapons.Fist))
                             self.assertIsNotNone(player.weapon)
                             successes += 1
         LOG.info(f"Buying Successes: {successes}")
         self.assertGreater(successes, 0, "All transactions failed")
+
+    def test_4_ensure_fist(self):
+        """
+        Ensure users start with fists equipped
+        """
+        id_ = 1234560
+        name = "abcdefgh"
+        self.adapter.register_player(id_, name)
+        player = self.adapter.get_player(id_)
+        self.assertTrue(isinstance(player.weapon, Weapons.Fist))
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

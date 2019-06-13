@@ -44,7 +44,7 @@ class Terrain(ABC):
         return str(self)
 
     def __hash__(self):
-        return hash(self.id) + hash(self.walkable)  # FIXME Will cause collisions
+        return hash(self.id) + hash(self.walkable)
 
     @property
     def id(self) -> int:

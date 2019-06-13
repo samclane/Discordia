@@ -40,6 +40,14 @@ class CombatEvent(Event):
         self.enemies: List[Actors.NPC] = enemies
         self.special_conditions: [] = conditions
 
+    @classmethod
+    def generate(cls):
+        probability = random.random()
+        num_enemies = round(abs(np.random.normal(AVG_NUM_ENEMIES)))
+        flavor_text = "<Generated CombatEvent>"
+        enemies = [Actors.NPC.generate() for _ in range(num_enemies)]
+        return cls(probability, flavor_text, enemies)
+
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
         # Just mow the enemies down in order
         victory_response = GameSpace.PlayerActionResponse(source=player_character)
@@ -50,11 +58,9 @@ class CombatEvent(Event):
                 # WARN An infinite loop can appear here.
                 attack_response = GameSpace.PlayerActionResponse(source=player_character)
                 # Damage is always calculated at full power (min distance)
-                if not player_character.has_weapon_equipped:
-                    dmg = 1
-                else:
-                    dmg = player_character.weapon.damage
-                    player_character.weapon.on_damage()
+                assert player_character.has_weapon_equipped
+                dmg = player_character.weapon.damage
+                player_character.weapon.on_damage()
                 enemy.take_damage(dmg)
                 attack_response.is_successful = True
                 attack_response.damage = dmg
@@ -92,14 +98,6 @@ class CombatEvent(Event):
             victory_response.text = f"{player_character.name} has fallen in combat. They'll be revived in the starting town."
 
         return victory_response
-
-    @classmethod
-    def generate(cls):
-        probability = random.random()
-        num_enemies = round(abs(np.random.normal(AVG_NUM_ENEMIES)))
-        flavor_text = "<Generated CombatEvent>"
-        enemies = [Actors.NPC.generate() for _ in range(num_enemies)]
-        return cls(probability, flavor_text, enemies)
 
 
 class EncounterEvent(Event):

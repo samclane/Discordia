@@ -59,11 +59,6 @@ class RangedWeapon(Weapon, ABC):
     def __init__(self, range_: int = 1, range_falloff: float = 1., *args, **kwargs):
         """
         Any weapon that can strike >1 squares away from the player.
-
-        :param range_: Number of squares away that can be targeted.
-        :param range_falloff: Percent of damage that is lost per-square away
-        :param args: Weapon args
-        :param kwargs: Weapon kwargs
         """
         super().__init__(*args, **kwargs)
         if range_ < 1:
@@ -405,5 +400,16 @@ class BluntWeapon(MeleeWeapon, ABC):
         self.cripple_chance = cripple_chance
 
 
-class Hammer(BluntWeapon, MainHandEquipment):
-    pass
+class Hammer(BluntWeapon, MainHandEquipment, FullyImplemented):
+
+    def __init__(self):
+        super().__init__(cripple_chance=0.4,
+                         base_damage=10)
+
+
+class Fist(BluntWeapon, MainHandEquipment, OffHandEquipment):
+
+    def __init__(self):
+        super().__init__(base_value=0,
+                         cripple_chance=0.1,
+                         base_damage=2)
