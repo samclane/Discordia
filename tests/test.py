@@ -73,7 +73,8 @@ class TestGeneral(unittest.TestCase):
 
     def test_1_move_randomly(self):
         """
-        Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at least some of the time.
+        Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at
+        least some of the time.
         """
         fail_count = 0
         for step in range(self.NUM_STEPS):
