@@ -110,7 +110,7 @@ class Actor(AbstractActor, ABC):
         if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
             return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
         self.location = self.parent_world.map[new_coords.y][new_coords.x]
-        if isinstance(self.location, GameSpace.Wilds):
+        if isinstance(self.location, GameSpace.Wilds) and isinstance(self, PlayerCharacter):
             return self.location.run_event(player=self)
         else:
             return [GameSpace.PlayerActionResponse(is_successful=True, source=self)]
@@ -132,7 +132,6 @@ class Actor(AbstractActor, ABC):
     def is_dead(self) -> bool:
         return self.hit_points <= 0
 
-    @abstractmethod
     def on_death(self):
         pass
 
@@ -169,6 +168,10 @@ class NPC(Actor):
             random.choice(BodyType.__subclasses__())()
         )
 
+    @property
+    def sprite_path(self) -> str:
+        return SPRITE_FOLDER / "Actors" / "null_npc.png"
+
 
 class PlayerClass(ABC):
 
@@ -180,6 +183,10 @@ class PlayerClass(ABC):
     def hit_points_max_base(self) -> int:
         raise NotImplementedError
 
+    @property
+    def sprite_path(self) -> str:
+        raise NotImplementedError
+
     def __str__(self) -> str:
         return self.name
 
@@ -188,6 +195,10 @@ class WandererClass(PlayerClass):
     """ Default player class with nothing special. """
     name = "Wanderer"
     hit_points_max_base = 50
+
+    @property
+    def sprite_path(self):
+        return SPRITE_FOLDER / "Actors" / "wanderer_class.png"
 
 
 class PlayerCharacter(Actor):
@@ -227,3 +238,7 @@ class PlayerCharacter(Actor):
 
     def on_death(self):
         self.parent_world.handle_player_death(self)
+
+    @property
+    def sprite_path(self) -> str:
+        return self.class_.sprite_path

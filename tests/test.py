@@ -33,8 +33,10 @@ def clean_screenshots():
 
 
 class TestGeneral(unittest.TestCase):
-    NUM_USERS = 100
-    NUM_STEPS = 1_000
+    WORLD_WIDTH = 100
+    WORLD_HEIGHT = 100
+    NUM_USERS = 25
+    NUM_STEPS = 250
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -43,7 +45,7 @@ class TestGeneral(unittest.TestCase):
         clean_screenshots()
 
         # cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-        cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH*2, ConfigParser.WORLD_HEIGHT*2)
+        cls.world = GameSpace.World(ConfigParser.WORLD_NAME, cls.WORLD_WIDTH, cls.WORLD_HEIGHT)
         cls.adapter = WorldAdapter(cls.world)
         cls.display = MainWindow(cls.adapter)
         threading.Thread(target=update_display, args=(cls.display,), daemon=True).start()
@@ -120,6 +122,7 @@ class TestGeneral(unittest.TestCase):
                             self.assertIsNotNone(player.weapon)
                             successes += 1
         LOG.info(f"Buying Successes: {successes}")
+        self.assertGreater(successes, 0, "All transactions failed")
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

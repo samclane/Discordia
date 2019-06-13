@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import pickle
 import random
 from abc import ABC
@@ -14,8 +15,10 @@ from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Events, Actors, Items, Weapons
-from Discordia.GameLogic.Items import Equipment, LOG
+from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
+
+LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
 
 Direction = Tuple[int, int]
 
@@ -143,7 +146,6 @@ class Space(ABC):
         self.x: int = x
         self.y: int = y
         self.terrain: Terrain = terrain
-        self.sprite_path = self.terrain.sprite_path  # This feels sloppy but I think it still works conceptually
         self.name = str(self)
 
     def __str__(self):
@@ -182,6 +184,10 @@ class Space(ABC):
         return hash(self.x) + (10 * hash(self.y)) + (100 * hash(self.terrain))
 
     @property
+    def sprite_path(self):
+        return self.terrain.sprite_path
+
+    @property
     def sprite_path_string(self):
         return str(self.sprite_path)
 
@@ -199,7 +205,6 @@ class Town(Space):
         self.industry: IndustryType = industry
         self.store: Store = store
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
-        self.sprite_path: str = SPRITE_FOLDER / "Structures" / "town_default.png"
 
     @classmethod
     def generate_town(cls, x, y, terrain):
@@ -215,6 +220,10 @@ class Town(Space):
                                     source=character)
         return resp
 
+    @property
+    def sprite_path(self):
+        return SPRITE_FOLDER / "Structures" / "town_default.png"
+
 
 class Base(Town):
     pass  # TODO
@@ -228,7 +237,6 @@ class Wilds(Space):
         self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
-        self.sprite_path = SPRITE_FOLDER / "Structures" / "wilds_default.png"
 
     def add_event(self, event: Events.Event):
         if event.probability > self.null_event.probability:
@@ -252,6 +260,10 @@ class Wilds(Space):
             event = Events.generate_event()
             wilds.add_event(event)
         return wilds
+
+    @property
+    def sprite_path(self):
+        return SPRITE_FOLDER / "Structures" / "wilds_default.png"
 
 
 @dataclass
@@ -302,6 +314,7 @@ class World:
         pickle.dump(self, open("world.p", "wb"))
 
     def generate_map(self):
+        LOG.info("Generating Map...")
         resolution = self.gen_params.resolution_constant * (
                 (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
@@ -332,6 +345,7 @@ class World:
                                       self.starting_town is None)
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(Wilds.generate_wilds(x, y, self.map[y][x].terrain))
+        LOG.info("Generation finished")
 
     def is_space_valid(self, space: Space) -> bool:
         return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
@@ -417,7 +431,7 @@ class World:
         return response
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
-        LOG.info(f"Player {self.name} has died")
+        LOG.info(f"Player {player.name} has died")
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
 
@@ -435,7 +449,6 @@ class Store:
         for item_class in Items.FullyImplemented.__subclasses__():
             item: Equipment = item_class()
             if random.random() > 0.2:
-                LOG.info(f"Added item {item}")
                 inventory.append(item)
         return cls(inventory)
 

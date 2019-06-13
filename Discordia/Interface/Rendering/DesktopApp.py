@@ -9,21 +9,12 @@ import logging
 import time
 from collections import defaultdict
 
-import numpy as np
 import pixelhouse as ph
 
 from Discordia.GameLogic import Actors, GameSpace
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 WINDOW_NAME = "Discordia"
-
-
-def black_to_transparent(canvas: ph.Canvas) -> ph.Canvas:
-    # TODO This is still needed for some reason. Let ph dev know.
-    black_pixels = np.all(canvas.img == [0, 0, 0, 0], axis=-1)
-    transparent_canvas = canvas.copy()
-    transparent_canvas[~black_pixels, 3] = 255  # Change alpha to 255
-    return transparent_canvas
 
 
 class keydefaultdict(defaultdict):
@@ -62,7 +53,7 @@ class MainWindow:
         self.base_cell_width = self.terrain_map[0][0].width
         self.base_cell_height = self.terrain_map[0][0].height
 
-        self._sprite_cache = keydefaultdict(lambda k: black_to_transparent(ph.load(k)))
+        self._sprite_cache = keydefaultdict(lambda k: ph.load(k))
 
     def on_draw(self, show_window=False):
         for y, row in enumerate(self.terrain_map):
