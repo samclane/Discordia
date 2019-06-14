@@ -92,7 +92,7 @@ class Actor(AbstractActor, ABC):
         self._hit_points = self.hit_points_max = hp
         self.name = name
         self.body_type = body_type
-        self.location: GameSpace.Space = None
+        self.location = None
         self.fov_default = 2
         self.last_time_moved = 0
 
@@ -245,3 +245,5 @@ class PlayerCharacter(Actor):
     @property
     def sprite_path(self) -> str:
         return self.class_.sprite_path
+
+

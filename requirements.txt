@@ -3,3 +3,4 @@ discord
 pillow
 pixelhouse
 numpy
+astar

@@ -136,6 +136,20 @@ class TestGeneral(unittest.TestCase):
         player = self.adapter.get_player(id_)
         self.assertTrue(isinstance(player.weapon, Weapons.Fist))
 
+    def test_5_astar(self):
+        start = self.world.starting_town
+        found_path = None
+        for end_index in range(1, len(self.world.towns)-1):
+            end = self.world.towns[end_index]
+            found_path = list(GameSpace.AStarPathfinder(self.world).astar(start, end))
+            if found_path:
+                break
+        if not found_path:
+            self.fail("no path found")
+        for space in found_path:
+            self.world.map[space.y][space.x].terrain = GameSpace.NullTerrain()
+        LOG.info(f"end_index: {end_index}")
+
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
         self.display.on_draw()

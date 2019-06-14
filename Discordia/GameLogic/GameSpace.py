@@ -7,9 +7,11 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterator
 
+import math
 import numpy as np
+from astar import AStar
 from math import sqrt
 from noise import pnoise3
 
@@ -66,6 +68,8 @@ class Terrain(ABC):
     def name(self) -> str:
         raise NotImplementedError
 
+# TODO Maybe give terrains move costs for A*?
+
 
 class NullTerrain(Terrain):
     id = 0
@@ -88,7 +92,7 @@ class GrassTerrain(Terrain):
     name = "Grass"
 
 
-class WaterTerrain(Terrain):
+class WaterTerrain(Terrain):  # TODO find a way to cross water
     id = 3
     walkable = False
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
@@ -435,7 +439,6 @@ class World:
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
 
-
 class Store:
 
     def __init__(self, inventory=None):
@@ -476,3 +479,35 @@ class Store:
         player_character.currency += price
         player_character.inventory.remove(item)
         return price
+
+
+class AStarPathfinder(AStar):
+
+    def __init__(self, world: World):
+        self.world = world
+
+    @property
+    def map(self):
+        return self.world.map
+
+    def is_space_valid(self, space: Space):
+        return self.world.is_space_valid(space)
+
+    def neighbors(self, space: Space) -> Iterator[Space]:
+        directions = ['n', 's', 'e', 'w']
+        for dir_vector in [DIRECTION_VECTORS.get(d) for d in directions]:
+            potential_space = space + dir_vector
+            if self.world.is_coords_valid(potential_space.x, potential_space.y):
+                map_space = self.map[potential_space.y][potential_space.x]
+                if self.is_space_valid(map_space):
+                    yield map_space
+
+    def distance_between(self, first: Space, second: Space) -> float:
+        return self.is_space_valid(second) * 1.0
+
+    def heuristic_cost_estimate(self, current: Space, goal: Space) -> float:
+        """computes the 'direct' distance between two (x,y) tuples"""
+        return math.hypot(goal.x - current.x, goal.y - current.y)
+
+    def is_goal_reached(self, current: Space, goal: Space):
+        return current == goal
