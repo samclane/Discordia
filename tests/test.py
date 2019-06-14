@@ -137,6 +137,8 @@ class TestGeneral(unittest.TestCase):
         self.assertTrue(isinstance(player.weapon, Weapons.Fist))
 
     def test_5_astar(self):
+        self.display.on_draw()
+        self.display.get_world_view()
         start = self.world.starting_town
         found_path = None
         for end_index in range(1, len(self.world.towns)-1):
