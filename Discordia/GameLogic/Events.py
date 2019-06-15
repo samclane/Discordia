@@ -4,9 +4,8 @@ import random
 from abc import ABC
 from typing import List, Iterator, Type
 
-import numpy as np
-
 from Discordia.GameLogic import Actors, GameSpace
+from Discordia.GameLogic.Procedural import normal
 
 
 class Event(ABC):
@@ -25,11 +24,8 @@ class Event(ABC):
         raise NotImplementedError("Tried to run a generic event")
 
     @classmethod
-    def generate(cls):
+    def generate(cls, level):
         raise NotImplementedError("Tried to initialize a generic event")
-
-
-AVG_NUM_ENEMIES = 5  # TODO Un-hardcode this
 
 
 class CombatEvent(Event):
@@ -41,11 +37,11 @@ class CombatEvent(Event):
         self.special_conditions: [] = conditions
 
     @classmethod
-    def generate(cls):
+    def generate(cls, level):
         probability = random.random()
-        num_enemies = round(abs(np.random.normal(AVG_NUM_ENEMIES)))
+        num_enemies = normal(level, positive=True, integer=True)
         flavor_text = "<Generated CombatEvent>"
-        enemies = [Actors.NPC.generate() for _ in range(num_enemies)]
+        enemies = [Actors.NPC.generate(level) for _ in range(num_enemies)]
         return cls(probability, flavor_text, enemies)
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
@@ -84,7 +80,7 @@ class CombatEvent(Event):
                 kill_response.is_successful = True
                 player_character.inventory += kill_response.items
                 kill_response.text = f"{player_character.name} kills {enemy.name}, " \
-                    f"receiving {','.join(kill_response.items)}"
+                    f"receiving {','.join([str(item) for item in kill_response.items])}"
                 yield kill_response
             else:
                 break
@@ -95,7 +91,8 @@ class CombatEvent(Event):
 
         else:
             victory_response.is_successful = False
-            victory_response.text = f"{player_character.name} has fallen in combat. They'll be revived in the starting town."
+            victory_response.text = f"{player_character.name} has fallen in combat. " \
+                f"They'll be revived in the starting town."
 
         return victory_response
 
@@ -112,9 +109,9 @@ class EncounterEvent(Event):
         yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
 
     @classmethod
-    def generate(cls) -> EncounterEvent:
+    def generate(cls, level) -> EncounterEvent:
         probability = random.random()
-        npc_involved = Actors.NPC.generate()
+        npc_involved = Actors.NPC.generate(level)
         flavor_text = f"<Encountered NPC {npc_involved.name} (p={probability})>"
         choices = {"<test>": "<test>"}
         return cls(probability, flavor_text, choices, npc_involved)
@@ -130,16 +127,16 @@ class MerchantEvent(Event):
         yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
 
     @classmethod
-    def generate(cls) -> MerchantEvent:
+    def generate(cls, level) -> MerchantEvent:
         probability = random.random()
         flavor_text = f"<Generated MerchantEvent>"
         items = {}
         return cls(probability, flavor_text, items)
 
 
-def generate_event() -> Event:
+def generate_event(level) -> Event:
     event_class: Type[Event] = random.choice(Event.__subclasses__())
 
-    event = event_class.generate()
+    event = event_class.generate(level)
 
     return event

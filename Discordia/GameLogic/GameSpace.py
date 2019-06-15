@@ -7,7 +7,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator
+from typing import List, Tuple, Dict, Iterator, Union
 
 import math
 import numpy as np
@@ -18,6 +18,7 @@ from noise import pnoise3
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
+from Discordia.GameLogic.Procedural import normal
 from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
 
 LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
@@ -67,6 +68,7 @@ class Terrain(ABC):
     @property
     def name(self) -> str:
         raise NotImplementedError
+
 
 # TODO Maybe give terrains move costs for A*?
 
@@ -198,6 +200,10 @@ class Space(ABC):
     def distance(self, other) -> float:
         return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
+    def closest(self, space_list: List[Union[Space, Tuple[int, int]]], size=1):
+        """ Returns a list of the closest spaces out of space_list, in decreasing order """
+        return sorted(space_list, key=lambda o: self.distance(o))[0:size - 1]
+
 
 class Town(Space):
 
@@ -257,11 +263,11 @@ class Wilds(Space):
         return list(results)
 
     @classmethod
-    def generate_wilds(cls, x, y, terrain: Terrain, num_events=3) -> Wilds:
+    def generate(cls, x, y, terrain: Terrain, level) -> Wilds:
         name = WildsNameGenerator.generate_name()
         wilds = cls(x, y, name, terrain)
-        for _ in range(num_events):
-            event = Events.generate_event()
+        for _ in range(level):
+            event = Events.generate_event(level)
             wilds.add_event(event)
         return wilds
 
@@ -288,7 +294,7 @@ class PlayerActionResponse:
 @dataclass
 class WorldGenerationParameters:
     resolution_constant: float = 0.2
-    water: float = .1
+    water: float = .075
     grass: float = .3
     mountains: float = .7
     wilds: float = .1
@@ -310,7 +316,7 @@ class World:
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
-        self.starting_town: Town = None
+        self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
         self.generate_map()
 
@@ -345,10 +351,12 @@ class World:
                 if self.is_space_buildable(self.map[y][x]):
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain),
-                                      self.starting_town is None)
+                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain))
                     elif random.random() <= self.gen_params.wilds:
-                        self.add_wilds(Wilds.generate_wilds(x, y, self.map[y][x].terrain))
+                        self.add_wilds(
+                            Wilds.generate(x, y, self.map[y][x].terrain,
+                                           normal(sqrt(self.starting_town.distance((x, y))), integer=True, positive=True)))
+        self.starting_town = random.choice(self.towns)
         LOG.info("Generation finished")
 
     def is_space_valid(self, space: Space) -> bool:
@@ -438,6 +446,7 @@ class World:
         LOG.info(f"Player {player.name} has died")
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
+
 
 class Store:
 

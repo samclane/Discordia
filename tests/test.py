@@ -16,7 +16,7 @@ from Discordia.Interface.WorldAdapter import WorldAdapter
 
 os.chdir(Path("../Discordia/"))
 
-LOG = logging.getLogger("Discordia")
+LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
 
 
@@ -44,23 +44,17 @@ class TestGeneral(unittest.TestCase):
 
         clean_screenshots()
 
-        # cls.world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-        cls.world = GameSpace.World(ConfigParser.WORLD_NAME, cls.WORLD_WIDTH, cls.WORLD_HEIGHT)
-        cls.adapter = WorldAdapter(cls.world)
-        cls.display = MainWindow(cls.adapter)
-        threading.Thread(target=update_display, args=(cls.display,), daemon=True).start()
-        discord_interface = DiscordInterface(cls.adapter)
-        threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
-
-        # discord_interface.bot.loop.create_task(update_display(cls.display))
-        # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
-
         LOG.info("Discordia server started")
 
-        for idx in range(cls.NUM_USERS):
-            cls.adapter.register_player(idx, player_name=f"User{idx}")
+    def setUp(self) -> None:
+        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT)
+        self.adapter = WorldAdapter(self.world)
+        self.display = MainWindow(self.adapter)
+        
+        for idx in range(self.NUM_USERS):
+            self.adapter.register_player(idx, player_name=f"User{idx}")
 
-        cls.display.on_draw()
+        self.display.on_draw()
 
     def _move_randomly(self):
         """
@@ -141,18 +135,39 @@ class TestGeneral(unittest.TestCase):
         self.display.get_world_view()
         start = self.world.starting_town
         found_path = None
-        for end_index in range(1, len(self.world.towns)-1):
+        end_index = 1
+        for end_index in range(end_index, len(self.world.towns)-1):
             end = self.world.towns[end_index]
-            found_path = list(GameSpace.AStarPathfinder(self.world).astar(start, end))
+            found_path = GameSpace.AStarPathfinder(self.world).astar(start, end)
             if found_path:
+                found_path = list(found_path)
                 break
         if not found_path:
             self.fail("no path found")
         for space in found_path:
             self.world.map[space.y][space.x].terrain = GameSpace.NullTerrain()
-        LOG.info(f"end_index: {end_index}")
+        if end_index > 1:
+            LOG.info(f"end_index: {end_index}")
+        self.display.on_draw()
+        self.display.get_world_view()
+
+    def test_6_closest(self):
+        start = self.world.starting_town
+        town_list = start.closest(self.world.towns, size=len(self.world.towns))
+        min_dist = 0
+        self.assertTrue(len(self.world.towns) > 0, "No towns")
+        self.assertTrue(len(town_list) > 0, "closest doesn't work")
+        for town in town_list:
+            LOG.info(f"Distance: {start.distance(town)}")
+            self.assertGreaterEqual(start.distance(town), min_dist)
+            min_dist = start.distance(town)
+
+    def test_0_hp(self):
+        for u in [self.adapter.get_player(n) for n in range(self.NUM_USERS)]:
+            self.assertEqual(u.hit_points, u.hit_points_max)
+            self.assertEqual(u.hit_points_max, u.class_.hit_points_max_base)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
-        self.display.on_draw()
-        self.display.get_world_view()
+        # self.display.on_draw()
+        # self.display.get_world_view()

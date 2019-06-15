@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Union
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import GameSpace, Items, Weapons
+from Discordia.GameLogic import GameSpace, Items, Weapons, Procedural
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
 from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
 
@@ -156,14 +156,14 @@ class NPC(Actor):
         return self.inventory
 
     @classmethod
-    def generate(cls) -> NPC:
+    def generate(cls, level) -> NPC:
         if random.random() > .5:
             name = CharacterNameGenerator.male_name().generate_name()
         else:
             name = CharacterNameGenerator.female_name().generate_name()
         return cls(
             None,
-            1,
+            Procedural.normal((WandererClass.hit_points_max_base//2)*(level//2), positive=True, integer=True),
             name,
             random.choice(BodyType.__subclasses__())()
         )

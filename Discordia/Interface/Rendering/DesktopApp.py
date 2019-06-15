@@ -98,8 +98,10 @@ class MainWindow:
         img.save(img_path)
         return str(img_path)
 
-    def get_world_view(self) -> str:
-        img_path = f"./PlayerViews/world_{int(time.time())}.png"
+    def get_world_view(self, title=None) -> str:
+        if title is None:
+            title = int(time.time())
+        img_path = f"./PlayerViews/world_{title}.png"
         self.rendered_canvas.save(img_path)
         return str(img_path)
 
