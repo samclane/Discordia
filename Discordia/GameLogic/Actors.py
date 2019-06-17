@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Union
+from enum import Enum, auto
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace, Items, Weapons, Procedural
@@ -10,49 +11,37 @@ from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquip
 from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
 
 
+class BodySize(Enum):
+    SmallAnimal = auto()
+    Humanoid = auto()
+    LargeAnimal = auto()
+    Monstrosity = auto()
+
+
 class BodyType(ABC):
 
     @property
-    def size_code(self):
-        raise NotImplementedError
+    def size_code(self) -> int:
+        return BodySize[self.__class__.__name__].value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__class__.__name__
 
 
-class Humanoid(BodyType):
-
-    @property
-    def size_code(self):
-        return 1
-
-
 class SmallAnimal(BodyType):
+    pass
 
-    @property
-    def size_code(self):
-        return 2
+
+class Humanoid(BodyType):
+    pass
 
 
 class LargeAnimal(BodyType):
-
-    @property
-    def size_code(self):
-        return 3
+    pass
 
 
 class Monstrosity(BodyType):
-
-    @property
-    def size_code(self):
-        return 4
-
-
-class Mechanical(BodyType):
-
-    @property
-    def size_code(self):
-        return 5
+    pass
 
 
 class AbstractActor(ABC):

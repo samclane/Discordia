@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
-from Discordia.GameLogic import GameSpace, Weapons
+from Discordia.GameLogic import GameSpace, Weapons, Actors
 from Discordia.GameLogic.Actors import PlayerCharacter
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
@@ -166,6 +166,11 @@ class TestGeneral(unittest.TestCase):
             LOG.info(f"Distance: {start.distance(town)}")
             self.assertGreaterEqual(start.distance(town), min_dist)
             min_dist = start.distance(town)
+
+    def test_7_bodytypes(self):
+        body_codes = [body().size_code for body in Actors.BodyType.__subclasses__()]
+        sort = sorted(body_codes)
+        self.assertEqual(body_codes, sort)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

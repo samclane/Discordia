@@ -48,11 +48,7 @@ class Terrain(ABC):
         return str(self)
 
     def __hash__(self):
-        return hash(self.id) + hash(self.walkable)
-
-    @property
-    def id(self) -> int:
-        raise NotImplementedError
+        return hash(str(self)) + hash(self.walkable)
 
     @property
     def walkable(self) -> bool:
@@ -77,14 +73,12 @@ class Terrain(ABC):
 
 
 class NullTerrain(Terrain):
-    id = 0
     walkable = False
     sprite_path = SPRITE_FOLDER / "null_tile.png"
     name = "Null"
 
 
 class SandTerrain(Terrain):
-    id = 1
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
     name = "Sand"
@@ -92,7 +86,6 @@ class SandTerrain(Terrain):
 
 
 class GrassTerrain(Terrain):
-    id = 2
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
     name = "Grass"
@@ -100,7 +93,6 @@ class GrassTerrain(Terrain):
 
 
 class WaterTerrain(Terrain):  # TODO find a way to cross water
-    id = 3
     walkable = False
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
     name = "Water"
@@ -108,7 +100,6 @@ class WaterTerrain(Terrain):  # TODO find a way to cross water
 
 
 class MountainTerrain(Terrain):
-    id = 4
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
     name = "Mountain"
