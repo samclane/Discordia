@@ -108,3 +108,9 @@ local_resources/
 
 # Config Files
 *.ini
+
+# Player Screenshot Folder
+Discordia/PlayerViews
+
+# pylint
+pylintrc

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from typing import List, Tuple, Dict, Iterator, Union
+import sys
 
 import math
 import numpy as np
@@ -69,8 +70,10 @@ class Terrain(ABC):
     def name(self) -> str:
         raise NotImplementedError
 
-
-# TODO Maybe give terrains move costs for A*?
+    @property
+    def cost(self) -> int:
+        # Unimplemented terrain returns "infinite"
+        return sys.maxsize
 
 
 class NullTerrain(Terrain):
@@ -85,6 +88,7 @@ class SandTerrain(Terrain):
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
     name = "Sand"
+    cost = 2
 
 
 class GrassTerrain(Terrain):
@@ -92,6 +96,7 @@ class GrassTerrain(Terrain):
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
     name = "Grass"
+    cost = 1
 
 
 class WaterTerrain(Terrain):  # TODO find a way to cross water
@@ -99,6 +104,7 @@ class WaterTerrain(Terrain):  # TODO find a way to cross water
     walkable = False
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
     name = "Water"
+    cost = 5
 
 
 class MountainTerrain(Terrain):
@@ -106,6 +112,7 @@ class MountainTerrain(Terrain):
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
     name = "Mountain"
+    cost = 4
 
 
 class IndustryType(ABC):
@@ -304,7 +311,7 @@ class WorldGenerationParameters:
 class World:
 
     def __init__(self, name: str, width: int, height: int,
-                 generation_parameters: WorldGenerationParameters = WorldGenerationParameters()):
+                 generation_parameters: WorldGenerationParameters = WorldGenerationParameters(), seed=None):
         super().__init__()
         self.name: str = name
         self.width: int = width
@@ -318,6 +325,9 @@ class World:
         self.npcs: List[Actors.NPC] = []
         self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
+        if seed:
+            random.seed(seed)
+            np.random.seed(seed)
         self.generate_map()
 
     def save_as_file(self):
@@ -492,8 +502,9 @@ class Store:
 
 class AStarPathfinder(AStar):
 
-    def __init__(self, world: World):
+    def __init__(self, world: World, cost: bool=True):
         self.world = world
+        self.cost = cost
 
     @property
     def map(self):
@@ -512,7 +523,10 @@ class AStarPathfinder(AStar):
                     yield map_space
 
     def distance_between(self, first: Space, second: Space) -> float:
-        return self.is_space_valid(second) * 1.0
+        if self.cost:
+            return (sys.maxsize * (self.is_space_valid(second) is False)) + second.terrain.cost
+        else:
+            return 1
 
     def heuristic_cost_estimate(self, current: Space, goal: Space) -> float:
         """computes the 'direct' distance between two (x,y) tuples"""

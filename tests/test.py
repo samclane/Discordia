@@ -47,7 +47,7 @@ class TestGeneral(unittest.TestCase):
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
-        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT)
+        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=42)
         self.adapter = WorldAdapter(self.world)
         self.display = MainWindow(self.adapter)
         
@@ -64,6 +64,11 @@ class TestGeneral(unittest.TestCase):
             direction = random.choice(list(GameSpace.DIRECTION_VECTORS.values()))
             player = self.adapter.get_player(idx)
             yield player.attempt_move(direction)
+
+    def test_0_hp(self):
+        for u in [self.adapter.get_player(n) for n in range(self.NUM_USERS)]:
+            self.assertEqual(u.hit_points, u.hit_points_max)
+            self.assertEqual(u.hit_points_max, u.class_.hit_points_max_base)
 
     def test_1_move_randomly(self):
         """
@@ -132,7 +137,7 @@ class TestGeneral(unittest.TestCase):
 
     def test_5_astar(self):
         self.display.on_draw()
-        self.display.get_world_view()
+        self.display.get_world_view(title="astar_before")
         start = self.world.starting_town
         found_path = None
         end_index = 1
@@ -149,7 +154,7 @@ class TestGeneral(unittest.TestCase):
         if end_index > 1:
             LOG.info(f"end_index: {end_index}")
         self.display.on_draw()
-        self.display.get_world_view()
+        self.display.get_world_view(title="astar_after")
 
     def test_6_closest(self):
         start = self.world.starting_town
@@ -161,11 +166,6 @@ class TestGeneral(unittest.TestCase):
             LOG.info(f"Distance: {start.distance(town)}")
             self.assertGreaterEqual(start.distance(town), min_dist)
             min_dist = start.distance(town)
-
-    def test_0_hp(self):
-        for u in [self.adapter.get_player(n) for n in range(self.NUM_USERS)]:
-            self.assertEqual(u.hit_points, u.hit_points_max)
-            self.assertEqual(u.hit_points_max, u.class_.hit_points_max_base)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

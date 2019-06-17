@@ -80,10 +80,6 @@ class MainWindow:
         assert top_left_tile.x >= 0 and top_left_tile.y >= 0, "Negative coordinates"
 
         # Then convert game-coordinates to pixel (x, y, width, height)
-        # x = max(top_left_tile.x * self.base_cell_width, 0)
-        # y = max(top_left_tile.y * self.base_cell_height, 0)
-        # width = ((character.fov * 2) + 1) * self.base_cell_width
-        # height = ((character.fov * 2) + 1) * self.base_cell_height
         x1 = min(max(top_left_tile.x, 0), self.world_adapter.width)
         y1 = min(max(top_left_tile.y, 0), self.world_adapter.height)
         width = height = ((character.fov * 2) + 1)
@@ -92,13 +88,14 @@ class MainWindow:
 
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
+
         view = [self.terrain_map[i][x1:x2] for i in range(y1, y2)]
         img = ph.gridstack(view)
         img_path = f'./PlayerViews/{character.name}_screenshot.png'
         img.save(img_path)
         return str(img_path)
 
-    def get_world_view(self, title=None) -> str:
+    def get_world_view(self, title: str = None) -> str:
         if title is None:
             title = int(time.time())
         img_path = f"./PlayerViews/world_{title}.png"
