@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import sys
 import threading
 import unittest
 from pathlib import Path
@@ -9,7 +10,7 @@ from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Weapons, Actors
-from Discordia.GameLogic.Actors import PlayerCharacter
+from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
 from Discordia.Interface.WorldAdapter import WorldAdapter
@@ -38,16 +39,20 @@ class TestGeneral(unittest.TestCase):
     NUM_USERS = 25
     NUM_STEPS = 250
 
+    random_seed = 0
+
     @classmethod
     def setUpClass(cls) -> None:
         assert cls.NUM_USERS > 0
+
+        cls.random_seed = random.randint(0, 2**32 - 1)
 
         clean_screenshots()
 
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
-        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=42)
+        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=self.random_seed)
         self.adapter = WorldAdapter(self.world)
         self.display = MainWindow(self.adapter)
         
@@ -68,7 +73,7 @@ class TestGeneral(unittest.TestCase):
     def test_0_hp(self):
         for u in [self.adapter.get_player(n) for n in range(self.NUM_USERS)]:
             self.assertEqual(u.hit_points, u.hit_points_max)
-            self.assertEqual(u.hit_points_max, u.class_.hit_points_max_base)
+            self.assertEqual(u.hit_points_max, u.player_class.hit_points_max_base)
 
     def test_1_move_randomly(self):
         """
@@ -88,6 +93,10 @@ class TestGeneral(unittest.TestCase):
         """
         Ensure that all actors are able to take pictures that aren't completely transparent or black
         """
+        for _ in range(3):
+            for _ in self._move_randomly():
+                pass
+        self.display.on_draw()
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
@@ -171,6 +180,19 @@ class TestGeneral(unittest.TestCase):
         body_codes = [body().size_code for body in Actors.BodyType.__subclasses__()]
         sort = sorted(body_codes)
         self.assertEqual(body_codes, sort)
+
+    def test_8_classes(self):
+        self.display.on_draw()
+        for idx in range(self.NUM_USERS):
+            player = self.adapter.get_player(idx)
+            new_class: PlayerClass = random.choice(PlayerClass.__subclasses__())()
+            player.player_class = new_class
+            self.assertEqual(player.hit_points_max, new_class.hit_points_max_base)
+        for _ in range(50):
+            for _ in self._move_randomly():
+                pass
+        self.display.on_draw()
+        self.display.get_world_view("classes")
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

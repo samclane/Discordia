@@ -294,7 +294,7 @@ class WorldGenerationParameters:
     resolution_constant: float = 0.2
     water: float = .075
     grass: float = .3
-    mountains: float = .7
+    mountains: float = .65
     wilds: float = .1
     towns: float = .003
 

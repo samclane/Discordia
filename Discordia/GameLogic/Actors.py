@@ -19,15 +19,22 @@ class BodySize(Enum):
 
 
 class BodyType(ABC):
+    """
+    Determines the physical size of the Actor.
+    """
 
     @property
     def size_code(self) -> int:
+        """
+        Can be used to check if one actor is larger than another. Larger size_codes -> larger Actors.
+        """
         return BodySize[self.__class__.__name__].value
 
     def __str__(self) -> str:
         return self.__class__.__name__
 
 
+# TODO Random sprite generation (base templates on BodySize)
 class SmallAnimal(BodyType):
     pass
 
@@ -188,6 +195,26 @@ class WandererClass(PlayerClass):
     @property
     def sprite_path(self):
         return SPRITE_FOLDER / "Actors" / "wanderer_class.png"
+    
+    
+class SoliderClass(PlayerClass):
+    """ After joining some military (East or West). """
+    name = "Solider"
+    hit_points_max_base = 75
+    
+    @property
+    def sprite_path(self) -> str:
+        return SPRITE_FOLDER / "Actors" / "solider_class.png"
+
+
+class RaiderClass(PlayerClass):
+    """ You've taken up arms without joining a military. """
+    name = "Raider"
+    hit_points_max_base = 60
+
+    @property
+    def sprite_path(self) -> str:
+        return SPRITE_FOLDER / "Actors" / "raider_class.png"
 
 
 class PlayerCharacter(Actor):
@@ -195,8 +222,8 @@ class PlayerCharacter(Actor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.class_: PlayerClass = WandererClass()
-        self._hit_points = self.hit_points_max = self.class_.hit_points_max_base
+        self._player_class: PlayerClass = WandererClass()
+        self._hit_points = self.hit_points_max = self._player_class.hit_points_max_base
         self.equipment_set: Items.EquipmentSet = Items.EquipmentSet()
         self.fov: int = self.fov_default
         self.inventory: List[Items.Equipment] = []
@@ -204,6 +231,16 @@ class PlayerCharacter(Actor):
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
+
+    @property
+    def player_class(self):
+        return self._player_class
+
+    @player_class.setter
+    def player_class(self, class_: PlayerClass):
+        self._player_class = class_
+        self.hit_points_max = class_.hit_points_max_base
+        self._hit_points = class_.hit_points_max_base
 
     @property
     def weapon(self) -> Union[Weapons.Weapon, None]:
@@ -233,6 +270,6 @@ class PlayerCharacter(Actor):
 
     @property
     def sprite_path(self) -> str:
-        return self.class_.sprite_path
+        return self._player_class.sprite_path
 
 
