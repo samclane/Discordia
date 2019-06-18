@@ -293,7 +293,7 @@ class HKG3(Rifle, SelectiveFire, FullyImplemented):
 
 class Jezail(Rifle, FullyImplemented):
     """
-    Based on the Jezail Musket
+    Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
     https://en.wikipedia.org/wiki/Jezail
     """
     name: str = "Jezail Musket"
@@ -315,10 +315,9 @@ class Jezail(Rifle, FullyImplemented):
     def on_unequip(self, player_character: Actors.PlayerCharacter):
         self.player = None
 
-    # TODO Give 2x dmg bonus if PlayerCharacter is on a mountain and target is not
     def calc_damage(self, distance: int) -> int:
         damage = super().calc_damage(distance)
-        if self.player and self.player.location.terrain == GameSpace.MountainTerrain:
+        if self.player and isinstance(self.player.location.terrain, GameSpace.MountainTerrain):
             damage *= 2
         return damage
 

@@ -12,6 +12,8 @@ from PIL import Image
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
+from Discordia.GameLogic.GameSpace import MountainTerrain
+from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
 from Discordia.Interface.WorldAdapter import WorldAdapter
@@ -197,6 +199,15 @@ class TestGeneral(unittest.TestCase):
                 pass
         self.display.on_draw()
         self.display.get_world_view("classes")
+
+    def test_9_jezail(self):
+        user: PlayerCharacter = next(self.adapter.iter_players())
+        rifle = Jezail()
+        user.equip(rifle)
+        dmg1 = rifle.calc_damage(1)
+        user.location.terrain = MountainTerrain()
+        dmg2 = rifle.calc_damage(1)
+        self.assertTrue(dmg2 == 2 * dmg1)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
