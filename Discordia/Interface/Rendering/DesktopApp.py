@@ -53,7 +53,7 @@ class MainWindow:
         self.base_cell_width = self.terrain_map[0][0].width
         self.base_cell_height = self.terrain_map[0][0].height
 
-        self._sprite_cache = keydefaultdict(lambda k: ph.load(k))
+        self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
 
     def on_draw(self, show_window=False):
         for y, row in enumerate(self.terrain_map):
