@@ -5,6 +5,7 @@ import sys
 import threading
 import unittest
 from pathlib import Path
+from typing import Callable
 
 from PIL import Image
 
@@ -34,9 +35,9 @@ def clean_screenshots():
 
 
 class TestGeneral(unittest.TestCase):
-    WORLD_WIDTH = 100
-    WORLD_HEIGHT = 100
-    NUM_USERS = 25
+    WORLD_WIDTH = 50
+    WORLD_HEIGHT = 50
+    NUM_USERS = 10
     NUM_STEPS = 250
 
     random_seed = 0
@@ -52,7 +53,10 @@ class TestGeneral(unittest.TestCase):
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
-        self.world = GameSpace.World(ConfigParser.WORLD_NAME, self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=self.random_seed)
+        self.world = GameSpace.World(ConfigParser.WORLD_NAME,
+                                     self.WORLD_WIDTH,
+                                     self.WORLD_HEIGHT,
+                                     seed=self.random_seed)
         self.adapter = WorldAdapter(self.world)
         self.display = MainWindow(self.adapter)
         
@@ -176,7 +180,7 @@ class TestGeneral(unittest.TestCase):
             self.assertGreaterEqual(start.distance(town), min_dist)
             min_dist = start.distance(town)
 
-    def test_7_bodytypes(self):
+    def test_7_body_types(self):
         body_codes = [body().size_code for body in Actors.BodyType.__subclasses__()]
         sort = sorted(body_codes)
         self.assertEqual(body_codes, sort)

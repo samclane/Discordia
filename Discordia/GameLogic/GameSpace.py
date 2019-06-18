@@ -19,7 +19,7 @@ from noise import pnoise3
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
-from Discordia.GameLogic.Procedural import normal
+from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
 from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
 
 LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
@@ -289,16 +289,6 @@ class PlayerActionResponse:
         return not self.is_successful
 
 
-@dataclass
-class WorldGenerationParameters:
-    resolution_constant: float = 0.2
-    water: float = .075
-    grass: float = .3
-    mountains: float = .65
-    wilds: float = .1
-    towns: float = .003
-
-
 class World:
 
     def __init__(self, name: str, width: int, height: int,
@@ -349,7 +339,8 @@ class World:
                 if abs(pnoise3(x / resolution, y / resolution, grass_slice)) > grass_threshold:
                     self.map[y][x] = Space(x, y, GrassTerrain())
 
-                if self.is_space_buildable(self.map[y][x]):
+                # Town and Wilds pass
+                if self.map[y][x].terrain.walkable:
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
                         self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain))
@@ -510,8 +501,7 @@ class AStarPathfinder(AStar):
             potential_space = space + dir_vector
             if self.world.is_coords_valid(potential_space.x, potential_space.y):
                 map_space = self.map[potential_space.y][potential_space.x]
-                if self.is_space_valid(map_space):
-                    yield map_space
+                yield map_space
 
     def distance_between(self, first: Space, second: Space) -> float:
         if self.cost:
