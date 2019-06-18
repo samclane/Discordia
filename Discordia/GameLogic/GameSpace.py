@@ -243,7 +243,7 @@ class Town(Space):
 
 
 class Base(Town):
-    pass  # TODO
+    pass  # TODO "Base" Class
 
 
 class Wilds(Space):

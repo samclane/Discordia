@@ -10,7 +10,7 @@ from typing import Callable
 from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
-from Discordia.GameLogic import GameSpace, Weapons, Actors
+from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display

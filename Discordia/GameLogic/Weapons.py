@@ -1,5 +1,8 @@
+from __future__ import annotations
 from abc import ABC
+from typing import Optional
 
+from Discordia.GameLogic import Actors, GameSpace
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment, FullyImplemented
 
 
@@ -304,7 +307,20 @@ class Jezail(Rifle, FullyImplemented):
                          name=self.name,
                          weightlb=12)
 
+        self.player: Optional[Actors.PlayerCharacter] = None
+
+    def on_equip(self, player_character: Actors.PlayerCharacter):
+        self.player = player_character
+
+    def on_unequip(self, player_character: Actors.PlayerCharacter):
+        self.player = None
+
     # TODO Give 2x dmg bonus if PlayerCharacter is on a mountain and target is not
+    def calc_damage(self, distance: int) -> int:
+        damage = super().calc_damage(distance)
+        if self.player and self.player.location.terrain == GameSpace.MountainTerrain:
+            damage *= 2
+        return damage
 
 
 class MachineGun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
