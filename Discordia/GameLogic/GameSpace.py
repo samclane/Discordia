@@ -92,8 +92,8 @@ class GrassTerrain(Terrain):
     cost = 1
 
 
-class WaterTerrain(Terrain):  # TODO find a way to cross water
-    walkable = False
+class WaterTerrain(Terrain):
+    walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
     name = "Water"
     cost = 5
@@ -103,7 +103,7 @@ class MountainTerrain(Terrain):
     walkable = True
     sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
     name = "Mountain"
-    cost = 4
+    cost = 8
 
 
 class IndustryType(ABC):

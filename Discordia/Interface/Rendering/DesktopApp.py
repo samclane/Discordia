@@ -44,6 +44,8 @@ class MainWindow:
         # DEBUG: Call a function on every draw to check if things are alright.
         self._draw_callback = lambda: None
 
+        self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
+
         self.terrain_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for x in
                              range(self.world_adapter.width)] for y in range(self.world_adapter.height)]
 
@@ -53,7 +55,6 @@ class MainWindow:
         self.base_cell_width = self.terrain_map[0][0].width
         self.base_cell_height = self.terrain_map[0][0].height
 
-        self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
 
     def on_draw(self, show_window=False):
         for y, row in enumerate(self.terrain_map):
