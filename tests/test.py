@@ -35,8 +35,8 @@ def clean_screenshots():
 
 
 class TestGeneral(unittest.TestCase):
-    WORLD_WIDTH = 50
-    WORLD_HEIGHT = 50
+    WORLD_WIDTH = 100
+    WORLD_HEIGHT = 100
     NUM_USERS = 10
     NUM_STEPS = 250
 
@@ -120,7 +120,7 @@ class TestGeneral(unittest.TestCase):
             player.currency += 10000
         for step in range(self.NUM_STEPS):
             for result in self._move_randomly():
-                if len(result) == 1 and result[0].failed:
+                if (len(result) == 1 and result[0].failed) or result[0].source is None:
                     pass
                 player: PlayerCharacter = result[0].source
                 if self.adapter.is_town(player.location):

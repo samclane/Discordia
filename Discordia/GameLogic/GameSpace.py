@@ -71,11 +71,16 @@ class Terrain(ABC):
         # Unimplemented terrain returns "infinite"
         return sys.maxsize
 
+    @property
+    def buildable(self):
+        raise NotImplementedError
+
 
 class NullTerrain(Terrain):
     walkable = False
     sprite_path = SPRITE_FOLDER / "null_tile.png"
     name = "Null"
+    buildable = False
 
 
 class SandTerrain(Terrain):
@@ -83,6 +88,7 @@ class SandTerrain(Terrain):
     sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
     name = "Sand"
     cost = 2
+    buildable = True
 
 
 class GrassTerrain(Terrain):
@@ -90,6 +96,7 @@ class GrassTerrain(Terrain):
     sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
     name = "Grass"
     cost = 1
+    buildable = True
 
 
 class WaterTerrain(Terrain):
@@ -97,6 +104,7 @@ class WaterTerrain(Terrain):
     sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
     name = "Water"
     cost = 5
+    buildable = False
 
 
 class MountainTerrain(Terrain):
@@ -104,6 +112,7 @@ class MountainTerrain(Terrain):
     sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
     name = "Mountain"
     cost = 8
+    buildable = False
 
 
 class IndustryType(ABC):
@@ -340,7 +349,7 @@ class World:
                     self.map[y][x] = Space(x, y, GrassTerrain())
 
                 # Town and Wilds pass
-                if self.map[y][x].terrain.walkable:
+                if self.map[y][x].terrain.buildable:
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
                         self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain))
@@ -360,9 +369,12 @@ class World:
         return False
 
     def is_space_buildable(self, space: Space) -> bool:
-        if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
-            return False
-        return True
+        # TODO Ugly function
+        if space.terrain.buildable:
+            if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
+                return False
+            return True
+        return False
 
     def get_adjacent_spaces(self, space: Space, sq_range: int = 1) -> List[Space]:
         fov = list(range(-sq_range, sq_range + 1))
