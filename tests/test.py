@@ -5,14 +5,14 @@ import sys
 import threading
 import unittest
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator, List
 
 from PIL import Image
 
 import Discordia.ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
-from Discordia.GameLogic.GameSpace import MountainTerrain
+from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
@@ -39,7 +39,7 @@ def clean_screenshots():
 class TestGeneral(unittest.TestCase):
     WORLD_WIDTH = 100
     WORLD_HEIGHT = 100
-    NUM_USERS = 10
+    NUM_USERS = 25
     NUM_STEPS = 250
 
     random_seed = 0
@@ -67,7 +67,7 @@ class TestGeneral(unittest.TestCase):
 
         self.display.on_draw()
 
-    def _move_randomly(self):
+    def _move_randomly(self) -> Iterator[List[PlayerActionResponse]]:
         """
         All users move one step in a random direction, if they can
         """
@@ -112,7 +112,7 @@ class TestGeneral(unittest.TestCase):
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
-    def test_3_buying_power(self):
+    def test_3_store_purchasing(self):
         """
         Have randomly moving users buy weapons from towns they encounter
         """
@@ -122,8 +122,10 @@ class TestGeneral(unittest.TestCase):
             player.currency += 10000
         for step in range(self.NUM_STEPS):
             for result in self._move_randomly():
-                if (len(result) == 1 and result[0].failed) or result[0].source is None:
-                    pass
+                if (len(result) == 1 and result[0].failed) or len(result) == 0:
+                    """ If failed to move, or everyone is dead: keep going. """
+                    continue
+
                 player: PlayerCharacter = result[0].source
                 if self.adapter.is_town(player.location):
                     if player.location.store.inventory:
@@ -140,7 +142,7 @@ class TestGeneral(unittest.TestCase):
         LOG.info(f"Buying Successes: {successes}")
         self.assertGreater(successes, 0, "All transactions failed")
 
-    def test_4_ensure_fist(self):
+    def test_4_ensure_starting_fist(self):
         """
         Ensure users start with fists equipped
         """
@@ -150,7 +152,7 @@ class TestGeneral(unittest.TestCase):
         player = self.adapter.get_player(id_)
         self.assertTrue(isinstance(player.weapon, Weapons.Fist))
 
-    def test_5_astar(self):
+    def test_5_astar_pathfinding(self):
         self.display.on_draw()
         self.display.get_world_view(title="astar_before")
         start = self.world.starting_town
@@ -171,7 +173,7 @@ class TestGeneral(unittest.TestCase):
         self.display.on_draw()
         self.display.get_world_view(title="astar_after")
 
-    def test_6_closest(self):
+    def test_6_function_closest(self):
         start = self.world.starting_town
         town_list = start.closest(self.world.towns, size=len(self.world.towns))
         min_dist = 0
@@ -187,7 +189,7 @@ class TestGeneral(unittest.TestCase):
         sort = sorted(body_codes)
         self.assertEqual(body_codes, sort)
 
-    def test_8_classes(self):
+    def test_8_different_classes(self):
         self.display.on_draw()
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
@@ -200,7 +202,7 @@ class TestGeneral(unittest.TestCase):
         self.display.on_draw()
         self.display.get_world_view("classes")
 
-    def test_9_jezail(self):
+    def test_9_jezail_buff(self):
         user: PlayerCharacter = next(self.adapter.iter_players())
         rifle = Jezail()
         user.equip(rifle)

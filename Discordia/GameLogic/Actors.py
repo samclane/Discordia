@@ -86,6 +86,7 @@ class Actor(AbstractActor, ABC):
                  body_type: BodyType = Humanoid()):
         self.parent_world = parent_world
         self._hit_points = self.hit_points_max = hp
+        self._is_dead = False
         self.name = name
         self.body_type = body_type
         self.location = None
@@ -117,16 +118,18 @@ class Actor(AbstractActor, ABC):
 
     @hit_points.setter
     def hit_points(self, value):
-        self._hit_points = min(max(value, 0), self.hit_points_max)
-        if self._hit_points <= 0:
-            self.on_death()
+        if not self.is_dead:
+            self._hit_points = min(max(value, 0), self.hit_points_max)
+            if self._hit_points <= 0:
+                self._is_dead = True
+                self.on_death()
 
     def take_damage(self, damage: int):
         self.hit_points -= damage
 
     @property
     def is_dead(self) -> bool:
-        return self.hit_points <= 0
+        return self._is_dead
 
     def on_death(self):
         pass
