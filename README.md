@@ -1,6 +1,5 @@
 # Discordia
-## The highly-anticipated re-release of DiscordMUD
-### Coming Soon
+## The highly-anticipated* re-release of DiscordMUD
 
 ![Screenshot](screenshots/screen1.png)
 
