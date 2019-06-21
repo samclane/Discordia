@@ -11,7 +11,7 @@ LOG = logging.getLogger("Discordia.GameLogic.Items")
 
 class FullyImplemented:
     #  Used to signify that equipment is fully defined and ready to be used in game (as opposed to being abstract)
-    #  TODO It's bad and needs to be deleted.
+    #  FIXME It's bad and needs to be deleted.
     pass
 
 

@@ -31,9 +31,7 @@ def main():
     threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
     # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
-    LOG.info("Discordia Server has successfully started.")
-    # TODO Figure out how to exit
-
+    LOG.info("Discordia Server has successfully started. Press ESC to quit.")
 
 if __name__ == '__main__':
     main()

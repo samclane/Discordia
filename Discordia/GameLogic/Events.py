@@ -94,7 +94,7 @@ class CombatEvent(Event):
             victory_response.text = f"{player_character.name} has fallen in combat. " \
                 f"They'll be revived in the starting town."
 
-        return victory_response
+        yield victory_response
 
 
 class EncounterEvent(Event):

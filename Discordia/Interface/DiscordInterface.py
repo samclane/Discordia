@@ -174,13 +174,19 @@ class DiscordInterface(commands.Cog):
             character: Actors.PlayerCharacter = self.world_adapter.get_player(ctx.author.id)
             results: List[PlayerActionResponse] = self.world_adapter.move_player(character, direction)
 
+            msg = ""
+
             # If any Events happen, let the PC know step-by-step
             if results:
                 for r in results:
                     if r.text:
-                        await ctx.send(r.text)
+                        msg += (r.text + '\n')
                     if not r.is_successful:
                         break
+
+                if msg:
+                    for i in range(0, len(msg) - 1, 2000):
+                        await ctx.send(msg[i:i+2000])
 
             character.last_time_moved = time.time()
         except NotRegisteredException:
@@ -189,7 +195,7 @@ class DiscordInterface(commands.Cog):
                 f"User {ctx.author.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                 f"to create a character.")
         except InvalidSpaceException:
-            await ctx.send("Invalid direction.")
+            await ctx.send("Invalid direction.")  # FIXME this never sends or hits
 
     @commands.command()
     async def north(self, ctx: Context):

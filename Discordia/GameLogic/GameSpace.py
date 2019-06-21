@@ -369,7 +369,7 @@ class World:
         return False
 
     def is_space_buildable(self, space: Space) -> bool:
-        # TODO Ugly function
+        # FIXME Ugly function
         if space.terrain.buildable:
             if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
                 return False

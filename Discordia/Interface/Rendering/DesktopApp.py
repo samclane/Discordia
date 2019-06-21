@@ -9,6 +9,7 @@ import logging
 import time
 from collections import defaultdict
 
+import cv2
 import pixelhouse as ph
 
 from Discordia.GameLogic import Actors, GameSpace
@@ -52,7 +53,7 @@ class MainWindow:
 
         self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
 
-    def on_draw(self, show_window=False):
+    def on_draw(self, show_window=False) -> int:
         for y, row in enumerate(self.terrain_map):
             for x, cnv in enumerate(row):
                 with cnv.layer() as layer:
@@ -66,7 +67,9 @@ class MainWindow:
         self.rendered_canvas.name = WINDOW_NAME
 
         if show_window:
-            self.rendered_canvas.show(40)
+            return self.rendered_canvas.show(1, return_status=True)
+        else:
+            return -1
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         # Need to find top left coordinate
@@ -99,5 +102,6 @@ class MainWindow:
 
 
 def update_display(display: MainWindow, show_window=False):
-    while True:
-        display.on_draw(show_window=show_window)
+    k = -1
+    while k != 27:
+        k = display.on_draw(show_window=show_window)

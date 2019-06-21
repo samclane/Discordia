@@ -96,10 +96,8 @@ class WorldAdapter:
 
     def move_player(self, character: Actors.PlayerCharacter, direction: Tuple[int, int]) -> List[PlayerActionResponse]:
         responses = character.attempt_move(direction)
-        if not responses:
-            raise InvalidSpaceException("Trying to move to an unwalkable space.")
-        else:
-            return responses
+
+        return responses
 
     def get_nearby_npcs(self, character: Actors.PlayerCharacter) -> List[Actors.NPC]:
         location: Space = character.location
