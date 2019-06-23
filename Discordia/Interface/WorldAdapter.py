@@ -96,6 +96,8 @@ class WorldAdapter:
 
     def move_player(self, character: Actors.PlayerCharacter, direction: Tuple[int, int]) -> List[PlayerActionResponse]:
         responses = character.attempt_move(direction)
+        if len(responses) == 1 and responses[0].failed:
+            raise InvalidSpaceException()
 
         return responses
 

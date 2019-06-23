@@ -195,7 +195,7 @@ class DiscordInterface(commands.Cog):
                 f"User {ctx.author.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                 f"to create a character.")
         except InvalidSpaceException:
-            await ctx.send("Invalid direction.")  # FIXME this never sends or hits
+            await ctx.send("Invalid direction.")
 
     @commands.command()
     async def north(self, ctx: Context):
