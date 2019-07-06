@@ -1,21 +1,18 @@
 import logging
 import os
 import random
-import sys
-import threading
 import unittest
 from pathlib import Path
-from typing import Callable, Iterator, List
+from typing import Iterator, List
 
 from PIL import Image
 
-import Discordia.ConfigParser as ConfigParser
+import ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
-from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
+from Discordia.Interface.Rendering.DesktopApp import MainWindow
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 os.chdir(Path("../Discordia/"))

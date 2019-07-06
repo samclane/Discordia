@@ -1,3 +1,3 @@
 from pathlib import Path
 
-SPRITE_FOLDER = Path("./Interface/Rendering/Sprites")
+SPRITE_FOLDER = Path("./Discordia/Interface/Rendering/Sprites")

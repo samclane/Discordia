@@ -6,7 +6,7 @@ import threading
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from Discordia import ConfigParser
+import ConfigParser
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display

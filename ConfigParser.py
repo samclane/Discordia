@@ -4,7 +4,7 @@ import logging
 LOG = logging.getLogger("Discordia.ConfigParser")
 
 config = configparser.ConfigParser()
-config.read('../config.ini')
+config.read('config.ini')
 
 try:
     DISCORD_TOKEN = config['Discord']['Token']

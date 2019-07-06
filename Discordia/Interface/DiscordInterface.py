@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 
 import Discordia.GameLogic.Actors as Actors
-from Discordia.ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
+from ConfigParser import DISCORD_PREFIX, DISCORD_MSG_TIMEOUT
 from Discordia.GameLogic import GameSpace
 from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTORS
 from Discordia.GameLogic.Items import Equipment
@@ -184,6 +184,7 @@ class DiscordInterface(commands.Cog):
                     if not r.is_successful:
                         break
 
+                # Break message up so Discord can send everything.
                 if msg:
                     for i in range(0, len(msg) - 1, 2000):
                         await ctx.send(msg[i:i+2000])
