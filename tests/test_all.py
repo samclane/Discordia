@@ -15,15 +15,13 @@ from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Rendering.DesktopApp import MainWindow
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
-os.chdir(Path("../Discordia/"))
-
 LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
 
 
 def clean_screenshots():
     """ Delete all files in the screenshot folder """
-    folder = "../Discordia/PlayerViews"
+    folder = "./Discordia/PlayerViews"
     for file_ in os.listdir(folder):
         file_path = os.path.join(folder, file_)
         try:
@@ -103,7 +101,7 @@ class TestGeneral(unittest.TestCase):
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
-            img: Image.Image = Image.open(Path(f"./PlayerViews/User{idx}_screenshot.png"))
+            img: Image.Image = Image.open(Path(f"./Discordia/PlayerViews/User{idx}_screenshot.png"))
             self.assertFalse(all(p == (0, 0, 0, 255) for p in img.getdata()), "Black screenshot taken")
             self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
             self.assertGreater(img.height, 1)

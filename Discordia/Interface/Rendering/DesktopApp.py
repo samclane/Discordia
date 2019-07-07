@@ -89,7 +89,7 @@ class MainWindow:
 
         view = [self.terrain_map[i][x1:x2] for i in range(y1, y2)]
         img = ph.gridstack(view)
-        img_path = f'./PlayerViews/{character.name}_screenshot.png'
+        img_path = f'./Discordia/PlayerViews/{character.name}_screenshot.png'
         img.save(img_path)
         return str(img_path)
 
