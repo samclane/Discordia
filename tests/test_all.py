@@ -7,8 +7,6 @@ from typing import Iterator, List
 
 from PIL import Image
 
-os.chdir("..")
-
 import ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
