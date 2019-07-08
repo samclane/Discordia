@@ -1,6 +1,8 @@
 # Discordia
 ## The highly-anticipated* re-release of DiscordMUD
 
+[![Build Status](https://travis-ci.com/samclane/Discordia.svg?branch=master)](https://travis-ci.com/samclane/Discordia)
+
 ![Screenshot](screenshots/screen1.png)
 
 Requires Python 3.7+
