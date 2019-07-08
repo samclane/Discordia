@@ -7,7 +7,6 @@ from typing import Iterator, List
 
 from PIL import Image
 
-import ConfigParser as ConfigParser
 from Discordia.GameLogic import GameSpace, Actors, Weapons
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
@@ -50,7 +49,7 @@ class TestGeneral(unittest.TestCase):
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
-        self.world = GameSpace.World(ConfigParser.WORLD_NAME,
+        self.world = GameSpace.World("Test World",
                                      self.WORLD_WIDTH,
                                      self.WORLD_HEIGHT,
                                      seed=self.random_seed)
