@@ -7,12 +7,14 @@ from typing import Iterator, List
 
 from PIL import Image
 
-from Discordia.GameLogic import GameSpace, Actors, Weapons
+from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
+Armor.random()  # Keep Armor import; we need the namespace
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Rendering.DesktopApp import MainWindow
 from Discordia.Interface.WorldAdapter import WorldAdapter
+from Discordia.GameLogic.Items import Equipment
 
 LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
@@ -128,10 +130,13 @@ class TestGeneral(unittest.TestCase):
                         if town.store.sell_item(index, player):
                             item = player.inventory[-1]
                             player.equip(item)
-                            self.assertTrue(player.has_weapon_equipped)
-                            self.assertTrue(player.weapon == item)
-                            self.assertFalse(isinstance(player.weapon, Weapons.Fist))
-                            self.assertIsNotNone(player.weapon)
+                            if isinstance(item, Weapons.Weapon):
+                                self.assertTrue(player.has_weapon_equipped)
+                                self.assertTrue(player.weapon == item)
+                                self.assertFalse(isinstance(player.weapon, Weapons.Fist))
+                                self.assertIsNotNone(player.weapon)
+                            elif isinstance(item, Equipment):
+                                self.assertTrue(player.equipment_set.armor_count > 0)
                             successes += 1
         LOG.info(f"Buying Successes: {successes}")
         self.assertGreater(successes, 0, "All transactions failed")
