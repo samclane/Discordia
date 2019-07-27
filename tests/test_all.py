@@ -15,6 +15,7 @@ from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Rendering.DesktopApp import MainWindow
 from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.GameLogic.Items import Equipment
+from Discordia.Interface.Rendering.DesktopApp import update_display
 
 LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
@@ -209,6 +210,10 @@ class TestGeneral(unittest.TestCase):
         user.location.terrain = MountainTerrain()
         dmg2 = rifle.calc_damage(1)
         self.assertTrue(dmg2 == 2 * dmg1)
+
+    def test_10_window(self):
+        # threading.Thread(target=update_display, args=(self.display, True)).start()
+        update_display(self.display, True, True)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
