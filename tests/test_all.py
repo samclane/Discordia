@@ -213,12 +213,7 @@ class TestGeneral(unittest.TestCase):
         self.assertTrue(dmg2 == 2 * dmg1)
 
     def test_window(self):
-        try:
-            update_display(self.display, True, True)
-        except ValueError:
-            pass
-        except RuntimeError:
-            pass
+        update_display(self.display, True, True)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
