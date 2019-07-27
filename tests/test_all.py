@@ -73,12 +73,12 @@ class TestGeneral(unittest.TestCase):
             player = self.adapter.get_player(idx)
             yield player.attempt_move(direction)
 
-    def test_0_hp(self):
+    def test_hp(self):
         for u in [self.adapter.get_player(n) for n in range(self.NUM_USERS)]:
             self.assertEqual(u.hit_points, u.hit_points_max)
             self.assertEqual(u.hit_points_max, u.player_class.hit_points_max_base)
 
-    def test_1_move_randomly(self):
+    def test_move_randomly(self):
         """
         Have actors move randomly about the map, triggering Events. Test `fail_count` to make sure they can move at
         least some of the time.
@@ -92,7 +92,7 @@ class TestGeneral(unittest.TestCase):
         self.assertLess(fail_count, self.NUM_USERS * self.NUM_STEPS, "Failed every movement attempt.")
         LOG.info(f"Successes: {(self.NUM_USERS * self.NUM_STEPS) - fail_count} - Failcount: {fail_count}")
 
-    def test_2_screenshot(self):
+    def test_screenshot(self):
         """
         Ensure that all actors are able to take pictures that aren't completely transparent or black
         """
@@ -109,7 +109,7 @@ class TestGeneral(unittest.TestCase):
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
-    def test_3_store_purchasing(self):
+    def test_store_purchasing(self):
         """
         Have randomly moving users buy weapons from towns they encounter
         """
@@ -142,7 +142,7 @@ class TestGeneral(unittest.TestCase):
         LOG.info(f"Buying Successes: {successes}")
         self.assertGreater(successes, 0, "All transactions failed")
 
-    def test_4_ensure_starting_fist(self):
+    def test_ensure_starting_fist(self):
         """
         Ensure users start with fists equipped
         """
@@ -152,7 +152,7 @@ class TestGeneral(unittest.TestCase):
         player = self.adapter.get_player(id_)
         self.assertTrue(isinstance(player.weapon, Weapons.Fist))
 
-    def test_5_astar_pathfinding(self):
+    def test_astar_pathfinding(self):
         self.display.on_draw()
         self.display.get_world_view(title="astar_before")
         start = self.world.starting_town
@@ -173,7 +173,7 @@ class TestGeneral(unittest.TestCase):
         self.display.on_draw()
         self.display.get_world_view(title="astar_after")
 
-    def test_6_function_closest(self):
+    def test_function_closest(self):
         start = self.world.starting_town
         town_list = start.closest(self.world.towns, size=len(self.world.towns))
         min_dist = 0
@@ -184,12 +184,12 @@ class TestGeneral(unittest.TestCase):
             self.assertGreaterEqual(start.distance(town), min_dist)
             min_dist = start.distance(town)
 
-    def test_7_body_types(self):
+    def test_body_types(self):
         body_codes = [body().size_code for body in Actors.BodyType.__subclasses__()]
         sort = sorted(body_codes)
         self.assertEqual(body_codes, sort)
 
-    def test_8_different_classes(self):
+    def test_different_classes(self):
         self.display.on_draw()
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
@@ -202,7 +202,7 @@ class TestGeneral(unittest.TestCase):
         self.display.on_draw()
         self.display.get_world_view("classes")
 
-    def test_9_jezail_buff(self):
+    def test_jezail_buff(self):
         user: PlayerCharacter = next(self.adapter.iter_players())
         rifle = Jezail()
         user.equip(rifle)
@@ -211,7 +211,7 @@ class TestGeneral(unittest.TestCase):
         dmg2 = rifle.calc_damage(1)
         self.assertTrue(dmg2 == 2 * dmg1)
 
-    def test_10_window(self):
+    def test_window(self):
         # threading.Thread(target=update_display, args=(self.display, True)).start()
         update_display(self.display, True, True)
 
