@@ -28,7 +28,7 @@ def clean_screenshots():
     for file_ in os.listdir(folder):
         file_path = os.path.join(folder, file_)
         try:
-            if os.path.isfile(file_path):
+            if os.path.isfile(file_path) and file_ != "README.md":
                 os.unlink(file_path)
         except Exception as e:
             raise e
@@ -217,7 +217,7 @@ class TestGeneral(unittest.TestCase):
         try:
             update_display(self.display, True, True)
         except Exception as e:
-            pytest.fail("Exception during test_window: " + e)
+            pytest.fail("Exception during test_window: " + str(e))
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
