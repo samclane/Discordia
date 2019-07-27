@@ -28,11 +28,10 @@ def main():
     threading.Thread(target=update_display, args=(display, True)).start()
     discord_interface = DiscordInterface(adapter)
     # discord_interface.bot.loop.create_task(update_display(display))
-    # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
-    discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+    threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
+    # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
     LOG.info("Discordia Server has successfully started. Press ESC to quit.")
-
 
 if __name__ == '__main__':
     main()
