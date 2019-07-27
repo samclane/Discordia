@@ -1,10 +1,7 @@
 import logging
 import os
 import pickle
-import sys
 import threading
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import ConfigParser
 from Discordia.GameLogic import GameSpace
@@ -32,6 +29,7 @@ def main():
     # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
     LOG.info("Discordia Server has successfully started. Press ESC to quit.")
+
 
 if __name__ == '__main__':
     main()

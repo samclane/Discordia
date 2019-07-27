@@ -5,11 +5,9 @@ import unittest
 from pathlib import Path
 from typing import Iterator, List
 
-import pytest
 from PIL import Image
 
 from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
-Armor.random()  # Keep Armor import; we need the namespace
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
@@ -18,13 +16,15 @@ from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.Rendering.DesktopApp import update_display
 
+Armor.random()  # Keep Armor import; we need the namespace
+
 LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
 
 
 def clean_screenshots():
     """ Delete all files in the screenshot folder """
-    folder = "./Discordia/PlayerViews"
+    folder = Path("./Discordia/PlayerViews")
     for file_ in os.listdir(folder):
         file_path = os.path.join(folder, file_)
         try:
