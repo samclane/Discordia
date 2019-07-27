@@ -213,8 +213,8 @@ class TestGeneral(unittest.TestCase):
         dmg2 = rifle.calc_damage(1)
         self.assertTrue(dmg2 == 2 * dmg1)
 
-    @pytest.mark.xfail
     def test_window(self):
+        """ This test always returns with pytest status 1. Even xfail won't save it. We have transgressed upon God."""
         update_display(self.display, True, True)
 
     def tearDown(self) -> None:
