@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from typing import Iterator, List
 
+import pytest
 from PIL import Image
 
 from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
@@ -213,7 +214,10 @@ class TestGeneral(unittest.TestCase):
 
     def test_window(self):
         # threading.Thread(target=update_display, args=(self.display, True)).start()
-        update_display(self.display, True, True)
+        try:
+            update_display(self.display, True, True)
+        except Exception as e:
+            pytest.fail("Exception during test_window: " + e)
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
