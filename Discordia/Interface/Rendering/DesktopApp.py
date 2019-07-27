@@ -106,5 +106,5 @@ def update_display(display: MainWindow, show_window=False, run_once=False):
     while k != 27:  # 27 is key-id of ESC
         k = display.on_draw(show_window=show_window)
         if run_once:
-            # cv2.destroyWindow(WINDOW_NAME)
+            cv2.destroyWindow(WINDOW_NAME)
             break
