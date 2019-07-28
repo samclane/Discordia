@@ -17,6 +17,7 @@ if not os.path.isfile(Path("./config.ini")):
         config['Discord']['Token'] = str(input("Input your Discord API token: "))
         config.write(conf)
 else:
+    LOG.info("Existing config file found, loading...")
     config.read('config.ini')
 
 try:
