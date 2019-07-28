@@ -9,8 +9,8 @@ import logging
 import time
 from collections import defaultdict
 
-import cv2
 import pixelhouse as ph
+
 
 from Discordia.GameLogic import Actors, GameSpace
 
@@ -101,10 +101,7 @@ class MainWindow:
         return str(img_path)
 
 
-def update_display(display: MainWindow, show_window=False, run_once=False):
+def update_display(display: MainWindow, show_window=False):
     k = -1  # Placeholder
     while k != 27:  # 27 is key-id of ESC
         k = display.on_draw(show_window=show_window)
-        if run_once:
-            cv2.destroyWindow(WINDOW_NAME)
-            break

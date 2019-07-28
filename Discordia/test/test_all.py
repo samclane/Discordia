@@ -5,7 +5,6 @@ import unittest
 from pathlib import Path
 from typing import Iterator, List
 
-import pytest
 from PIL import Image
 
 from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
@@ -15,7 +14,6 @@ from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Rendering.DesktopApp import MainWindow
 from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.GameLogic.Items import Equipment
-from Discordia.Interface.Rendering.DesktopApp import update_display
 
 Armor.random()  # Keep Armor import; we need the namespace
 
