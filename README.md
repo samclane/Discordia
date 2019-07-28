@@ -2,6 +2,7 @@
 ## The highly-anticipated* re-release of DiscordMUD
 
 [![Build Status](https://travis-ci.com/samclane/Discordia.svg?branch=master)](https://travis-ci.com/samclane/Discordia)
+[![codecov](https://codecov.io/gh/samclane/Discordia/branch/master/graph/badge.svg)](https://codecov.io/gh/samclane/Discordia)
 
 ![Screenshot](screenshots/screen1.png)
 
