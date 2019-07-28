@@ -9,7 +9,13 @@ Requires Python 3.7+
 
 # Starting 
 
-To run, add your Discord Bot Token to `config.ini`. Then, run `Discordia/Interface/Rendering/DesktopApp.py` to start the server.
+To install:
+
+`pip install -r requirements.txt`
+
+`python main.py`
+
+When prompted, enter your bot's Discord Token.
 
 # Player Controls
 
