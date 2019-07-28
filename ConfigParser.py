@@ -1,10 +1,23 @@
 import configparser
 import logging
+import os
+from pathlib import Path
+from shutil import copyfile
+
 
 LOG = logging.getLogger("Discordia.ConfigParser")
 
 config = configparser.ConfigParser()
-config.read('config.ini')
+
+if not os.path.isfile(Path("./config.ini")):
+    LOG.info("No config file found, creating new one...")
+    copyfile(Path("./default.ini"), Path("./config.ini"))
+    config.read('config.ini')
+    with open('config.ini', 'w+') as conf:
+        config['Discord']['Token'] = str(input("Input your Discord API token: "))
+        config.write(conf)
+else:
+    config.read('config.ini')
 
 try:
     DISCORD_TOKEN = config['Discord']['Token']

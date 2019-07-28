@@ -14,21 +14,22 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    # Read in world file if found
     if os.path.isfile(r'./world.p'):
         world: GameSpace.World = pickle.load(open(r'./world.p', 'rb'))
     else:
         world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
+
     adapter = WorldAdapter(world)
 
     display = MainWindow(adapter)
 
-    threading.Thread(target=update_display, args=(display, True)).start()
+    threading.Thread(target=update_display, args=(display, True), daemon=True).start()
     discord_interface = DiscordInterface(adapter)
     # discord_interface.bot.loop.create_task(update_display(display))
-    threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
-    # discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
-
-    LOG.info("Discordia Server has successfully started. Press ESC to quit.")
+    # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
+    LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
+    discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
 
 
 if __name__ == '__main__':

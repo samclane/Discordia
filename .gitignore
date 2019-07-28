@@ -107,7 +107,7 @@ venv.bak/
 local_resources/
 
 # Config Files
-*.ini
+config.ini
 
 # pylint
 pylintrc
