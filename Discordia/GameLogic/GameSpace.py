@@ -35,11 +35,13 @@ DIRECTION_VECTORS: Dict[str, Direction] = {
     'se': (1, 1),
     'sw': (-1, 1),
     'nw': (-1, -1),
+    'center': (0, 0),
     None: (0, 0)
 }
 
 
 class Terrain(ABC):
+    _orientation: str = "center"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -55,16 +57,28 @@ class Terrain(ABC):
         raise NotImplementedError
 
     @property
-    def sprite_path(self) -> Path:
+    def name(self) -> str:
         raise NotImplementedError
+
+    @property
+    def orientation(self) -> str:
+        return self._orientation
+
+    @orientation.setter
+    def orientation(self, value: str):
+        value = value.lower()
+        if value not in DIRECTION_VECTORS.keys():
+            raise ValueError("Invalid direction given: ", value)
+        self._orientation = value
+
+    @property
+    def sprite_path(self) -> Path:
+        return SPRITE_FOLDER / "Terrain" / f"{self.name}_{self.orientation}.png"
 
     @property
     def sprite_path_string(self) -> str:
         return str(self.sprite_path)
 
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
 
     @property
     def cost(self) -> int:
@@ -78,39 +92,34 @@ class Terrain(ABC):
 
 class NullTerrain(Terrain):
     walkable = False
-    sprite_path = SPRITE_FOLDER / "null_tile.png"
-    name = "Null"
+    name = "null_tile"
     buildable = False
 
 
 class SandTerrain(Terrain):
     walkable = True
-    sprite_path = SPRITE_FOLDER / "Terrain" / "sand_center.png"
-    name = "Sand"
+    name = "sand"
     cost = 2
     buildable = True
 
 
 class GrassTerrain(Terrain):
     walkable = True
-    sprite_path = SPRITE_FOLDER / "Terrain" / "grass_center.png"
-    name = "Grass"
+    name = "grass"
     cost = 1
     buildable = True
 
 
 class WaterTerrain(Terrain):
     walkable = True
-    sprite_path = SPRITE_FOLDER / "Terrain" / "water_center.png"
-    name = "Water"
+    name = "water"
     cost = 5
     buildable = False
 
 
 class MountainTerrain(Terrain):
     walkable = True
-    sprite_path = SPRITE_FOLDER / "Terrain" / "mountain_center.png"
-    name = "Mountain"
+    name = "mountain"
     cost = 8
     buildable = False
 
