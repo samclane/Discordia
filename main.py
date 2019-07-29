@@ -7,7 +7,7 @@ import argparse
 import ConfigParser
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.Rendering.DesktopApp import MainWindow, update_display
+from Discordia.Interface.Rendering.DesktopApp import WindowRenderer, update_display
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 LOG = logging.getLogger("Discordia")
@@ -29,7 +29,7 @@ def main():
 
     adapter = WorldAdapter(world)
 
-    display = MainWindow(adapter)
+    display = WindowRenderer(adapter)
 
     threading.Thread(target=update_display, args=(display, args.show_window), daemon=True).start()
     discord_interface = DiscordInterface(adapter)

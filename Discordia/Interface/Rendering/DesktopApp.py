@@ -37,7 +37,7 @@ class keydefaultdict(defaultdict):
         return self._miss_count
 
 
-class MainWindow:
+class WindowRenderer:
     def __init__(self, world_adapter: WorldAdapter):
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
@@ -101,7 +101,7 @@ class MainWindow:
         return str(img_path)
 
 
-def update_display(display: MainWindow, show_window=False):
+def update_display(display: WindowRenderer, show_window=False):
     k = -1  # Placeholder
     while k != 27:  # 27 is key-id of ESC
         k = display.on_draw(show_window=show_window)

@@ -11,7 +11,7 @@ from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
-from Discordia.Interface.Rendering.DesktopApp import MainWindow
+from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.GameLogic.Items import Equipment
 
@@ -57,7 +57,7 @@ class TestGeneral(unittest.TestCase):
                                      self.WORLD_HEIGHT,
                                      seed=self.random_seed)
         self.adapter = WorldAdapter(self.world)
-        self.display = MainWindow(self.adapter)
+        self.display = WindowRenderer(self.adapter)
         
         for idx in range(self.NUM_USERS):
             self.adapter.register_player(idx, player_name=f"User{idx}")
