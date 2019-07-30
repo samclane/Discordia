@@ -42,7 +42,7 @@ class WindowRenderer:
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
 
-        self.terrain_map = [[ph.Canvas().load(self.world_adapter.world.map[y][x].terrain.sprite_path_string) for x in
+        self.terrain_map = [[ph.Canvas().load(GameSpace.WaterTerrain().sprite_path_string) for x in
                              range(self.world_adapter.width)] for y in range(self.world_adapter.height)]
 
         self.rendered_canvas = ph.gridstack(self.terrain_map)
@@ -57,7 +57,13 @@ class WindowRenderer:
         for y, row in enumerate(self.terrain_map):
             for x, cnv in enumerate(row):
                 with cnv.layer() as layer:
-                    layer += self._sprite_cache[self.world_adapter.world.map[y][x].sprite_path_string]
+                    layer += self._sprite_cache[self.world_adapter.world.map[y][x].terrain.sprite_path_string]
+        for town in self.world_adapter.world.towns:
+            with self.terrain_map[town.y][town.x].layer() as layer:
+                layer += self._sprite_cache[town.sprite_path_string]
+        for wilds in self.world_adapter.world.wilds:
+            with self.terrain_map[wilds.y][wilds.x].layer() as layer:
+                layer += self._sprite_cache[wilds.sprite_path_string]
         for player in self.world_adapter.iter_players():
             x, y = player.location.x, player.location.y
             with self.terrain_map[y][x].layer() as layer:

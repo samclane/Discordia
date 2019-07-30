@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 import pickle
 import random
+import sys
 from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from typing import List, Tuple, Dict, Iterator, Union
-import sys
 
 import math
 import numpy as np
@@ -38,6 +38,29 @@ DIRECTION_VECTORS: Dict[str, Direction] = {
     'center': (0, 0),
     None: (0, 0)
 }
+
+
+def bitmask_to_orientation(value: int) -> str:
+    if 0xff & value == 0xff or 0b01011010 & value == 0b01011010:
+        return 'center'
+    if 0b01011000 & value == 0b01011000:
+        return 'n'
+    if 0b01001010 & value == 0b01001010:
+        return 'e'
+    if 0b00011010 & value == 0b00011010:
+        return 's'
+    if 0b01010010 & value == 0b01010010:
+        return 'w'
+    if 0b01010000 & value == 0b01010000:
+        return 'nw'
+    if 0b01001000 & value == 0b01001000:
+        return 'ne'
+    if 0b00010010 & value == 0b00010010:
+        return 'sw'
+    if 0b00001010 & value == 0b00001010:
+        return 'se'
+    else:
+        return 'center'
 
 
 class Terrain(ABC):
@@ -79,7 +102,6 @@ class Terrain(ABC):
     def sprite_path_string(self) -> str:
         return str(self.sprite_path)
 
-
     @property
     def cost(self) -> int:
         # Unimplemented terrain returns "infinite"
@@ -115,6 +137,14 @@ class WaterTerrain(Terrain):
     name = "water"
     cost = 5
     buildable = False
+
+    @property
+    def orientation(self) -> str:
+        return 'center'
+
+    @orientation.setter
+    def orientation(self, value):
+        pass
 
 
 class MountainTerrain(Terrain):
@@ -334,6 +364,8 @@ class World:
 
     def generate_map(self):
         LOG.info("Generating Map...")
+
+        # Get parameters
         resolution = self.gen_params.resolution_constant * (
                 (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
@@ -342,6 +374,8 @@ class World:
         water_threshold = self.gen_params.water  # Higher factor -> more Spaces on the map
         mountain_threshold = self.gen_params.mountains
         grass_threshold = self.gen_params.grass
+
+        # First pass
         for x in range(self.width):
             for y in range(self.height):
                 # Land and water pass
@@ -365,7 +399,26 @@ class World:
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(
                             Wilds.generate(x, y, self.map[y][x].terrain,
-                                           normal(sqrt(self.starting_town.distance((x, y))), integer=True, positive=True)))
+                                           normal(sqrt(self.starting_town.distance((x, y))), integer=True,
+                                                  positive=True)))
+
+        # Second (corner) pass
+        for x in range(1, self.width - 1):
+            for y in range(1, self.height - 1):
+                space: Space = self.map[y][x]
+
+                # Bitmask
+                value = 0
+                for bit, neighbor in enumerate([DIRECTION_VECTORS.get(key) for key in ['nw', 'n', 'ne',
+                                                                                       'w', 'e', 'sw',
+                                                                                       's', 'se']]):
+                    ix, iy = space + neighbor
+                    if self.map[iy][ix].terrain.buildable == space.terrain.buildable:
+                        value += pow(2, bit)
+
+                if value != 0:
+                    space.terrain.orientation = bitmask_to_orientation(value)
+
         self.starting_town = random.choice(self.towns)
         LOG.info("Generation finished")
 
@@ -505,7 +558,7 @@ class Store:
 
 class AStarPathfinder(AStar):
 
-    def __init__(self, world: World, cost: bool=True):
+    def __init__(self, world: World, cost: bool = True):
         self.world = world
         self.cost = cost
 
