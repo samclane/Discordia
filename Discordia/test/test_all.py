@@ -125,6 +125,7 @@ class TestGeneral(unittest.TestCase):
 
                 player: PlayerCharacter = result[0].source
                 if self.adapter.is_town(player.location):
+                    self.assertIsNotNone(player.location.name)
                     if player.location.store.inventory:
                         town: GameSpace.Town = player.location
                         index = random.randint(0, len(set(town.store.inventory)))

@@ -199,6 +199,24 @@ class WoodworkingIndustry(IndustryType):
         return "Woodworking"
 
 
+class MilitaryBase(IndustryType, ABC):
+    @property
+    def name(self) -> str:
+        raise NotImplementedError
+
+
+class EasternMilitaryBase(MilitaryBase):
+    @property
+    def name(self) -> str:
+        return "Eastern Military Base"
+
+
+class WesternMilitaryBase(MilitaryBase):
+    @property
+    def name(self) -> str:
+        return "Western Military Base"
+
+
 class Space(ABC):
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
