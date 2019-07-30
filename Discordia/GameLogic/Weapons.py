@@ -1,3 +1,11 @@
+"""
+Ostensibly, this file contains information about all weapons players can purchase and wield.
+
+This module is just a mess. I've hardcoded everything, added a weird "FullyImplemented" class to signify non-abstract
+classes. It's written more like a C header file than an actual Python script. I don't even remember how half this stuff
+works. I was playing a lot of "Escape from Tarkov" at the time; the realism bug must have caught on.
+"""
+
 from __future__ import annotations
 from abc import ABC
 from typing import Optional
