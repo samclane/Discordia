@@ -111,6 +111,11 @@ class Terrain(ABC):
     def buildable(self):
         raise NotImplementedError
 
+    @property
+    def layer(self):
+        """ Basically the Z value of the terrain; how high it is. 0 is sea level. -1 is null-level """
+        return -1
+
 
 class NullTerrain(Terrain):
     walkable = False
@@ -123,6 +128,7 @@ class SandTerrain(Terrain):
     name = "sand"
     cost = 2
     buildable = True
+    layer = 1
 
 
 class GrassTerrain(Terrain):
@@ -130,6 +136,7 @@ class GrassTerrain(Terrain):
     name = "grass"
     cost = 1
     buildable = True
+    layer = 1
 
 
 class WaterTerrain(Terrain):
@@ -137,6 +144,7 @@ class WaterTerrain(Terrain):
     name = "water"
     cost = 5
     buildable = False
+    layer = 0
 
     @property
     def orientation(self) -> str:
@@ -152,6 +160,7 @@ class MountainTerrain(Terrain):
     name = "mountain"
     cost = 8
     buildable = False
+    layer = 2
 
 
 class IndustryType(ABC):
@@ -402,7 +411,8 @@ class World:
                                            normal(sqrt(self.starting_town.distance((x, y))), integer=True,
                                                   positive=True)))
 
-        # Second (corner) pass
+        # Second (orientation) pass
+        # https://gamedevelopment.tutsplus.com/tutorials/how-to-use-tile-bitmasking-to-auto-tile-your-level-layouts--cms-25673
         for x in range(1, self.width - 1):
             for y in range(1, self.height - 1):
                 space: Space = self.map[y][x]
@@ -413,7 +423,7 @@ class World:
                                                                                        'w', 'e', 'sw',
                                                                                        's', 'se']]):
                     ix, iy = space + neighbor
-                    if self.map[iy][ix].terrain.buildable == space.terrain.buildable:
+                    if self.map[iy][ix].terrain.layer == space.terrain.layer:
                         value += pow(2, bit)
 
                 if value != 0:
