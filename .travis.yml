@@ -27,5 +27,7 @@ install:
 script:
   - pytest --cov=./
 
+cache: pip
+
 after_success:
   - codecov
