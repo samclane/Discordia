@@ -8,7 +8,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Union
+from typing import List, Tuple, Dict, Iterator, Union, Type
 
 import math
 import numpy as np
@@ -168,6 +168,10 @@ class IndustryType(ABC):
     def name(self) -> str:
         raise NotImplementedError
 
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.WandererClass()
+
 
 class NullIndustry(IndustryType):
     @property
@@ -203,6 +207,10 @@ class MilitaryBase(IndustryType, ABC):
     @property
     def name(self) -> str:
         raise NotImplementedError
+
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.SoliderClass()
 
 
 class EasternMilitaryBase(MilitaryBase):
@@ -293,7 +301,7 @@ class Town(Space):
     def generate_town(cls, x, y, terrain):
         name = TownNameGenerator.generate_name()
         population = random.randint(1, 1000)
-        industry = random.choice(IndustryType.__subclasses__())
+        industry = random.choice(IndustryType.__subclasses__())()
         store = Store.generate_store()
         return cls(x, y, name, population, industry, terrain, store)
 
@@ -301,6 +309,15 @@ class Town(Space):
         character.hit_points = character.hit_points_max
         resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0,
                                     source=character)
+        return resp
+
+    def recruit(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
+        _class = self.industry.recruitment_class
+        if _class.tier >= character.player_class.tier and _class.name != character.player_class.name:
+            character.player_class = _class
+            resp = PlayerActionResponse(is_successful=True, text=f"Class was successfully changed to {_class.name}")
+        else:
+            resp = PlayerActionResponse(is_successful=False, text=f"Your class is already better than {_class.name}")
         return resp
 
     @property

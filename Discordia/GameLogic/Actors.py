@@ -179,6 +179,10 @@ class PlayerClass(ABC):
         raise NotImplementedError
 
     @property
+    def tier(self) -> int:
+        return 0
+
+    @property
     def hit_points_max_base(self) -> int:
         raise NotImplementedError
 
@@ -194,6 +198,7 @@ class WandererClass(PlayerClass):
     """ Default player class with nothing special. """
     name = "Wanderer"
     hit_points_max_base = 50
+    tier = 0
 
     @property
     def sprite_path(self):
@@ -204,6 +209,7 @@ class SoliderClass(PlayerClass):
     """ After joining some military (East or West). """
     name = "Solider"
     hit_points_max_base = 75
+    tier = 1
     
     @property
     def sprite_path(self) -> str:
@@ -214,6 +220,7 @@ class RaiderClass(PlayerClass):
     """ You've taken up arms without joining a military. """
     name = "Raider"
     hit_points_max_base = 60
+    tier = 1
 
     @property
     def sprite_path(self) -> str:

@@ -290,6 +290,20 @@ class DiscordInterface(commands.Cog):
             await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
                            f"to create a character.")
 
+    @town.command()
+    async def recruit(self, ctx: Context):
+        """ Change your player class to the one offered by the town. """
+        member = ctx.author
+        try:
+            character: Actors.PlayerCharacter = self.world_adapter.get_player(member.id)
+            if self.world_adapter.is_town(character.location):
+                resp: PlayerActionResponse = character.location.recruit(character)
+                await ctx.send(resp.text)
+        except NotRegisteredException:
+            LOG.warning(f"Player {member.display_name} not registered: Tried to access `recruit`")
+            await ctx.send(f"User {member.display_name} has not yet registered. Please use `{DISCORD_PREFIX}register` "
+                           f"to create a character.")
+
     @town.group(invoke_without_command=True)
     async def store(self, ctx: Context):
         member = ctx.author
