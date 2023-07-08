@@ -32,9 +32,8 @@ def direction_vector(argument: str) -> GameSpace.Direction:
 
 class DiscordInterface(commands.Cog):
     def __init__(self, world_adapter: WorldAdapter):
-        self.bot: commands.Bot = commands.Bot(command_prefix=DISCORD_PREFIX)
+        self.bot: commands.Bot = commands.Bot(command_prefix=DISCORD_PREFIX, intents=discord.Intents.all())
         self.bot.add_listener(self._on_ready, "on_ready")
-        self.bot.add_cog(self)
         self.world_adapter: WorldAdapter = world_adapter
 
     @staticmethod
@@ -52,6 +51,7 @@ class DiscordInterface(commands.Cog):
 
     async def _on_ready(self):
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
+        await self.bot.add_cog(self)
 
     @commands.command()
     async def register(self, ctx: Context):
