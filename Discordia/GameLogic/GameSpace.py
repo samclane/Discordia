@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import pickle
 import random
 import sys
 from abc import ABC
@@ -470,13 +469,11 @@ class World:
         self.npcs: List[Actors.NPC] = []
         self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
-        if seed is not None:  # 0 is a perfectly good seed
-            random.seed(seed)
-            np.random.seed(seed)
+        # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
+        self.seed: int = random.randrange(2 ** 32) if seed is None else seed
+        random.seed(self.seed)
+        np.random.seed(self.seed)
         self.generate_map()
-
-    def save_as_file(self):
-        pickle.dump(self, open("world.p", "wb"))
 
     def generate_map(self):
         LOG.info("Generating Map...")

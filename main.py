@@ -1,11 +1,11 @@
 import logging
-import os
-import pickle
 import threading
+import time
 import argparse
 
 import ConfigParser
 from Discordia.GameLogic import GameSpace
+from Discordia.Interface.Database import Database, DEFAULT_PATH
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer, update_display
 from Discordia.Interface.WorldAdapter import WorldAdapter
@@ -13,33 +13,54 @@ from Discordia.Interface.WorldAdapter import WorldAdapter
 LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
+AUTOSAVE_SECONDS = 60
+
+
+def autosave(database: Database, adapter: WorldAdapter):
+    # ponytail: a plain timer loop, so a crash loses at most AUTOSAVE_SECONDS of play. Save on each mutating
+    # command instead if that ever costs someone a real purchase.
+    while True:
+        time.sleep(AUTOSAVE_SECONDS)
+        try:
+            database.save(adapter)
+        except Exception:
+            LOG.exception("Autosave failed")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run an instance of a Discordia server",
                                      prog="Discordia")
     parser.add_argument('-W --show_window', dest='show_window', action='store_const', const=True, default=False,
                         help="Show a window containing a live view of the entire world. WARNING: CPU-intensive.")
+    parser.add_argument('--database', default=DEFAULT_PATH, help="Path to the server's SQLite save file.")
     args = parser.parse_args()
 
     if not ConfigParser.DISCORD_TOKEN:
         raise SystemExit("No Discord token: set DISCORD_TOKEN or fill in Token under [Discord] in config.ini")
 
-    # Read in world file if found
-    if os.path.isfile(r'./world.p'):
-        world: GameSpace.World = pickle.load(open(r'./world.p', 'rb'))
-    else:
-        world = GameSpace.World(ConfigParser.WORLD_NAME, ConfigParser.WORLD_WIDTH, ConfigParser.WORLD_HEIGHT)
-
-    adapter = WorldAdapter(world)
+    database = Database(args.database)
+    adapter = database.load()
+    if adapter is None:
+        LOG.info("No save found, generating a new world")
+        adapter = WorldAdapter(GameSpace.World(ConfigParser.WORLD_NAME,
+                                               ConfigParser.WORLD_WIDTH,
+                                               ConfigParser.WORLD_HEIGHT))
+        database.save(adapter)
 
     display = WindowRenderer(adapter)
 
     threading.Thread(target=update_display, args=(display, args.show_window), daemon=True).start()
+    threading.Thread(target=autosave, args=(database, adapter), daemon=True).start()
     discord_interface = DiscordInterface(adapter)
     # discord_interface.bot.loop.create_task(update_display(display))
     # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
-    discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+    try:
+        discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+    finally:
+        database.save(adapter)
+        database.close()
+        LOG.info("World saved.")
 
 
 if __name__ == '__main__':

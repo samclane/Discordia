@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Union
+from typing import Tuple, List, Type, Union
 from enum import Enum, auto
 
 from Discordia import SPRITE_FOLDER
@@ -294,8 +294,8 @@ class PlayerCharacter(Actor):
     def has_weapon_equipped(self) -> bool:
         return self.weapon is not None
 
-    def equip(self, equipment: Equipment):
-        self.equipment_set.equip(equipment)
+    def equip(self, equipment: Equipment, equipment_type: Type[Equipment] | None = None):
+        self.equipment_set.equip(equipment, equipment_type)
         equipment.on_equip(self)
 
     def unequip(self, equipment: Equipment):

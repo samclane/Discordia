@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Iterator, List
@@ -11,6 +12,7 @@ from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
+from Discordia.Interface.Database import Database
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WorldAdapter import WorldAdapter
 from Discordia.GameLogic.Items import Equipment, EquipmentSet, OffHandEquipment
@@ -53,6 +55,8 @@ class TestGeneral(unittest.TestCase):
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
         self.world = GameSpace.World("Test World",
                                      self.WORLD_WIDTH,
                                      self.WORLD_HEIGHT,
@@ -176,6 +180,52 @@ class TestGeneral(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             equipment_set.equip(object())  # type: ignore
+
+    def test_database_roundtrip(self):
+        """
+        Save a played-in world and load it back: same map, same characters, same gear.
+        """
+        player = self.adapter.get_player(0)
+        player.player_class = Actors.RaiderClass()
+        player.currency = 4321
+        player.hit_points -= 7
+        player.equip(Jezail())
+        player.inventory.append(Armor.Helmet())
+        for _ in self._move_randomly():
+            pass
+
+        path = Path(self.temp_dir.name) / "roundtrip.db"
+        database = Database(path)
+        database.save(self.adapter)
+        database.close()
+
+        loaded = Database(path)
+        adapter = loaded.load()
+        self.assertIsNotNone(adapter)
+        assert adapter is not None  # for the type checker
+        loaded.close()
+
+        self.assertEqual(adapter.world.seed, self.world.seed)
+        self.assertEqual([str(space.terrain) for space in adapter.iter_spaces()],
+                         [str(space.terrain) for space in self.adapter.iter_spaces()])
+        self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
+
+        restored = adapter.get_player(0)
+        self.assertEqual(restored.name, player.name)
+        self.assertEqual(restored.currency, player.currency)
+        self.assertEqual(restored.hit_points, player.hit_points)
+        self.assertIsInstance(restored.player_class, Actors.RaiderClass)
+        self.assertIsInstance(restored.weapon, Jezail)
+        self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
+        self.assertEqual((restored.location.x, restored.location.y), (player.location.x, player.location.y))
+
+    def test_database_starts_empty(self):
+        """
+        A database nobody has saved to yet has no world to hand back
+        """
+        database = Database(Path(self.temp_dir.name) / "empty.db")
+        self.assertIsNone(database.load())
+        database.close()
 
     def test_astar_pathfinding(self):
         self.display.on_draw()

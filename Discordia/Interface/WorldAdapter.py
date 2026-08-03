@@ -137,6 +137,9 @@ class WorldAdapter:
         for player in self._discord_player_map.values():
             yield player
 
+    def iter_registered(self) -> Iterator[Tuple[int, Actors.PlayerCharacter]]:
+        yield from self._discord_player_map.items()
+
     def get_player_screenshot(self, character: Actors.PlayerCharacter) -> str:
         if self._renderer is not None:
             path = self._renderer.get_player_view(character)
