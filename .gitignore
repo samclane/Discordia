@@ -111,3 +111,6 @@ config.ini
 
 # pylint
 pylintrc
+
+# Screenshots
+Discordia/PlayerViews
