@@ -21,6 +21,9 @@ def main():
                         help="Show a window containing a live view of the entire world. WARNING: CPU-intensive.")
     args = parser.parse_args()
 
+    if not ConfigParser.DISCORD_TOKEN:
+        raise SystemExit("No Discord token: set DISCORD_TOKEN or fill in Token under [Discord] in config.ini")
+
     # Read in world file if found
     if os.path.isfile(r'./world.p'):
         world: GameSpace.World = pickle.load(open(r'./world.p', 'rb'))

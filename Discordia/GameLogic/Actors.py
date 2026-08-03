@@ -56,8 +56,8 @@ class AbstractActor(ABC):
     Defines an interface to interact with all generic Actor objects
     """
 
-    def attempt_move(self, shift: Tuple[int, int]) -> bool:
-        pass
+    def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
+        return []
 
     @property
     def hit_points(self):
@@ -72,7 +72,7 @@ class AbstractActor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def on_death(self):
+    def on_death(self)  -> List[Items.Equipment]:
         pass
 
     @property
@@ -89,9 +89,10 @@ class Actor(AbstractActor, ABC):
         self._is_dead = False
         self.name = name
         self.body_type = body_type
-        self.location = None
+        # None until the actor is spawned into the world; everything past that point assumes a Space
+        self.location: GameSpace.Space = None  # type: ignore[assignment]
         self.fov_default = 2
-        self.last_time_moved = 0
+        self.last_time_moved = 0.0
 
     def __str__(self):
         return self.name
@@ -132,11 +133,11 @@ class Actor(AbstractActor, ABC):
         return self._is_dead
 
     def on_death(self):
-        pass
+        return []
 
     @property
     def sprite_path(self) -> str:
-        return SPRITE_FOLDER / "Actors" / "null_actor.png"
+        return str(SPRITE_FOLDER / "Actors" / "null_actor.png")
 
     @property
     def sprite_path_string(self) -> str:
@@ -151,7 +152,7 @@ class NPC(Actor):
         self.base_attack = 1
 
     def on_death(self) -> List[Items.Equipment]:
-        self.location = None
+        self.location = None  # type: ignore[assignment]  # despawns the NPC
         return self.inventory
 
     @classmethod
@@ -162,14 +163,14 @@ class NPC(Actor):
             name = CharacterNameGenerator.female_name().generate_name()
         return cls(
             None,
-            Procedural.normal((WandererClass.hit_points_max_base//2)*(level//2), positive=True, integer=True),
+            Procedural.normal((WandererClass().hit_points_max_base//2)*(level//2), positive=True, integer=True),
             name,
             random.choice(BodyType.__subclasses__())()
         )
 
     @property
     def sprite_path(self) -> str:
-        return SPRITE_FOLDER / "Actors" / "null_npc.png"
+        return str(SPRITE_FOLDER / "Actors" / "null_npc.png")
 
 
 class PlayerClass(ABC):
@@ -196,35 +197,61 @@ class PlayerClass(ABC):
 
 class WandererClass(PlayerClass):
     """ Default player class with nothing special. """
-    name = "Wanderer"
-    hit_points_max_base = 50
-    tier = 0
+
+    @property
+    def name(self) -> str:
+        return "Wanderer"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 50
+
+    @property
+    def tier(self) -> int:
+        return 0
 
     @property
     def sprite_path(self):
-        return SPRITE_FOLDER / "Actors" / "wanderer_class.png"
+        return str(SPRITE_FOLDER / "Actors" / "wanderer_class.png")
     
     
 class SoliderClass(PlayerClass):
     """ After joining some military (East or West). """
-    name = "Solider"
-    hit_points_max_base = 75
-    tier = 1
-    
+
+    @property
+    def name(self) -> str:
+        return "Solider"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 75
+
+    @property
+    def tier(self) -> int:
+        return 1
+
     @property
     def sprite_path(self) -> str:
-        return SPRITE_FOLDER / "Actors" / "solider_class.png"
+        return str(SPRITE_FOLDER / "Actors" / "solider_class.png")
 
 
 class RaiderClass(PlayerClass):
     """ You've taken up arms without joining a military. """
-    name = "Raider"
-    hit_points_max_base = 60
-    tier = 1
+    @property
+    def name(self) -> str:
+        return "Raider"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 60
+
+    @property
+    def tier(self) -> int:
+        return 1
 
     @property
     def sprite_path(self) -> str:
-        return SPRITE_FOLDER / "Actors" / "raider_class.png"
+        return str(SPRITE_FOLDER / "Actors" / "raider_class.png")   
 
 
 class PlayerCharacter(Actor):
@@ -245,6 +272,10 @@ class PlayerCharacter(Actor):
     @property
     def player_class(self):
         return self._player_class
+
+    @property
+    def registered(self) -> bool:
+        return self.location is not None
 
     @player_class.setter
     def player_class(self, class_: PlayerClass):
@@ -276,7 +307,7 @@ class PlayerCharacter(Actor):
         self.hit_points -= damage
 
     def on_death(self):
-        self.parent_world.handle_player_death(self)
+        return self.parent_world.handle_player_death(self)
 
     @property
     def sprite_path(self) -> str:

@@ -26,7 +26,7 @@ LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
 
 Direction = Tuple[int, int]
 
-DIRECTION_VECTORS: Dict[str, Direction] = {
+DIRECTION_VECTORS: Dict[str | None, Direction] = {
     'n': (0, -1),
     's': (0, 1),
     'e': (1, 0),
@@ -114,37 +114,95 @@ class Terrain(ABC):
     @property
     def layer(self):
         """ Basically the Z value of the terrain; how high it is. 0 is sea level. -1 is null-level """
-        return -1
+        raise NotImplementedError
 
 
 class NullTerrain(Terrain):
-    walkable = False
-    name = "null_tile"
-    buildable = False
+    @property
+    def walkable(self) -> bool:
+        return False
+
+    @property
+    def name(self) -> str:
+        return "null"
+
+    @property
+    def cost(self) -> int:
+        return sys.maxsize
+
+    @property
+    def buildable(self) -> bool:
+        return False
+
+    @property
+    def layer(self) -> int:
+        return -1
 
 
 class SandTerrain(Terrain):
-    walkable = True
-    name = "sand"
-    cost = 2
-    buildable = True
-    layer = 1
+    @property
+    def walkable(self) -> bool:
+        return True
+
+    @property
+    def name(self) -> str:
+        return "sand"
+
+    @property
+    def cost(self) -> int:
+        return 2
+
+    @property
+    def buildable(self) -> bool:
+        return True
+
+    @property
+    def layer(self) -> int:
+        return 1
 
 
 class GrassTerrain(Terrain):
-    walkable = True
-    name = "grass"
-    cost = 1
-    buildable = True
-    layer = 1
+    @property
+    def walkable(self) -> bool:
+        return True
+
+    @property
+    def name(self) -> str:
+        return "grass"
+
+    @property
+    def cost(self) -> int:
+        return 1
+
+    @property
+    def buildable(self) -> bool:
+        return True
+
+    @property
+    def layer(self) -> int:
+        return 1
 
 
 class WaterTerrain(Terrain):
-    walkable = True
-    name = "water"
-    cost = 5
-    buildable = False
-    layer = 0
+    @property
+    def walkable(self) -> bool:
+        return True
+
+    @property
+    def name(self) -> str:
+        return "water"
+
+    @property
+    def cost(self) -> int:
+        return 5
+
+    @property
+    def buildable(self) -> bool:
+        return False
+
+    @property
+    def layer(self) -> int:
+        return 0
 
     @property
     def orientation(self) -> str:
@@ -156,11 +214,25 @@ class WaterTerrain(Terrain):
 
 
 class MountainTerrain(Terrain):
-    walkable = True
-    name = "mountain"
-    cost = 8
-    buildable = False
-    layer = 2
+    @property
+    def walkable(self) -> bool:
+        return True
+
+    @property
+    def name(self) -> str:
+        return "mountain"
+
+    @property
+    def cost(self) -> int:
+        return 8
+
+    @property
+    def buildable(self) -> bool:
+        return False
+
+    @property
+    def layer(self) -> int:
+        return 2
 
 
 class IndustryType(ABC):
@@ -289,12 +361,12 @@ class Space(ABC):
 class Town(Space):
 
     def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
-                 terrain: Terrain = NullTerrain(), store: Store = None) -> None:
+                 terrain: Terrain = NullTerrain(), store: Store | None = None) -> None:
         super(Town, self).__init__(x, y, terrain)
         self.name: str = name
         self.population: int = population
         self.industry: IndustryType = industry
-        self.store: Store = store
+        self.store: Store = store if store is not None else Store()
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
 
     @classmethod
@@ -346,7 +418,7 @@ class Wilds(Space):
         assert self.null_event.probability >= 0
 
     def run_event(self, player) -> List[PlayerActionResponse]:
-        chosen_event = np.random.choice(self.events, size=1, p=[event.probability for event in self.events])[0]
+        chosen_event = random.choices(self.events, weights=[event.probability for event in self.events])[0]
         results = chosen_event.run(player)
         if results is None:
             results = [PlayerActionResponse(source=player)]
@@ -370,11 +442,11 @@ class Wilds(Space):
 class PlayerActionResponse:
     is_successful: bool = False
     damage: int = 0
-    target: Actors.Actor = None
+    target: Actors.Actor | None = None
     text: str = ""
     items: List[Equipment] = field(default_factory=list)
     currency: int = 0
-    source: Actors.Actor = None
+    source: Actors.Actor | None = None
 
     @property
     def failed(self):
@@ -501,11 +573,11 @@ class World:
         wilds.terrain = self.map[wilds.y][wilds.x].terrain
         self.map[wilds.y][wilds.x] = wilds
 
-    def add_actor(self, actor: Actors.Actor, space: Space = None):
+    def add_actor(self, actor: Actors.Actor, space: Space | None = None):
         if isinstance(actor, Actors.PlayerCharacter):
             actor.location = self.starting_town
             self.players.append(actor)
-        elif space and self.is_space_valid(space):
+        elif isinstance(actor, Actors.NPC) and space and self.is_space_valid(space):
             actor.location = space
             self.npcs.append(actor)
 
@@ -525,23 +597,27 @@ class World:
     def pvp_attack(self, player_character: Actors.PlayerCharacter,
                    direction: Direction = (0, 0)) -> PlayerActionResponse:
         response = PlayerActionResponse(text="No targets found in that direction", source=player_character)
+        weapon = player_character.weapon
+        if weapon is None:
+            response.text = "You have no weapon equipped!"
+            return response
         loc: Space = player_character.location
-        dmg: int = player_character.weapon.damage
+        dmg: int = weapon.damage
         while dmg > 0:
-            if isinstance(player_character.weapon, Weapons.ProjectileWeapon) and player_character.weapon.is_empty:
+            if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
                 response.text = "Your currently equipped weapon is empty!"
                 break
             targets = [player for player in self.players if player != player_character and player.location == loc]
             if len(targets):
                 target: Actors.PlayerCharacter = random.choice(targets)
-                player_character.weapon.on_damage()
+                weapon.on_damage()
                 target.take_damage(dmg)
                 response.is_successful = True
                 response.damage = dmg
                 response.target = target
                 break
             else:
-                if isinstance(player_character.weapon, Weapons.MeleeWeapon):
+                if not isinstance(weapon, Weapons.RangedWeapon):
                     response.text = "No other players in range of your Melee Weapon."
                     break
                 if direction == (0, 0):
@@ -550,13 +626,14 @@ class World:
                     break
                 loc += direction
                 loc = self.map[loc.y][loc.x]
-                dmg = player_character.weapon.calc_damage(player_character.location.distance(loc))
+                dmg = weapon.calc_damage(int(player_character.location.distance(loc)))
         return response
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
         LOG.info(f"Player {player.name} has died")
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
+        return player.inventory
 
 
 class Store:
@@ -570,13 +647,13 @@ class Store:
     def generate_store(cls):
         inventory: List[Equipment] = []
         for item_class in Items.FullyImplemented.__subclasses__():
-            item: Equipment = item_class()
-            if random.random() > 0.2:
+            item = item_class()
+            if isinstance(item, Equipment) and random.random() > 0.2:
                 inventory.append(item)
         return cls(inventory)
 
-    def get_price(self, item: Equipment) -> float:
-        return item.base_value * self.price_ratio
+    def get_price(self, item: Equipment) -> int:
+        return int(item.base_value * self.price_ratio)
 
     def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
@@ -593,15 +670,15 @@ class Store:
         player_character.inventory.append(item)
         return True
 
-    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> float:
+    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> int:
         self.inventory.append(item)
-        price = item.base_value / self.price_ratio
+        price = int(item.base_value / self.price_ratio)
         player_character.currency += price
         player_character.inventory.remove(item)
         return price
 
 
-class AStarPathfinder(AStar):
+class AStarPathfinder(AStar[Space]):
 
     def __init__(self, world: World, cost: bool = True):
         self.world = world
@@ -614,17 +691,17 @@ class AStarPathfinder(AStar):
     def is_space_valid(self, space: Space):
         return self.world.is_space_valid(space)
 
-    def neighbors(self, space: Space) -> Iterator[Space]:
+    def neighbors(self, node: Space) -> Iterator[Space]:
         directions = ['n', 's', 'e', 'w']
-        for dir_vector in [DIRECTION_VECTORS.get(d) for d in directions]:
-            potential_space = space + dir_vector
+        for dir_vector in [DIRECTION_VECTORS[d] for d in directions]:
+            potential_space = node + dir_vector
             if self.world.is_coords_valid(potential_space.x, potential_space.y):
                 map_space = self.map[potential_space.y][potential_space.x]
                 yield map_space
 
-    def distance_between(self, first: Space, second: Space) -> float:
+    def distance_between(self, n1: Space, n2: Space) -> float:
         if self.cost:
-            return (sys.maxsize * (self.is_space_valid(second) is False)) + second.terrain.cost
+            return (sys.maxsize * (self.is_space_valid(n2) is False)) + n2.terrain.cost
         else:
             return 1
 

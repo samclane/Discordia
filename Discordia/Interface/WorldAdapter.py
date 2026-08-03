@@ -21,6 +21,11 @@ class NotRegisteredException(Exception):
     pass
 
 
+class NotSpawnedException(Exception):
+    """Registered, but the character isn't standing anywhere in the world."""
+    pass
+
+
 class InvalidSpaceException(Exception):
     pass
 
