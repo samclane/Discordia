@@ -302,7 +302,7 @@ class PlayerCharacter(Actor):
         self.equipment_set.unequip(equipment)
         equipment.on_unequip(self)
 
-    def take_damage(self, damage: int):
+    def take_damage(self, damage: float):
         damage -= self.equipment_set.armor_count
         self.hit_points -= damage
 

@@ -141,3 +141,4 @@ class WorldAdapter:
         if self._renderer is not None:
             path = self._renderer.get_player_view(character)
             return path
+        return "<No Renderer>"

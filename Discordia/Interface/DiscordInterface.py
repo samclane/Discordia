@@ -75,7 +75,7 @@ class DiscordInterface(commands.Cog):
     store = app_commands.Group(name="store", description="Buy and sell items", parent=town)
 
     def __init__(self, world_adapter: WorldAdapter):
-        self.bot: commands.Bot = commands.Bot(command_prefix=DISCORD_PREFIX, intents=discord.Intents.default())
+        self.bot: commands.Bot = commands.Bot(command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default())
         # ponytail: attribute override instead of a Bot subclass; subclass it if the bot needs more hooks
         self.bot.setup_hook = self._setup_hook
         self.world_adapter: WorldAdapter = world_adapter

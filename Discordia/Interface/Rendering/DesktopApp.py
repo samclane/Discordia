@@ -13,6 +13,7 @@ import pixelhouse as ph
 
 
 from Discordia.GameLogic import Actors, GameSpace
+from Discordia.Interface.WorldAdapter import WorldAdapter
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 WINDOW_NAME = "Discordia"
@@ -29,7 +30,7 @@ class keydefaultdict(defaultdict):
         if self.default_factory is None:
             raise KeyError(key)
         else:
-            ret = self[key] = self.default_factory(key)
+            ret = self[key] = self.default_factory()
             return ret
 
     @property
@@ -53,7 +54,7 @@ class WindowRenderer:
 
         self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
 
-    def on_draw(self, show_window=False) -> int:
+    def on_draw(self, show_window=False) -> int | ph.Canvas:
         for y, row in enumerate(self.terrain_map):
             for x, cnv in enumerate(row):
                 with cnv.layer() as layer:
@@ -99,9 +100,9 @@ class WindowRenderer:
         img.save(img_path)
         return str(img_path)
 
-    def get_world_view(self, title: str = None) -> str:
+    def get_world_view(self, title: str | None = None) -> str:
         if title is None:
-            title = int(time.time())
+            title = str(int(time.time()))
         img_path = f"./PlayerViews/world_{title}.png"
         self.rendered_canvas.save(img_path)
         return str(img_path)

@@ -4,7 +4,7 @@ import random
 from abc import ABC
 from typing import List, Iterator, Type
 
-from Discordia.GameLogic import Actors, GameSpace
+from Discordia.GameLogic import Actors, GameSpace, Items
 from Discordia.GameLogic.Procedural import normal
 
 
@@ -17,7 +17,7 @@ class Event(ABC):
     @classmethod
     def null_event(cls):
         evt = cls(1.0, "<Null Event>")
-        evt.run = lambda _: None
+        evt.run = lambda player_character: iter([])
         return evt
 
     def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
@@ -31,10 +31,9 @@ class Event(ABC):
 class CombatEvent(Event):
 
     def __init__(self, probability: float, flavor_text: str,
-                 enemies: List[Actors.NPC], conditions=None):
+                 enemies: List[Actors.NPC]):
         super().__init__(probability, flavor_text)
         self.enemies: List[Actors.NPC] = enemies
-        self.special_conditions: [] = conditions
 
     @classmethod
     def generate(cls, level):
@@ -54,7 +53,11 @@ class CombatEvent(Event):
                 # WARN An infinite loop can appear here.
                 attack_response = GameSpace.PlayerActionResponse(source=player_character)
                 # Damage is always calculated at full power (min distance)
-                assert player_character.has_weapon_equipped
+                if player_character.weapon is None:
+                    attack_response.is_successful = False
+                    attack_response.text = f"{player_character.name} has no weapon to attack with!"
+                    yield attack_response
+                    break
                 dmg = player_character.weapon.damage
                 player_character.weapon.on_damage()
                 enemy.take_damage(dmg)
@@ -119,9 +122,9 @@ class EncounterEvent(Event):
 
 class MerchantEvent(Event):
 
-    def __init__(self, probability, flavor_text, items):
+    def __init__(self, probability: float, flavor_text: str, items: dict[str, Items.Equipment]):
         super().__init__(probability, flavor_text)
-        self.items: {} = items
+        self.items: dict[str, Items.Equipment] = items
 
     def run(self, player_character):
         yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)

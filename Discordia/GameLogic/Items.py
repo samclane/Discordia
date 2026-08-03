@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC
-from typing import List, Type
+from typing import Dict, Tuple, Type
 
 from Discordia.GameLogic import Actors
 
@@ -17,10 +17,10 @@ class FullyImplemented:
 
 class Equipment(ABC):
 
-    def __init__(self, name: str = "Empty", weight_lb: float = 0, base_value: int = 0, *args, **kwargs):
-        self.name: name = name
+    def __init__(self, name: str = "Empty", weight_lb: float = 0, base_value: float = 0., *args, **kwargs):
+        self.name: str = name
         self.weight_lb: float = weight_lb
-        self.base_value: int = base_value
+        self.base_value: float = base_value
         self.is_equipped = False
 
     def __str__(self):
@@ -38,18 +38,18 @@ class Equipment(ABC):
 
 class ArmorAbstract(Equipment, ABC):
 
-    def __init__(self, armor_count=0, *args, **kwargs):
+    def __init__(self, armor_count: float = 0., *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._armor_count: int = armor_count
+        self._armor_count: float = armor_count
         self.base_value = 10 * self._armor_count
 
     @property
-    def armour_count(self):
+    def armor_count(self):
         # Determine if the bullet hits or misses
         return self._armor_count
 
-    @armour_count.setter
-    def armour_count(self, val):
+    @armor_count.setter
+    def armor_count(self, val):
         self._armor_count = val
 
     def activate_utility(self, player_character):
@@ -82,6 +82,15 @@ class OffHandEquipment(Equipment, ABC):
 
 class EquipmentSet:
 
+    SLOTS: Dict[str, Type[Equipment]] = {
+        'head': HeadArmorAbstract,
+        'chest': ChestArmorAbstract,
+        'legs': LegArmorAbstract,
+        'feet': FootArmorAbstract,
+        'main_hand': MainHandEquipment,
+        'off_hand': OffHandEquipment,
+    }
+
     def __init__(self):
         self.head: HeadArmorAbstract = HeadArmorAbstract()
         self.chest: ChestArmorAbstract = ChestArmorAbstract()
@@ -113,54 +122,21 @@ class EquipmentSet:
         yield self.off_hand
 
     @property
-    def armor_set(self) -> List[ArmorAbstract]:
-        armor_list = [self.head,
-                      self.chest,
-                      self.legs,
-                      self.feet]
-        if hasattr(self.main_hand, 'armour_count'):
-            armor_list.append(self.main_hand)
-        if hasattr(self.off_hand, 'armour_count'):
-            armor_list.append(self.off_hand)
-        return armor_list
+    def armor_count(self) -> float:
+        return sum(getattr(equipment, 'armor_count', 0.) for equipment in self)
 
-    @property
-    def armor_count(self) -> int:
-        return sum([armor.armour_count for armor in self.armor_set])
+    def _slot(self, equipment_type: Type[Equipment]) -> Tuple[str, Type[Equipment]]:
+        # ponytail: first match wins, so declaration order decides for multi-slot gear
+        # (e.g. an SMG is both Main- and OffHandEquipment -> main hand by default).
+        for slot, base in self.SLOTS.items():
+            if issubclass(equipment_type, base):
+                return slot, base
+        raise ValueError(f"Equipment was not of recognized type: {equipment_type}")
 
-    def equip(self, equipment: Equipment, equipment_type: Type[Equipment] = None):
-        if equipment_type is None:
-            equipment_type = type(equipment)
-        if equipment_type == HeadArmorAbstract or issubclass(equipment_type, HeadArmorAbstract):
-            self.head = equipment
-        elif equipment_type == ChestArmorAbstract or issubclass(equipment_type, ChestArmorAbstract):
-            self.chest = equipment
-        elif equipment_type == LegArmorAbstract or issubclass(equipment_type, LegArmorAbstract):
-            self.legs = equipment
-        elif equipment_type == FootArmorAbstract or issubclass(equipment_type, FootArmorAbstract):
-            self.feet = equipment
-        elif equipment_type == MainHandEquipment or issubclass(equipment_type, MainHandEquipment):
-            self.main_hand = equipment
-        elif equipment_type == OffHandEquipment or issubclass(equipment_type, OffHandEquipment):
-            self.off_hand = equipment
-        else:
-            err = f"Equipment was not of recognized type: {equipment}"
-            raise ValueError(err)
+    def equip(self, equipment: Equipment, equipment_type: Type[Equipment] | None = None):
+        slot, _ = self._slot(equipment_type or type(equipment))
+        setattr(self, slot, equipment)
 
     def unequip(self, equipment: Equipment):
-        equipment_type = type(equipment)
-        if issubclass(equipment_type, HeadArmorAbstract):
-            self.head = HeadArmorAbstract()
-        elif issubclass(equipment_type, ChestArmorAbstract):
-            self.chest = ChestArmorAbstract()
-        elif issubclass(equipment_type, LegArmorAbstract):
-            self.legs = LegArmorAbstract()
-        elif issubclass(equipment_type, FootArmorAbstract):
-            self.feet = FootArmorAbstract()
-        elif issubclass(equipment_type, MainHandEquipment):
-            self.main_hand = MainHandEquipment()
-        elif issubclass(equipment_type, OffHandEquipment):
-            self.off_hand = OffHandEquipment()
-        else:
-            err = f"Equipment was not of recognized type: {type(equipment)}"
-            raise ValueError(err)
+        slot, base = self._slot(type(equipment))
+        setattr(self, slot, base())

@@ -13,7 +13,7 @@ from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WorldAdapter import WorldAdapter
-from Discordia.GameLogic.Items import Equipment
+from Discordia.GameLogic.Items import Equipment, EquipmentSet, OffHandEquipment
 
 Armor.random()  # Keep Armor import; we need the namespace
 
@@ -152,6 +152,26 @@ class TestGeneral(unittest.TestCase):
         self.adapter.register_player(id_, name)
         player = self.adapter.get_player(id_)
         self.assertTrue(isinstance(player.weapon, Weapons.Fist))
+
+    def test_equip_slots(self):
+        """
+        Equipment lands in the right slot, unequip empties it, junk is rejected
+        """
+        equipment_set = EquipmentSet()
+        helmet = Armor.Helmet()
+        equipment_set.equip(helmet)
+        self.assertIs(equipment_set.head, helmet)
+        equipment_set.unequip(helmet)
+        self.assertIsNot(equipment_set.head, helmet)
+
+        fist = Weapons.Fist()  # Both a Main- and an OffHandEquipment
+        equipment_set.equip(fist)
+        self.assertIs(equipment_set.main_hand, fist)
+        equipment_set.equip(fist, OffHandEquipment)
+        self.assertIs(equipment_set.off_hand, fist)
+
+        with self.assertRaises(ValueError):
+            equipment_set.equip(object())
 
     def test_astar_pathfinding(self):
         self.display.on_draw()

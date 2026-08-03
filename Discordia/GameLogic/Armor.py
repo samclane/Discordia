@@ -11,7 +11,7 @@ class Helmet(HeadArmorAbstract):
     @property
     def armor_count(self):
         # Determine if the bullet hits or misses
-        return self._armor_count if random.random() <= self.coverage else 0
+        return self._armor_count if random() <= self.coverage else 0
 
     @armor_count.setter
     def armor_count(self, val):
@@ -27,7 +27,7 @@ class ChestArmor(ChestArmorAbstract):
     @property
     def armor_count(self):
         # Body armor provides constant protection
-        return self._armor_count if random.random() <= self.coverage else\
+        return self._armor_count if random() <= self.coverage else \
             self.efficiency * self._armor_count
 
     @armor_count.setter
