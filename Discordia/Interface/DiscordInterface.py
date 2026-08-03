@@ -276,7 +276,7 @@ class DiscordInterface(commands.Cog):
             await _send(interaction, "There are no items in the store at the moment. Please try again later.")
         else:
             msg = "Index\tName\tPrice\tCount\n"
-            for idx, item in enumerate(set(store.inventory)):
+            for idx, item in enumerate(store.inventory):
                 msg += f"#{idx}\t{item.name}\t${store.get_price(item)}\t{store.inventory.count(item)}\n"
             await _send(interaction, msg)
 

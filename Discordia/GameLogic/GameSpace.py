@@ -124,7 +124,7 @@ class NullTerrain(Terrain):
 
     @property
     def name(self) -> str:
-        return "null"
+        return "null_tile"  # Matches Sprites/Terrain/null_tile_*.png
 
     @property
     def cost(self) -> int:
@@ -470,7 +470,7 @@ class World:
         self.npcs: List[Actors.NPC] = []
         self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
-        if seed:
+        if seed is not None:  # 0 is a perfectly good seed
             random.seed(seed)
             np.random.seed(seed)
         self.generate_map()
@@ -658,8 +658,7 @@ class Store:
     def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
         try:
-            item = [item for item in self.inventory if issubclass(type(item), type(list(set(self.inventory))[index]))][
-                0]
+            item = self.inventory[index]
         except IndexError:
             return False
         price = self.get_price(item)

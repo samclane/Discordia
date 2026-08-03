@@ -45,7 +45,8 @@ class TestGeneral(unittest.TestCase):
     def setUpClass(cls) -> None:
         assert cls.NUM_USERS > 0
 
-        cls.random_seed = random.randint(0, 2**32 - 1)
+        # Fixed by default so failures reproduce; set DISCORDIA_TEST_SEED to fuzz.
+        cls.random_seed = int(os.environ.get("DISCORDIA_TEST_SEED", 0))
 
         clean_screenshots()
 
@@ -123,12 +124,14 @@ class TestGeneral(unittest.TestCase):
                     """ If failed to move, or everyone is dead: keep going. """
                     continue
 
-                player: PlayerCharacter = result[0].source
+                self.assertTrue(isinstance(result[0].source, PlayerCharacter))
+                player: PlayerCharacter = result[0].source # type: ignore
                 if self.adapter.is_town(player.location):
                     self.assertIsNotNone(player.location.name)
-                    if player.location.store.inventory:
-                        town: GameSpace.Town = player.location
-                        index = random.randint(0, len(set(town.store.inventory)))
+                    self.assertTrue(isinstance(player.location, GameSpace.Town))
+                    if player.location.store.inventory:  # type: ignore
+                        town: GameSpace.Town = player.location  # type: ignore
+                        index = random.randrange(len(town.store.inventory))
                         if town.store.sell_item(index, player):
                             item = player.inventory[-1]
                             player.equip(item)
@@ -138,7 +141,8 @@ class TestGeneral(unittest.TestCase):
                                 self.assertFalse(isinstance(player.weapon, Weapons.Fist))
                                 self.assertIsNotNone(player.weapon)
                             elif isinstance(item, Equipment):
-                                self.assertTrue(player.equipment_set.armor_count > 0)
+                                # Not armor_count: that's a random coverage roll and can legitimately be 0
+                                self.assertIn(item, list(player.equipment_set))
                             successes += 1
         LOG.info(f"Buying Successes: {successes}")
         self.assertGreater(successes, 0, "All transactions failed")
@@ -171,7 +175,7 @@ class TestGeneral(unittest.TestCase):
         self.assertIs(equipment_set.off_hand, fist)
 
         with self.assertRaises(ValueError):
-            equipment_set.equip(object())
+            equipment_set.equip(object())  # type: ignore
 
     def test_astar_pathfinding(self):
         self.display.on_draw()
@@ -196,7 +200,7 @@ class TestGeneral(unittest.TestCase):
 
     def test_function_closest(self):
         start = self.world.starting_town
-        town_list = start.closest(self.world.towns, size=len(self.world.towns))
+        town_list = start.closest(self.world.towns, size=len(self.world.towns))  # type: ignore
         min_dist = 0
         self.assertTrue(len(self.world.towns) > 0, "No towns")
         self.assertTrue(len(town_list) > 0, "closest doesn't work")

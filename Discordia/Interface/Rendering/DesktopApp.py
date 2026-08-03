@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections import defaultdict
+from typing import Any, Callable
 
 import pixelhouse as ph
 
@@ -19,19 +19,18 @@ LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 WINDOW_NAME = "Discordia"
 
 
-class keydefaultdict(defaultdict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class keydefaultdict(dict):
+    """ dict that fills a missing entry by calling factory(key). defaultdict can't: its factory takes no arguments. """
+
+    def __init__(self, factory: Callable[[Any], Any]):
+        super().__init__()
+        self.factory = factory
         self._miss_count = 0
 
     def __missing__(self, key):
         self._miss_count += 1
-
-        if self.default_factory is None:
-            raise KeyError(key)
-        else:
-            ret = self[key] = self.default_factory()
-            return ret
+        ret = self[key] = self.factory(key)
+        return ret
 
     @property
     def miss_count(self):
