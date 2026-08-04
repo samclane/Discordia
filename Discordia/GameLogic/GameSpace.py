@@ -281,7 +281,7 @@ class MilitaryBase(IndustryType, ABC):
 
     @property
     def recruitment_class(self) -> Actors.PlayerClass:
-        return Actors.SoliderClass()
+        return Actors.Soldier()
 
 
 class EasternMilitaryBase(MilitaryBase):

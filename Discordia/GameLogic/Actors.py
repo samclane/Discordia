@@ -215,12 +215,12 @@ class WandererClass(PlayerClass):
         return str(SPRITE_FOLDER / "Actors" / "wanderer_class.png")
     
     
-class SoliderClass(PlayerClass):
+class Soldier(PlayerClass):
     """ After joining some military (East or West). """
 
     @property
     def name(self) -> str:
-        return "Solider"
+        return "Soldier"
 
     @property
     def hit_points_max_base(self) -> int:
@@ -232,7 +232,7 @@ class SoliderClass(PlayerClass):
 
     @property
     def sprite_path(self) -> str:
-        return str(SPRITE_FOLDER / "Actors" / "solider_class.png")
+        return str(SPRITE_FOLDER / "Actors" / "soldier_class.png")
 
 
 class RaiderClass(PlayerClass):

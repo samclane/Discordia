@@ -318,9 +318,11 @@ class Jezail(Rifle, FullyImplemented):
         self.player: Optional[Actors.PlayerCharacter] = None
 
     def on_equip(self, player_character: Actors.PlayerCharacter):
+        super().on_equip(player_character)
         self.player = player_character
 
     def on_unequip(self, player_character: Actors.PlayerCharacter):
+        super().on_unequip(player_character)
         self.player = None
 
     def calc_damage(self, distance: int) -> int:
