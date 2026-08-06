@@ -79,8 +79,13 @@ class CombatEvent(Event):
                 defense_response = GameSpace.PlayerActionResponse(
                     source=player_character
                 )
-                dmg = enemy.base_attack
-                player_character.take_damage(dmg)
+                dmg = enemy.brain.update(player_character)
+                if dmg is None:  # the enemy disengaged; on to the next one
+                    defense_response.is_successful = True
+                    defense_response.target = enemy
+                    defense_response.text = f"{enemy.name} flees the fight."
+                    yield defense_response
+                    break
                 defense_response.damage = dmg
                 defense_response.target = enemy
                 defense_response.text = (
@@ -91,7 +96,7 @@ class CombatEvent(Event):
                 if player_character.is_dead:
                     break
 
-            if not player_character.is_dead:
+            if enemy.is_dead:
                 kill_response.items += enemy.on_death()
                 kill_response.is_successful = True
                 player_character.inventory += kill_response.items
@@ -100,7 +105,8 @@ class CombatEvent(Event):
                     f"receiving {','.join([str(item) for item in kill_response.items])}"
                 )
                 yield kill_response
-            else:
+            # A live enemy means the player died or can't fight; either way, stop.
+            elif player_character.is_dead or player_character.weapon is None:
                 break
 
         if not player_character.is_dead:

@@ -7,7 +7,15 @@ test_all.py already drives a full 100x100 world; these stay small and fast on pu
 
 import pytest
 
-from Discordia.GameLogic import Actors, Armor, Events, GameSpace, Items, Weapons
+from Discordia.GameLogic import (
+    Actors,
+    Armor,
+    Behavior,
+    Events,
+    GameSpace,
+    Items,
+    Weapons,
+)
 from Discordia.GameLogic.GameSpace import (
     DIRECTION_VECTORS,
     GrassTerrain,
@@ -411,6 +419,20 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     assert any(
         response.failed and "no weapon" in response.text for response in responses
     )
+
+
+def test_a_badly_hurt_npc_flees_instead_of_dying_and_keeps_its_kit():
+    enemy = Actors.NPC(None, 100, "Coward")
+    enemy.hit_points = 30  # one Hammer hit puts it under Aggressive.flee_at
+    enemy.inventory.append(Armor.Helmet())
+    event = Events.CombatEvent(1.0, "<test>", [enemy])
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.equip(Weapons.Hammer())
+
+    responses = list(event.run(character))
+    assert isinstance(enemy.brain.current_state, Behavior.Fleeing)
+    assert any("flees" in response.text for response in responses)
+    assert not any(isinstance(item, Armor.Helmet) for item in character.inventory)
 
 
 def test_a_dead_npc_despawns_and_drops_its_inventory():

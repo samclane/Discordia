@@ -6,7 +6,7 @@ from typing import Tuple, List, Type, Union
 from enum import Enum, auto
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import GameSpace, Items, Weapons, Procedural
+from Discordia.GameLogic import Behavior, GameSpace, Items, Weapons, Procedural
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
 from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
 
@@ -80,6 +80,7 @@ class AbstractActor(ABC):
     @property
     def sprite_path(self) -> str:
         raise NotImplementedError
+
 
 class Inventory(List[Items.Equipment]):
     """
@@ -176,6 +177,7 @@ class NPC(Actor):
         super().__init__(*args, **kwargs)
         self.flavor_text: str = "<NONE>"
         self.base_attack = 1
+        self.brain = Behavior.FiniteStateMachine(self, Behavior.Aggressive())
 
     def on_death(self) -> Inventory:
         self.location = None  # type: ignore[assignment]  # despawns the NPC
@@ -201,6 +203,17 @@ class NPC(Actor):
     @property
     def sprite_path(self) -> str:
         return str(SPRITE_FOLDER / "Actors" / "null_npc.png")
+
+
+class Raider(NPC):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flavor_text = "A raider, looking to take what they can from you."
+        self.base_attack = 2
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "raider_class.png")
 
 
 class PlayerClass(ABC):
