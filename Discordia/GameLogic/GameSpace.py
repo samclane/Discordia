@@ -7,7 +7,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Union, Type
+from typing import List, Tuple, Dict, Iterator, Union
 
 import math
 import numpy as np
@@ -37,6 +37,8 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
     'center': (0, 0),
     None: (0, 0)
 }
+
+MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 
 
 def bitmask_to_orientation(value: int) -> str:
@@ -371,7 +373,7 @@ class Town(Space):
     @classmethod
     def generate_town(cls, x, y, terrain):
         name = TownNameGenerator.generate_name()
-        population = random.randint(1, 1000)
+        population = random.randint(1, MAX_POPULATION_TOWN)
         industry = random.choice(IndustryType.__subclasses__())()
         store = Store.generate_store()
         return cls(x, y, name, population, industry, terrain, store)
@@ -396,8 +398,39 @@ class Town(Space):
         return SPRITE_FOLDER / "Structures" / "town_default.png"
 
 
-class Base(Town):
-    pass  # TODO "Base" Class
+class BaseLevel:
+
+    def __init__(self, level: int):
+        self.level: int = level
+        self.max_level: int = 5
+
+    def upgrade(self):
+        if self.level < self.max_level:
+            self.level += 1
+            return True
+        return False
+
+    def base_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
+        character.hit_points = character.hit_points_max
+        resp = PlayerActionResponse(is_successful=True, text=f"Your hitpoints have been restored, {character.name}", source=character)
+        return resp
+
+class Base(Space):
+
+    def __init__(self, x: int, y: int, name: str,
+                 terrain: Terrain = NullTerrain(), store: Store | None = None, owner: Actors.PlayerCharacter | None = None) -> None:
+        super().__init__(x, y, terrain)
+        self.name: str = name
+        self.store: Store = store if store is not None else Store()
+        self.owner: Actors.PlayerCharacter | None = owner
+        self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
+        self.level = BaseLevel(1)
+
+    @classmethod
+    def generate_base(cls, x, y, terrain, owner: Actors.PlayerCharacter | None = None):
+        name = "Base"
+        store = Store.generate_store()
+        return cls(x, y, name, terrain, store, owner=owner)
 
 
 class Wilds(Space):
