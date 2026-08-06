@@ -12,6 +12,7 @@ from typing import Optional
 
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.GameLogic.Items import (
+    Ammo,
     Equipment,
     MainHandEquipment,
     OffHandEquipment,
@@ -108,7 +109,9 @@ class ProjectileWeapon(RangedWeapon, ABC):
 
     def __init__(self, projectile_type: int, capacity: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ammo_type = projectile_type
+        self.projectile_type = projectile_type
+        if projectile_type is ProjectileType.Bullet:
+            self.caliber: int = kwargs.get("caliber", Caliber.MM_9)
         if capacity < 1:
             raise ValueError("Capacity must be 1 or greater.")
         self.capacity = capacity
@@ -116,7 +119,7 @@ class ProjectileWeapon(RangedWeapon, ABC):
 
     def __repr__(self):
         return super().__repr__() + " AmmoTypeEnum:{} {}/{} shots".format(
-            self.ammo_type, self.current_capacity, self.capacity
+            self.projectile_type, self.current_capacity, self.capacity
         )
 
     @property
@@ -137,8 +140,16 @@ class ProjectileWeapon(RangedWeapon, ABC):
     def fire(self):
         self._current_capacity -= 1
 
-    def reload(self):
-        self._current_capacity = self.capacity
+    def reload(self, actor: Actors.Actor):
+        for item in actor.inventory:
+            if isinstance(item, Ammo) and item.caliber == self.caliber:
+                ammo_needed = self.capacity - self.current_capacity
+                ammo_to_load = min(ammo_needed, item.quantity)
+                self._current_capacity += ammo_to_load
+                item.quantity -= ammo_to_load
+                if item.quantity <= 0:
+                    actor.inventory.remove(item)
+                return
 
 
 class Firearm(ProjectileWeapon, ABC):

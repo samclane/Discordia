@@ -108,8 +108,11 @@ def test_firing_drains_the_magazine_and_reload_refills_it():
         revolver.on_damage()
     assert revolver.is_empty
     assert revolver.current_capacity == 0
-    revolver.reload()
+    actor = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    actor.inventory.append(Items.Ammo(caliber=revolver.caliber, quantity=6))
+    revolver.reload(actor)
     assert revolver.current_capacity == revolver.capacity
+    assert actor.inventory.has_item(Items.Ammo(caliber=revolver.caliber)) is False
 
 
 def test_burst_fire_costs_a_burst_worth_of_ammo_and_pays_a_burst_worth_of_damage():

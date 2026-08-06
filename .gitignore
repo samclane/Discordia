@@ -114,3 +114,5 @@ pylintrc
 
 # Screenshots
 Discordia/PlayerViews
+
+.vscode/

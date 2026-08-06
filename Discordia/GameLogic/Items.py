@@ -44,6 +44,21 @@ class Equipment(ABC):
     def on_unequip(self, player_character: Actors.PlayerCharacter):
         self.is_equipped = False
 
+class Ammo(Equipment):
+
+    def __init__(
+        self,
+        name: str = "Ammo",
+        weight_lb: float = 0,
+        base_value: float = 0.0,
+        caliber: int = 0,
+        quantity: int = 1,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(name, weight_lb, base_value, *args, **kwargs)
+        self.caliber: int = caliber
+        self.quantity: int = quantity
 
 class ArmorAbstract(Equipment, ABC):
 

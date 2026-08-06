@@ -81,6 +81,21 @@ class AbstractActor(ABC):
     def sprite_path(self) -> str:
         raise NotImplementedError
 
+class Inventory(List[Items.Equipment]):
+    """
+    A list of Equipment objects that can be used by an Actor.
+    """
+
+    def add(self, item: Items.Equipment):
+        self.append(item)
+
+    def remove(self, item: Items.Equipment):
+        if item in self:
+            super().remove(item)
+
+    def has_item(self, item: Items.Equipment) -> bool:
+        return item in self
+
 
 class Actor(AbstractActor, ABC):
 
@@ -96,6 +111,7 @@ class Actor(AbstractActor, ABC):
         self._is_dead = False
         self.name = name
         self.body_type = body_type
+        self.inventory: Inventory = Inventory()
         # None until the actor is spawned into the world; everything past that point assumes a Space
         self.location: GameSpace.Space = None  # type: ignore[assignment]
         self.fov_default = 2
@@ -158,11 +174,10 @@ class Actor(AbstractActor, ABC):
 class NPC(Actor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.inventory: List[Items.Equipment] = []
         self.flavor_text: str = "<NONE>"
         self.base_attack = 1
 
-    def on_death(self) -> List[Items.Equipment]:
+    def on_death(self) -> Inventory:
         self.location = None  # type: ignore[assignment]  # despawns the NPC
         return self.inventory
 
@@ -279,7 +294,7 @@ class PlayerCharacter(Actor):
         self._hit_points = self.hit_points_max = self._player_class.hit_points_max_base
         self.equipment_set: Items.EquipmentSet = Items.EquipmentSet()
         self.fov: int = self.fov_default
-        self.inventory: List[Items.Equipment] = []
+        self.inventory: Inventory = Inventory()
         self.currency: int = 1000
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
