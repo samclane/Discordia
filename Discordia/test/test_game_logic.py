@@ -4,16 +4,37 @@ equipment, stores, events, and the adapter's error contract.
 
 test_all.py already drives a full 100x100 world; these stay small and fast on purpose.
 """
+
 import pytest
 
 from Discordia.GameLogic import Actors, Armor, Events, GameSpace, Items, Weapons
-from Discordia.GameLogic.GameSpace import (DIRECTION_VECTORS, GrassTerrain, MountainTerrain, NullTerrain,
-                                           SandTerrain, Space, Store, Town, WaterTerrain, Wilds,
-                                           bitmask_to_orientation)
-from Discordia.GameLogic.Items import ChestArmorAbstract, EquipmentSet, MainHandEquipment
-from Discordia.Interface.WorldAdapter import (AlreadyRegisteredException, CombatException, InvalidSpaceException,
-                                              NoWeaponEquippedException, NotRegisteredException,
-                                              RangedAttackException, WorldAdapter)
+from Discordia.GameLogic.GameSpace import (
+    DIRECTION_VECTORS,
+    GrassTerrain,
+    MountainTerrain,
+    NullTerrain,
+    SandTerrain,
+    Space,
+    Store,
+    Town,
+    WaterTerrain,
+    Wilds,
+    bitmask_to_orientation,
+)
+from Discordia.GameLogic.Items import (
+    ChestArmorAbstract,
+    EquipmentSet,
+    MainHandEquipment,
+)
+from Discordia.Interface.WorldAdapter import (
+    AlreadyRegisteredException,
+    CombatException,
+    InvalidSpaceException,
+    NoWeaponEquippedException,
+    NotRegisteredException,
+    RangedAttackException,
+    WorldAdapter,
+)
 
 WORLD_SIZE = 40
 WORLD_SEED = 0
@@ -30,16 +51,22 @@ def adapter() -> WorldAdapter:
 
 # --- Weapon construction: the constructors are the only validation these have -------------------
 
-@pytest.mark.parametrize("kwargs", [
-    {"base_damage": -1},
-    {"base_damage": 1, "range_": 0},
-    {"base_damage": 1, "range_falloff": 1.5},
-    {"base_damage": 1, "range_falloff": -0.1},
-    {"base_damage": 1, "capacity": 0},
-])
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"base_damage": -1},
+        {"base_damage": 1, "range_": 0},
+        {"base_damage": 1, "range_falloff": 1.5},
+        {"base_damage": 1, "range_falloff": -0.1},
+        {"base_damage": 1, "capacity": 0},
+    ],
+)
 def test_projectile_weapon_rejects_nonsense(kwargs):
     with pytest.raises(ValueError):
-        Weapons.ProjectileWeapon(projectile_type=Weapons.ProjectileType.Bullet, **kwargs)
+        Weapons.ProjectileWeapon(
+            projectile_type=Weapons.ProjectileType.Bullet, **kwargs
+        )
 
 
 def test_shotgun_needs_at_least_two_pellets():
@@ -49,8 +76,13 @@ def test_shotgun_needs_at_least_two_pellets():
 
 def test_burst_fire_requires_a_burst_capable_action():
     with pytest.raises(ValueError):
-        Weapons.Firearm(caliber=Weapons.Caliber.MM_762, action=Weapons.FiringAction.SemiAutomatic,
-                        burst_size=3, capacity=30, base_damage=5)
+        Weapons.Firearm(
+            caliber=Weapons.Caliber.MM_762,
+            action=Weapons.FiringAction.SemiAutomatic,
+            burst_size=3,
+            capacity=30,
+            base_damage=5,
+        )
 
 
 def test_single_shot_capacity_forces_single_shot_action():
@@ -61,12 +93,13 @@ def test_single_shot_capacity_forces_single_shot_action():
 
 def test_melee_weapon_chances_must_be_probabilities():
     with pytest.raises(ValueError):
-        Weapons.BladedWeapon(bleed_chance=2., bleed_factor=.5, base_damage=1)
+        Weapons.BladedWeapon(bleed_chance=2.0, bleed_factor=0.5, base_damage=1)
     with pytest.raises(ValueError):
-        Weapons.BluntWeapon(cripple_chance=-1., base_damage=1)
+        Weapons.BluntWeapon(cripple_chance=-1.0, base_damage=1)
 
 
 # --- Firing --------------------------------------------------------------------------------------
+
 
 def test_firing_drains_the_magazine_and_reload_refills_it():
     revolver = Weapons.WeblyRevolver()
@@ -104,8 +137,13 @@ def test_selective_fire_toggles_between_semi_and_full_auto():
 
 
 def test_unmountable_machine_guns_refuse_to_be_mounted():
-    bipodless = Weapons.MachineGun(mountable=False, caliber=Weapons.Caliber.MM_762,
-                                   action=Weapons.FiringAction.FullyAutomatic, capacity=100, base_damage=10)
+    bipodless = Weapons.MachineGun(
+        mountable=False,
+        caliber=Weapons.Caliber.MM_762,
+        action=Weapons.FiringAction.FullyAutomatic,
+        capacity=100,
+        base_damage=10,
+    )
     with pytest.raises(AttributeError):
         bipodless.mounted = True
 
@@ -116,13 +154,14 @@ def test_unmountable_machine_guns_refuse_to_be_mounted():
 
 # --- Spaces and terrain ---------------------------------------------------------------------------
 
+
 def test_space_rejects_negative_coordinates():
     with pytest.raises(ValueError):
         Space(-1, 0)
 
 
 def test_moving_off_the_top_left_clamps_to_the_origin():
-    assert Space(0, 0) + DIRECTION_VECTORS['nw'] == (0, 0)
+    assert Space(0, 0) + DIRECTION_VECTORS["nw"] == (0, 0)
     assert Space(3, 3) - (5, 1) == (0, 2)
 
 
@@ -138,35 +177,43 @@ def test_distance_is_euclidean():
     assert Space(0, 0).distance((3, 4)) == 5
 
 
-@pytest.mark.parametrize("bits, expected", [
-    (0xff, 'center'),
-    (0b01011010, 'center'),
-    (0b01011000, 'n'),
-    (0b01001010, 'e'),
-    (0b00011010, 's'),
-    (0b01010010, 'w'),
-    (0, 'center'),
-])
+@pytest.mark.parametrize(
+    "bits, expected",
+    [
+        (0xFF, "center"),
+        (0b01011010, "center"),
+        (0b01011000, "n"),
+        (0b01001010, "e"),
+        (0b00011010, "s"),
+        (0b01010010, "w"),
+        (0, "center"),
+    ],
+)
 def test_bitmask_picks_the_tile_orientation(bits, expected):
     assert bitmask_to_orientation(bits) == expected
 
 
 def test_orientation_must_be_a_known_direction():
     terrain = GrassTerrain()
-    terrain.orientation = 'NE'  # case-insensitive
-    assert terrain.orientation == 'ne'
+    terrain.orientation = "NE"  # case-insensitive
+    assert terrain.orientation == "ne"
     with pytest.raises(ValueError):
-        terrain.orientation = 'up'
+        terrain.orientation = "up"
 
 
 def test_water_ignores_orientation_because_it_has_one_tile():
     water = WaterTerrain()
-    water.orientation = 'n'
-    assert water.orientation == 'center'
+    water.orientation = "n"
+    assert water.orientation == "center"
 
 
 def test_terrain_cost_ranks_the_going_underfoot():
-    costs = [GrassTerrain().cost, SandTerrain().cost, WaterTerrain().cost, MountainTerrain().cost]
+    costs = [
+        GrassTerrain().cost,
+        SandTerrain().cost,
+        WaterTerrain().cost,
+        MountainTerrain().cost,
+    ]
     assert costs == sorted(costs)
     assert NullTerrain().cost > max(costs)
     assert not NullTerrain().walkable
@@ -175,11 +222,12 @@ def test_terrain_cost_ranks_the_going_underfoot():
 
 def test_sprite_path_follows_name_and_orientation():
     terrain = SandTerrain()
-    terrain.orientation = 'se'
+    terrain.orientation = "se"
     assert terrain.sprite_path.name == "sand_se.png"
 
 
 # --- Equipment ------------------------------------------------------------------------------------
+
 
 def test_armor_count_sums_every_worn_piece():
     equipment_set = EquipmentSet()
@@ -206,7 +254,11 @@ def test_changing_class_resets_the_health_pool():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     character.take_damage(10)
     character.player_class = Actors.Soldier()
-    assert character.hit_points == character.hit_points_max == Actors.Soldier().hit_points_max_base
+    assert (
+        character.hit_points
+        == character.hit_points_max
+        == Actors.Soldier().hit_points_max_base
+    )
 
 
 def test_unequipping_a_weapon_leaves_the_character_bare_handed():
@@ -235,6 +287,7 @@ def test_a_character_is_only_registered_once_it_stands_somewhere():
 
 
 # --- Towns and stores -------------------------------------------------------------------------------
+
 
 def test_the_inn_heals_you_up():
     town = Town(1, 1, "Testville")
@@ -304,6 +357,7 @@ def test_selling_back_returns_the_item_to_the_shelf():
 
 # --- Wilds and events -------------------------------------------------------------------------------
 
+
 def test_adding_events_eats_into_the_do_nothing_chance():
     wilds = Wilds(1, 1, "The Nowhere")
     assert wilds.null_event.probability == 1.0
@@ -351,7 +405,9 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
 
     responses = list(event.run(character))
     assert not enemy.is_dead
-    assert any(response.failed and "no weapon" in response.text for response in responses)
+    assert any(
+        response.failed and "no weapon" in response.text for response in responses
+    )
 
 
 def test_a_dead_npc_despawns_and_drops_its_inventory():
@@ -367,6 +423,7 @@ def test_a_dead_npc_despawns_and_drops_its_inventory():
 
 
 # --- WorldAdapter contract ----------------------------------------------------------------------------
+
 
 def test_registration_strips_characters_that_would_break_discord_markup(adapter):
     adapter.register_player(2, "<b>Ev/il\\Name</b>")
@@ -393,10 +450,10 @@ def test_new_players_start_in_the_starting_town(adapter):
 
 def test_walking_into_impassable_terrain_raises(adapter):
     player = adapter.get_player(1)
-    north = player.location + DIRECTION_VECTORS['n']
+    north = player.location + DIRECTION_VECTORS["n"]
     adapter.world.map[north.y][north.x].terrain = NullTerrain()
     with pytest.raises(InvalidSpaceException):
-        adapter.move_player(player, DIRECTION_VECTORS['n'])
+        adapter.move_player(player, DIRECTION_VECTORS["n"])
     assert player.location == adapter.world.starting_town  # didn't budge
 
 
@@ -410,7 +467,7 @@ def test_attacking_bare_handed_raises(adapter):
 def test_aiming_a_melee_weapon_at_a_distant_square_raises(adapter):
     player = adapter.get_player(1)
     with pytest.raises(RangedAttackException):
-        adapter.attack(player, DIRECTION_VECTORS['n'])
+        adapter.attack(player, DIRECTION_VECTORS["n"])
 
 
 def test_attacking_an_empty_square_raises(adapter):
@@ -462,7 +519,9 @@ def test_a_player_sees_their_own_neighbourhood(adapter):
     assert player in nearby
 
     edge = adapter.world.get_adjacent_spaces(adapter.world.map[0][0], sq_range=2)
-    assert all(0 <= space.x < adapter.width and 0 <= space.y < adapter.height for space in edge)
+    assert all(
+        0 <= space.x < adapter.width and 0 <= space.y < adapter.height for space in edge
+    )
     assert len(edge) == 9  # a 5x5 window clipped to the top-left corner
 
 

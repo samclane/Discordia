@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def clean_screenshots():
-    """ Delete all files in the screenshot folder """
+    """Delete all files in the screenshot folder"""
     folder = Path("./Discordia/PlayerViews")
     for file_ in os.listdir(folder):
         file_path = os.path.join(folder, file_)
@@ -57,13 +57,12 @@ class TestGeneral(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
-        self.world = GameSpace.World("Test World",
-                                     self.WORLD_WIDTH,
-                                     self.WORLD_HEIGHT,
-                                     seed=self.random_seed)
+        self.world = GameSpace.World(
+            "Test World", self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=self.random_seed
+        )
         self.adapter = WorldAdapter(self.world)
         self.display = WindowRenderer(self.adapter)
-        
+
         for idx in range(self.NUM_USERS):
             self.adapter.register_player(idx, player_name=f"User{idx}")
 
@@ -94,8 +93,14 @@ class TestGeneral(unittest.TestCase):
                 if len(result) == 1 and result[0].failed:
                     fail_count += 1
 
-        self.assertLess(fail_count, self.NUM_USERS * self.NUM_STEPS, "Failed every movement attempt.")
-        LOG.info(f"Successes: {(self.NUM_USERS * self.NUM_STEPS) - fail_count} - Failcount: {fail_count}")
+        self.assertLess(
+            fail_count,
+            self.NUM_USERS * self.NUM_STEPS,
+            "Failed every movement attempt.",
+        )
+        LOG.info(
+            f"Successes: {(self.NUM_USERS * self.NUM_STEPS) - fail_count} - Failcount: {fail_count}"
+        )
 
     def test_screenshot(self):
         """
@@ -108,9 +113,17 @@ class TestGeneral(unittest.TestCase):
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
-            img: Image.Image = Image.open(Path(f"./Discordia/PlayerViews/User{idx}_screenshot.png"))
-            self.assertFalse(all(p == (0, 0, 0, 255) for p in img.getdata()), "Black screenshot taken")
-            self.assertFalse(all(p == (0, 0, 0, 0) for p in img.getdata()), "Transparent screenshot taken")
+            img: Image.Image = Image.open(
+                Path(f"./Discordia/PlayerViews/User{idx}_screenshot.png")
+            )
+            self.assertFalse(
+                all(p == (0, 0, 0, 255) for p in img.getdata()),
+                "Black screenshot taken",
+            )
+            self.assertFalse(
+                all(p == (0, 0, 0, 0) for p in img.getdata()),
+                "Transparent screenshot taken",
+            )
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
@@ -125,11 +138,11 @@ class TestGeneral(unittest.TestCase):
         for step in range(self.NUM_STEPS):
             for result in self._move_randomly():
                 if (len(result) == 1 and result[0].failed) or len(result) == 0:
-                    """ If failed to move, or everyone is dead: keep going. """
+                    """If failed to move, or everyone is dead: keep going."""
                     continue
 
                 self.assertTrue(isinstance(result[0].source, PlayerCharacter))
-                player: PlayerCharacter = result[0].source # type: ignore
+                player: PlayerCharacter = result[0].source  # type: ignore
                 if self.adapter.is_town(player.location):
                     self.assertIsNotNone(player.location.name)
                     self.assertTrue(isinstance(player.location, GameSpace.Town))
@@ -142,7 +155,9 @@ class TestGeneral(unittest.TestCase):
                             if isinstance(item, Weapons.Weapon):
                                 self.assertTrue(player.has_weapon_equipped)
                                 self.assertTrue(player.weapon == item)
-                                self.assertFalse(isinstance(player.weapon, Weapons.Fist))
+                                self.assertFalse(
+                                    isinstance(player.weapon, Weapons.Fist)
+                                )
                                 self.assertIsNotNone(player.weapon)
                             elif isinstance(item, Equipment):
                                 # Not armor_count: that's a random coverage roll and can legitimately be 0
@@ -206,8 +221,10 @@ class TestGeneral(unittest.TestCase):
         loaded.close()
 
         self.assertEqual(adapter.world.seed, self.world.seed)
-        self.assertEqual([str(space.terrain) for space in adapter.iter_spaces()],
-                         [str(space.terrain) for space in self.adapter.iter_spaces()])
+        self.assertEqual(
+            [str(space.terrain) for space in adapter.iter_spaces()],
+            [str(space.terrain) for space in self.adapter.iter_spaces()],
+        )
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
 
         restored = adapter.get_player(0)
@@ -217,7 +234,10 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
         self.assertIsInstance(restored.weapon, Jezail)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
-        self.assertEqual((restored.location.x, restored.location.y), (player.location.x, player.location.y))
+        self.assertEqual(
+            (restored.location.x, restored.location.y),
+            (player.location.x, player.location.y),
+        )
 
     def test_database_starts_empty(self):
         """
@@ -233,7 +253,7 @@ class TestGeneral(unittest.TestCase):
         start = self.world.starting_town
         found_path = None
         end_index = 1
-        for end_index in range(end_index, len(self.world.towns)-1):
+        for end_index in range(end_index, len(self.world.towns) - 1):
             end = self.world.towns[end_index]
             found_path = GameSpace.AStarPathfinder(self.world).astar(start, end)
             if found_path:

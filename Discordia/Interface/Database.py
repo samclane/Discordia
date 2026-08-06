@@ -7,6 +7,7 @@ characters, where they're standing, what they're carrying -- gets rows.
 
 NPCs are deliberately not persisted; they're spawned by Events and despawn on death.
 """
+
 from __future__ import annotations
 
 import json
@@ -56,12 +57,14 @@ CREATE TABLE IF NOT EXISTS item (
 
 # Classes may only be restored from these modules. The database is ours, but `pydoc.locate` imports whatever it's
 # handed, and a corrupted or hand-edited file shouldn't get to pick the module.
-_ALLOWED_MODULES = frozenset({
-    "Discordia.GameLogic.Actors",
-    "Discordia.GameLogic.Armor",
-    "Discordia.GameLogic.Items",
-    "Discordia.GameLogic.Weapons",
-})
+_ALLOWED_MODULES = frozenset(
+    {
+        "Discordia.GameLogic.Actors",
+        "Discordia.GameLogic.Armor",
+        "Discordia.GameLogic.Items",
+        "Discordia.GameLogic.Weapons",
+    }
+)
 
 
 def _class_path(obj) -> str:
@@ -69,9 +72,11 @@ def _class_path(obj) -> str:
 
 
 def _resolve(class_path: str, expected: type) -> type:
-    module, _, _ = class_path.rpartition('.')
+    module, _, _ = class_path.rpartition(".")
     if module not in _ALLOWED_MODULES:
-        raise ValueError(f"Refusing to load {class_path!r}: {module!r} is not a game-logic module")
+        raise ValueError(
+            f"Refusing to load {class_path!r}: {module!r} is not a game-logic module"
+        )
     located = pydoc.locate(class_path)
     if not (isinstance(located, type) and issubclass(located, expected)):
         raise ValueError(f"{class_path!r} is not a {expected.__name__} subclass")
@@ -79,7 +84,7 @@ def _resolve(class_path: str, expected: type) -> type:
 
 
 class Database:
-    """ Loads and saves the whole server. Cheap enough to call save() on a timer; see main.py. """
+    """Loads and saves the whole server. Cheap enough to call save() on a timer; see main.py."""
 
     def __init__(self, path: Path | str = DEFAULT_PATH):
         # check_same_thread=False: the autosave thread and the shutdown save use the same connection, and sqlite
@@ -93,18 +98,24 @@ class Database:
         self.connection.close()
 
     def load(self) -> WorldAdapter | None:
-        """ Rebuild the server from disk, or None if this database has never been saved to. """
+        """Rebuild the server from disk, or None if this database has never been saved to."""
         row = self.connection.execute("SELECT * FROM world WHERE id = 0").fetchone()
         if row is None:
             return None
 
-        world = GameSpace.World(row["name"], row["width"], row["height"],
-                                WorldGenerationParameters(**json.loads(row["gen_params"])),
-                                seed=row["seed"])
+        world = GameSpace.World(
+            row["name"],
+            row["width"],
+            row["height"],
+            WorldGenerationParameters(**json.loads(row["gen_params"])),
+            seed=row["seed"],
+        )
         adapter = WorldAdapter(world)
         for character_row in self.connection.execute("SELECT * FROM character"):
             self._load_character(adapter, character_row)
-        LOG.info(f"Loaded world '{world.name}' (seed {world.seed}) with {len(world.players)} characters")
+        LOG.info(
+            f"Loaded world '{world.name}' (seed {world.seed}) with {len(world.players)} characters"
+        )
         return adapter
 
     def _load_character(self, adapter: WorldAdapter, row: sqlite3.Row):
@@ -112,13 +123,17 @@ class Database:
         adapter.register_player(discord_id, row["name"])
         character = adapter.get_player(discord_id)
 
-        character.player_class = _resolve(row["class_path"], Actors.PlayerClass)()  # resets hit points to the max
+        character.player_class = _resolve(
+            row["class_path"], Actors.PlayerClass
+        )()  # resets hit points to the max
         character.hit_points_max = row["hit_points_max"]
         character.hit_points = row["hit_points"]
         character.currency = row["currency"]
         character.location = adapter.world.map[row["y"]][row["x"]]
 
-        for item_row in self.connection.execute("SELECT * FROM item WHERE discord_id = ?", (discord_id,)):
+        for item_row in self.connection.execute(
+            "SELECT * FROM item WHERE discord_id = ?", (discord_id,)
+        ):
             item = _resolve(item_row["class_path"], Equipment)()
             if item_row["slot"] is None:
                 character.inventory.append(item)
@@ -126,14 +141,21 @@ class Database:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
 
     def save(self, adapter: WorldAdapter):
-        """ Full rewrite of the mutable state, in one transaction. """
+        """Full rewrite of the mutable state, in one transaction."""
         # ponytail: rewrites every character each time. Fine for a Discord server's worth of players; if that ever
         # stops being true, save only the character whose command just ran.
         world = adapter.world
         with self.connection:
             self.connection.execute(
                 "INSERT OR REPLACE INTO world VALUES (0, ?, ?, ?, ?, ?)",
-                (world.name, world.width, world.height, world.seed, json.dumps(asdict(world.gen_params))))
+                (
+                    world.name,
+                    world.width,
+                    world.height,
+                    world.seed,
+                    json.dumps(asdict(world.gen_params)),
+                ),
+            )
             self.connection.execute("DELETE FROM character")  # cascades to item
             for discord_id, character in adapter.iter_registered():
                 self._save_character(discord_id, character)
@@ -141,13 +163,26 @@ class Database:
     def _save_character(self, discord_id: int, character: Actors.PlayerCharacter):
         self.connection.execute(
             "INSERT INTO character VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (discord_id, character.name, _class_path(character.player_class), character.hit_points,
-             character.hit_points_max, character.currency, character.location.x, character.location.y))
+            (
+                discord_id,
+                character.name,
+                _class_path(character.player_class),
+                character.hit_points,
+                character.hit_points_max,
+                character.currency,
+                character.location.x,
+                character.location.y,
+            ),
+        )
 
-        equipped = [(_class_path(item), slot) for slot in EquipmentSet.SLOTS
-                    for item in [getattr(character.equipment_set, slot)]
-                    if type(item) not in EquipmentSet.SLOTS.values()]  # the bare base classes are empty slots
+        equipped = [
+            (_class_path(item), slot)
+            for slot in EquipmentSet.SLOTS
+            for item in [getattr(character.equipment_set, slot)]
+            if type(item) not in EquipmentSet.SLOTS.values()
+        ]  # the bare base classes are empty slots
         self.connection.executemany(
             "INSERT INTO item (discord_id, class_path, slot) VALUES (?, ?, ?)",
             [(discord_id, class_path, slot) for class_path, slot in equipped]
-            + [(discord_id, _class_path(item), None) for item in character.inventory])
+            + [(discord_id, _class_path(item), None) for item in character.inventory],
+        )

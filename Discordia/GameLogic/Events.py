@@ -20,7 +20,9 @@ class Event(ABC):
         evt.run = lambda player_character: iter([])
         return evt
 
-    def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
+    def run(
+        self, player_character: Actors.PlayerCharacter
+    ) -> Iterator[GameSpace.PlayerActionResponse]:
         raise NotImplementedError("Tried to run a generic event")
 
     @classmethod
@@ -30,8 +32,7 @@ class Event(ABC):
 
 class CombatEvent(Event):
 
-    def __init__(self, probability: float, flavor_text: str,
-                 enemies: List[Actors.NPC]):
+    def __init__(self, probability: float, flavor_text: str, enemies: List[Actors.NPC]):
         super().__init__(probability, flavor_text)
         self.enemies: List[Actors.NPC] = enemies
 
@@ -43,7 +44,9 @@ class CombatEvent(Event):
         enemies = [Actors.NPC.generate(level) for _ in range(num_enemies)]
         return cls(probability, flavor_text, enemies)
 
-    def run(self, player_character: Actors.PlayerCharacter) -> Iterator[GameSpace.PlayerActionResponse]:
+    def run(
+        self, player_character: Actors.PlayerCharacter
+    ) -> Iterator[GameSpace.PlayerActionResponse]:
         # Just mow the enemies down in order
         victory_response = GameSpace.PlayerActionResponse(source=player_character)
         for enemy in self.enemies:
@@ -51,11 +54,15 @@ class CombatEvent(Event):
 
             while not enemy.is_dead:
                 # WARN An infinite loop can appear here.
-                attack_response = GameSpace.PlayerActionResponse(source=player_character)
+                attack_response = GameSpace.PlayerActionResponse(
+                    source=player_character
+                )
                 # Damage is always calculated at full power (min distance)
                 if player_character.weapon is None:
                     attack_response.is_successful = False
-                    attack_response.text = f"{player_character.name} has no weapon to attack with!"
+                    attack_response.text = (
+                        f"{player_character.name} has no weapon to attack with!"
+                    )
                     yield attack_response
                     break
                 dmg = player_character.weapon.damage
@@ -64,15 +71,21 @@ class CombatEvent(Event):
                 attack_response.is_successful = True
                 attack_response.damage = dmg
                 attack_response.target = enemy
-                attack_response.text = f"{player_character.name} does {dmg} dmg to {enemy.name}."
+                attack_response.text = (
+                    f"{player_character.name} does {dmg} dmg to {enemy.name}."
+                )
                 yield attack_response
 
-                defense_response = GameSpace.PlayerActionResponse(source=player_character)
+                defense_response = GameSpace.PlayerActionResponse(
+                    source=player_character
+                )
                 dmg = enemy.base_attack
                 player_character.take_damage(dmg)
                 defense_response.damage = dmg
                 defense_response.target = enemy
-                defense_response.text = f"{player_character.name} takes {dmg} dmg from {enemy.name}."
+                defense_response.text = (
+                    f"{player_character.name} takes {dmg} dmg from {enemy.name}."
+                )
                 defense_response.is_successful = True
                 yield defense_response
                 if player_character.is_dead:
@@ -82,34 +95,43 @@ class CombatEvent(Event):
                 kill_response.items += enemy.on_death()
                 kill_response.is_successful = True
                 player_character.inventory += kill_response.items
-                kill_response.text = f"{player_character.name} kills {enemy.name}, " \
+                kill_response.text = (
+                    f"{player_character.name} kills {enemy.name}, "
                     f"receiving {','.join([str(item) for item in kill_response.items])}"
+                )
                 yield kill_response
             else:
                 break
 
         if not player_character.is_dead:
             victory_response.is_successful = True
-            victory_response.text = f"{player_character.name} has successfully slain their foes."
+            victory_response.text = (
+                f"{player_character.name} has successfully slain their foes."
+            )
 
         else:
             victory_response.is_successful = False
-            victory_response.text = f"{player_character.name} has fallen in combat. " \
+            victory_response.text = (
+                f"{player_character.name} has fallen in combat. "
                 f"They'll be revived in the starting town."
+            )
 
         yield victory_response
 
 
 class EncounterEvent(Event):
 
-    def __init__(self, probability: float, flavor_text: str, choices_dict: dict,
-                 npc=None):
+    def __init__(
+        self, probability: float, flavor_text: str, choices_dict: dict, npc=None
+    ):
         super().__init__(probability, flavor_text)
         self.choice_dict = choices_dict
         self.npc_involved = npc
 
     def run(self, player_character) -> Iterator[GameSpace.PlayerActionResponse]:
-        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
+        yield GameSpace.PlayerActionResponse(
+            is_successful=True, text=self.flavor_text, source=player_character
+        )
 
     @classmethod
     def generate(cls, level) -> EncounterEvent:
@@ -122,12 +144,16 @@ class EncounterEvent(Event):
 
 class MerchantEvent(Event):
 
-    def __init__(self, probability: float, flavor_text: str, items: dict[str, Items.Equipment]):
+    def __init__(
+        self, probability: float, flavor_text: str, items: dict[str, Items.Equipment]
+    ):
         super().__init__(probability, flavor_text)
         self.items: dict[str, Items.Equipment] = items
 
     def run(self, player_character):
-        yield GameSpace.PlayerActionResponse(is_successful=True, text=self.flavor_text, source=player_character)
+        yield GameSpace.PlayerActionResponse(
+            is_successful=True, text=self.flavor_text, source=player_character
+        )
 
     @classmethod
     def generate(cls, level) -> MerchantEvent:

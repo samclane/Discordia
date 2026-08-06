@@ -26,42 +26,42 @@ LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
 Direction = Tuple[int, int]
 
 DIRECTION_VECTORS: Dict[str | None, Direction] = {
-    'n': (0, -1),
-    's': (0, 1),
-    'e': (1, 0),
-    'w': (-1, 0),
-    'ne': (1, -1),
-    'se': (1, 1),
-    'sw': (-1, 1),
-    'nw': (-1, -1),
-    'center': (0, 0),
-    None: (0, 0)
+    "n": (0, -1),
+    "s": (0, 1),
+    "e": (1, 0),
+    "w": (-1, 0),
+    "ne": (1, -1),
+    "se": (1, 1),
+    "sw": (-1, 1),
+    "nw": (-1, -1),
+    "center": (0, 0),
+    None: (0, 0),
 }
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 
 
 def bitmask_to_orientation(value: int) -> str:
-    if 0xff & value == 0xff or 0b01011010 & value == 0b01011010:
-        return 'center'
+    if 0xFF & value == 0xFF or 0b01011010 & value == 0b01011010:
+        return "center"
     if 0b01011000 & value == 0b01011000:
-        return 'n'
+        return "n"
     if 0b01001010 & value == 0b01001010:
-        return 'e'
+        return "e"
     if 0b00011010 & value == 0b00011010:
-        return 's'
+        return "s"
     if 0b01010010 & value == 0b01010010:
-        return 'w'
+        return "w"
     if 0b01010000 & value == 0b01010000:
-        return 'nw'
+        return "nw"
     if 0b01001000 & value == 0b01001000:
-        return 'ne'
+        return "ne"
     if 0b00010010 & value == 0b00010010:
-        return 'sw'
+        return "sw"
     if 0b00001010 & value == 0b00001010:
-        return 'se'
+        return "se"
     else:
-        return 'center'
+        return "center"
 
 
 class Terrain(ABC):
@@ -114,7 +114,7 @@ class Terrain(ABC):
 
     @property
     def layer(self):
-        """ Basically the Z value of the terrain; how high it is. 0 is sea level. -1 is null-level """
+        """Basically the Z value of the terrain; how high it is. 0 is sea level. -1 is null-level"""
         raise NotImplementedError
 
 
@@ -207,7 +207,7 @@ class WaterTerrain(Terrain):
 
     @property
     def orientation(self) -> str:
-        return 'center'
+        return "center"
 
     @orientation.setter
     def orientation(self, value):
@@ -319,15 +319,27 @@ class Space(ABC):
 
     def __add__(self, other) -> Space:
         if isinstance(other, Space):
-            return Space(max(self.x + other.x, 0), max(self.y + other.y, 0), other.terrain)
+            return Space(
+                max(self.x + other.x, 0), max(self.y + other.y, 0), other.terrain
+            )
         else:
-            return Space(max(self.x + int(other[0]), 0), max(self.y + int(other[1]), 0), NullTerrain())
+            return Space(
+                max(self.x + int(other[0]), 0),
+                max(self.y + int(other[1]), 0),
+                NullTerrain(),
+            )
 
     def __sub__(self, other):
         if isinstance(other, Space):
-            return Space(max(self.x - other.x, 0), max(self.y - other.y, 0), other.terrain)
+            return Space(
+                max(self.x - other.x, 0), max(self.y - other.y, 0), other.terrain
+            )
         else:
-            return Space(max(self.x - int(other[0]), 0), max(self.y - int(other[1]), 0), NullTerrain())
+            return Space(
+                max(self.x - int(other[0]), 0),
+                max(self.y - int(other[1]), 0),
+                NullTerrain(),
+            )
 
     def __iter__(self):
         yield self.x
@@ -355,14 +367,22 @@ class Space(ABC):
         return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
     def closest(self, space_list: List[Union[Space, Tuple[int, int]]], size=1):
-        """ Returns a list of the closest spaces out of space_list, in decreasing order """
-        return sorted(space_list, key=lambda o: self.distance(o))[0:size - 1]
+        """Returns a list of the closest spaces out of space_list, in decreasing order"""
+        return sorted(space_list, key=lambda o: self.distance(o))[0 : size - 1]
 
 
 class Town(Space):
 
-    def __init__(self, x: int, y: int, name: str, population: int = 0, industry: IndustryType = NullIndustry(),
-                 terrain: Terrain = NullTerrain(), store: Store | None = None) -> None:
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        name: str,
+        population: int = 0,
+        industry: IndustryType = NullIndustry(),
+        terrain: Terrain = NullTerrain(),
+        store: Store | None = None,
+    ) -> None:
         super(Town, self).__init__(x, y, terrain)
         self.name: str = name
         self.population: int = population
@@ -380,17 +400,33 @@ class Town(Space):
 
     def inn_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
-        resp = PlayerActionResponse(True, 0, character, f"Your hitpoints have been restored, {character.name}", [], 0,
-                                    source=character)
+        resp = PlayerActionResponse(
+            True,
+            0,
+            character,
+            f"Your hitpoints have been restored, {character.name}",
+            [],
+            0,
+            source=character,
+        )
         return resp
 
     def recruit(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         _class = self.industry.recruitment_class
-        if _class.tier >= character.player_class.tier and _class.name != character.player_class.name:
+        if (
+            _class.tier >= character.player_class.tier
+            and _class.name != character.player_class.name
+        ):
             character.player_class = _class
-            resp = PlayerActionResponse(is_successful=True, text=f"Class was successfully changed to {_class.name}")
+            resp = PlayerActionResponse(
+                is_successful=True,
+                text=f"Class was successfully changed to {_class.name}",
+            )
         else:
-            resp = PlayerActionResponse(is_successful=False, text=f"Your class is already better than {_class.name}")
+            resp = PlayerActionResponse(
+                is_successful=False,
+                text=f"Your class is already better than {_class.name}",
+            )
         return resp
 
     @property
@@ -412,13 +448,25 @@ class BaseLevel:
 
     def base_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
         character.hit_points = character.hit_points_max
-        resp = PlayerActionResponse(is_successful=True, text=f"Your hitpoints have been restored, {character.name}", source=character)
+        resp = PlayerActionResponse(
+            is_successful=True,
+            text=f"Your hitpoints have been restored, {character.name}",
+            source=character,
+        )
         return resp
+
 
 class Base(Space):
 
-    def __init__(self, x: int, y: int, name: str,
-                 terrain: Terrain = NullTerrain(), store: Store | None = None, owner: Actors.PlayerCharacter | None = None) -> None:
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        name: str,
+        terrain: Terrain = NullTerrain(),
+        store: Store | None = None,
+        owner: Actors.PlayerCharacter | None = None,
+    ) -> None:
         super().__init__(x, y, terrain)
         self.name: str = name
         self.store: Store = store if store is not None else Store()
@@ -450,7 +498,9 @@ class Wilds(Space):
         assert self.null_event.probability >= 0
 
     def run_event(self, player) -> List[PlayerActionResponse]:
-        chosen_event = random.choices(self.events, weights=[event.probability for event in self.events])[0]
+        chosen_event = random.choices(
+            self.events, weights=[event.probability for event in self.events]
+        )[0]
         results = chosen_event.run(player)
         if results is None:
             results = [PlayerActionResponse(source=player)]
@@ -487,15 +537,22 @@ class PlayerActionResponse:
 
 class World:
 
-    def __init__(self, name: str, width: int, height: int,
-                 generation_parameters: WorldGenerationParameters = WorldGenerationParameters(), seed=None):
+    def __init__(
+        self,
+        name: str,
+        width: int,
+        height: int,
+        generation_parameters: WorldGenerationParameters = WorldGenerationParameters(),
+        seed=None,
+    ):
         super().__init__()
         self.name: str = name
         self.width: int = width
         self.height: int = height
         self.gen_params: WorldGenerationParameters = generation_parameters
-        self.map: List[List[Space]] = [[Space(x, y, NullTerrain()) for x in range(width)] for y in
-                                       range(height)]
+        self.map: List[List[Space]] = [
+            [Space(x, y, NullTerrain()) for x in range(width)] for y in range(height)
+        ]
         self.towns: List[Town] = []
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
@@ -503,7 +560,7 @@ class World:
         self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
-        self.seed: int = random.randrange(2 ** 32) if seed is None else seed
+        self.seed: int = random.randrange(2**32) if seed is None else seed
         random.seed(self.seed)
         np.random.seed(self.seed)
         self.generate_map()
@@ -513,11 +570,14 @@ class World:
 
         # Get parameters
         resolution = self.gen_params.resolution_constant * (
-                (self.width + self.height) / 2)  # I pulled this out of my butt. Gives us decently scaled noise.
+            (self.width + self.height) / 2
+        )  # I pulled this out of my butt. Gives us decently scaled noise.
         sand_slice = random.random()
         mountain_slice = random.random()
         grass_slice = random.random()
-        water_threshold = self.gen_params.water  # Higher factor -> more Spaces on the map
+        water_threshold = (
+            self.gen_params.water
+        )  # Higher factor -> more Spaces on the map
         mountain_threshold = self.gen_params.mountains
         grass_threshold = self.gen_params.grass
 
@@ -525,28 +585,52 @@ class World:
         for x in range(self.width):
             for y in range(self.height):
                 # Land and water pass
-                self.map[y][x] = Space(x, y, SandTerrain() if abs(
-                    pnoise3(x / resolution, y / resolution, sand_slice)) > water_threshold else WaterTerrain())
+                self.map[y][x] = Space(
+                    x,
+                    y,
+                    (
+                        SandTerrain()
+                        if abs(pnoise3(x / resolution, y / resolution, sand_slice))
+                        > water_threshold
+                        else WaterTerrain()
+                    ),
+                )
 
                 # Mountains pass
-                if abs(pnoise3(x / resolution, y / resolution, mountain_slice)) > mountain_threshold and self.map[y][
-                    x].terrain.walkable:
+                if (
+                    abs(pnoise3(x / resolution, y / resolution, mountain_slice))
+                    > mountain_threshold
+                    and self.map[y][x].terrain.walkable
+                ):
                     self.map[y][x] = Space(x, y, MountainTerrain())
 
                 # Grass pass
-                if abs(pnoise3(x / resolution, y / resolution, grass_slice)) > grass_threshold:
+                if (
+                    abs(pnoise3(x / resolution, y / resolution, grass_slice))
+                    > grass_threshold
+                ):
                     self.map[y][x] = Space(x, y, GrassTerrain())
 
                 # Town and Wilds pass
                 if self.map[y][x].terrain.buildable:
                     if random.random() <= self.gen_params.towns:
                         # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(Town.generate_town(x, y, terrain=self.map[y][x].terrain))
+                        self.add_town(
+                            Town.generate_town(x, y, terrain=self.map[y][x].terrain)
+                        )
                     elif random.random() <= self.gen_params.wilds:
                         self.add_wilds(
-                            Wilds.generate(x, y, self.map[y][x].terrain,
-                                           normal(sqrt(self.starting_town.distance((x, y))), integer=True,
-                                                  positive=True)))
+                            Wilds.generate(
+                                x,
+                                y,
+                                self.map[y][x].terrain,
+                                normal(
+                                    sqrt(self.starting_town.distance((x, y))),
+                                    integer=True,
+                                    positive=True,
+                                ),
+                            )
+                        )
 
         # Second (orientation) pass
         # https://gamedevelopment.tutsplus.com/tutorials/how-to-use-tile-bitmasking-to-auto-tile-your-level-layouts--cms-25673
@@ -556,9 +640,12 @@ class World:
 
                 # Bitmask
                 value = 0
-                for bit, neighbor in enumerate([DIRECTION_VECTORS.get(key) for key in ['nw', 'n', 'ne',
-                                                                                       'w', 'e', 'sw',
-                                                                                       's', 'se']]):
+                for bit, neighbor in enumerate(
+                    [
+                        DIRECTION_VECTORS.get(key)
+                        for key in ["nw", "n", "ne", "w", "e", "sw", "s", "se"]
+                    ]
+                ):
                     ix, iy = space + neighbor
                     if self.map[iy][ix].terrain.layer == space.terrain.layer:
                         value += pow(2, bit)
@@ -570,7 +657,11 @@ class World:
         LOG.info("Generation finished")
 
     def is_space_valid(self, space: Space) -> bool:
-        return (0 <= space.x <= self.width - 1) and (0 <= space.y <= self.height - 1) and space.terrain.walkable
+        return (
+            (0 <= space.x <= self.width - 1)
+            and (0 <= space.y <= self.height - 1)
+            and space.terrain.walkable
+        )
 
     def is_coords_valid(self, x: int, y: int):
         if (0 <= x <= self.width - 1) and (0 <= y <= self.height - 1):
@@ -580,7 +671,11 @@ class World:
     def is_space_buildable(self, space: Space) -> bool:
         # FIXME Ugly function
         if space.terrain.buildable:
-            if not self.is_space_valid(space) or space in self.towns or space in self.wilds:
+            if (
+                not self.is_space_valid(space)
+                or space in self.towns
+                or space in self.wilds
+            ):
                 return False
             return True
         return False
@@ -589,7 +684,11 @@ class World:
         fov = list(range(-sq_range, sq_range + 1))
         steps = product(fov, repeat=2)
         coords = (tuple(c + d for c, d in zip(space, delta)) for delta in steps)
-        return [self.map[j][i] for i, j in coords if (0 <= i < self.width) and (0 <= j < self.height)]
+        return [
+            self.map[j][i]
+            for i, j in coords
+            if (0 <= i < self.width) and (0 <= j < self.height)
+        ]
 
     def add_town(self, town: Town, is_starting_town: bool = False):
         self.towns.append(town)
@@ -612,21 +711,37 @@ class World:
             self.npcs.append(actor)
 
     def get_npcs_in_region(self, spaces: List[Space]) -> List[Actors.NPC]:
-        npc_locations: Dict[Actors.NPC, Space] = {npc: npc.location for npc in self.npcs}
-        common_locations: List[Space] = list(set(npc_locations.values()).intersection(spaces))
-        npcs: List[Actors.NPC] = [npc for npc in self.npcs if npc.location in common_locations]
+        npc_locations: Dict[Actors.NPC, Space] = {
+            npc: npc.location for npc in self.npcs
+        }
+        common_locations: List[Space] = list(
+            set(npc_locations.values()).intersection(spaces)
+        )
+        npcs: List[Actors.NPC] = [
+            npc for npc in self.npcs if npc.location in common_locations
+        ]
         return npcs
 
-    def get_players_in_region(self, spaces: List[Space]) -> List[Actors.PlayerCharacter]:
-        player_locations: Dict[Actors.PlayerCharacter, Space] = {player: player.location for player in self.players}
-        common_locations: List[Space] = list(set(player_locations.values()).intersection(spaces))
-        players: List[Actors.PlayerCharacter] = [player for player in self.players if
-                                                 player.location in common_locations]
+    def get_players_in_region(
+        self, spaces: List[Space]
+    ) -> List[Actors.PlayerCharacter]:
+        player_locations: Dict[Actors.PlayerCharacter, Space] = {
+            player: player.location for player in self.players
+        }
+        common_locations: List[Space] = list(
+            set(player_locations.values()).intersection(spaces)
+        )
+        players: List[Actors.PlayerCharacter] = [
+            player for player in self.players if player.location in common_locations
+        ]
         return players
 
-    def pvp_attack(self, player_character: Actors.PlayerCharacter,
-                   direction: Direction = (0, 0)) -> PlayerActionResponse:
-        response = PlayerActionResponse(text="No targets found in that direction", source=player_character)
+    def pvp_attack(
+        self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)
+    ) -> PlayerActionResponse:
+        response = PlayerActionResponse(
+            text="No targets found in that direction", source=player_character
+        )
         weapon = player_character.weapon
         if weapon is None:
             response.text = "You have no weapon equipped!"
@@ -637,7 +752,11 @@ class World:
             if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
                 response.text = "Your currently equipped weapon is empty!"
                 break
-            targets = [player for player in self.players if player != player_character and player.location == loc]
+            targets = [
+                player
+                for player in self.players
+                if player != player_character and player.location == loc
+            ]
             if len(targets):
                 target: Actors.PlayerCharacter = random.choice(targets)
                 weapon.on_damage()
@@ -651,8 +770,10 @@ class World:
                     response.text = "No other players in range of your Melee Weapon."
                     break
                 if direction == (0, 0):
-                    response.text = "No other players in current square. " \
-                                    "Specify a direction (n,s,e,w,ne,se,sw,nw))"
+                    response.text = (
+                        "No other players in current square. "
+                        "Specify a direction (n,s,e,w,ne,se,sw,nw))"
+                    )
                     break
                 loc += direction
                 loc = self.map[loc.y][loc.x]
@@ -671,7 +792,9 @@ class Store:
     def __init__(self, inventory=None):
         super().__init__()
         self.inventory: List[Equipment] = inventory if inventory is not None else []
-        self.price_ratio: float = 1.0  # Lower means better buy/sell prices, higher means worse
+        self.price_ratio: float = (
+            1.0  # Lower means better buy/sell prices, higher means worse
+        )
 
     @classmethod
     def generate_store(cls):
@@ -699,7 +822,9 @@ class Store:
         player_character.inventory.append(item)
         return True
 
-    def buy_item(self, item: Equipment, player_character: Actors.PlayerCharacter) -> int:
+    def buy_item(
+        self, item: Equipment, player_character: Actors.PlayerCharacter
+    ) -> int:
         self.inventory.append(item)
         price = int(item.base_value / self.price_ratio)
         player_character.currency += price
@@ -721,7 +846,7 @@ class AStarPathfinder(AStar[Space]):
         return self.world.is_space_valid(space)
 
     def neighbors(self, node: Space) -> Iterator[Space]:
-        directions = ['n', 's', 'e', 'w']
+        directions = ["n", "s", "e", "w"]
         for dir_vector in [DIRECTION_VECTORS[d] for d in directions]:
             potential_space = node + dir_vector
             if self.world.is_coords_valid(potential_space.x, potential_space.y):

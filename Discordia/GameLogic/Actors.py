@@ -56,7 +56,9 @@ class AbstractActor(ABC):
     Defines an interface to interact with all generic Actor objects
     """
 
-    def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
+    def attempt_move(
+        self, shift: Tuple[int, int]
+    ) -> List[GameSpace.PlayerActionResponse]:
         return []
 
     @property
@@ -72,7 +74,7 @@ class AbstractActor(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def on_death(self)  -> List[Items.Equipment]:
+    def on_death(self) -> List[Items.Equipment]:
         pass
 
     @property
@@ -82,8 +84,13 @@ class AbstractActor(ABC):
 
 class Actor(AbstractActor, ABC):
 
-    def __init__(self, parent_world: GameSpace.World, hp: int = 0, name: str = "<NONE>",
-                 body_type: BodyType = Humanoid()):
+    def __init__(
+        self,
+        parent_world: GameSpace.World,
+        hp: int = 0,
+        name: str = "<NONE>",
+        body_type: BodyType = Humanoid(),
+    ):
         self.parent_world = parent_world
         self._hit_points = self.hit_points_max = hp
         self._is_dead = False
@@ -99,16 +106,20 @@ class Actor(AbstractActor, ABC):
 
     def __repr__(self):
         attrdict = []
-        for attr in [a for a in self.__dict__ if not a.startswith('__')]:
+        for attr in [a for a in self.__dict__ if not a.startswith("__")]:
             attrdict.append(f"{attr}: {getattr(self, attr)}")
-        return f"{self.__class__.__name__}(" + ', '.join(attrdict) + ')'
+        return f"{self.__class__.__name__}(" + ", ".join(attrdict) + ")"
 
-    def attempt_move(self, shift: Tuple[int, int]) -> List[GameSpace.PlayerActionResponse]:
+    def attempt_move(
+        self, shift: Tuple[int, int]
+    ) -> List[GameSpace.PlayerActionResponse]:
         new_coords = self.location + shift
         if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
             return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
         self.location = self.parent_world.map[new_coords.y][new_coords.x]
-        if isinstance(self.location, GameSpace.Wilds) and isinstance(self, PlayerCharacter):
+        if isinstance(self.location, GameSpace.Wilds) and isinstance(
+            self, PlayerCharacter
+        ):
             return self.location.run_event(player=self)
         else:
             return [GameSpace.PlayerActionResponse(is_successful=True, source=self)]
@@ -157,15 +168,19 @@ class NPC(Actor):
 
     @classmethod
     def generate(cls, level) -> NPC:
-        if random.random() > .5:
+        if random.random() > 0.5:
             name = CharacterNameGenerator.male_name().generate_name()
         else:
             name = CharacterNameGenerator.female_name().generate_name()
         return cls(
             None,
-            Procedural.normal((WandererClass().hit_points_max_base//2)*(level//2), positive=True, integer=True),
+            Procedural.normal(
+                (WandererClass().hit_points_max_base // 2) * (level // 2),
+                positive=True,
+                integer=True,
+            ),
             name,
-            random.choice(BodyType.__subclasses__())()
+            random.choice(BodyType.__subclasses__())(),
         )
 
     @property
@@ -196,7 +211,7 @@ class PlayerClass(ABC):
 
 
 class WandererClass(PlayerClass):
-    """ Default player class with nothing special. """
+    """Default player class with nothing special."""
 
     @property
     def name(self) -> str:
@@ -213,10 +228,10 @@ class WandererClass(PlayerClass):
     @property
     def sprite_path(self):
         return str(SPRITE_FOLDER / "Actors" / "wanderer_class.png")
-    
-    
+
+
 class Soldier(PlayerClass):
-    """ After joining some military (East or West). """
+    """After joining some military (East or West)."""
 
     @property
     def name(self) -> str:
@@ -236,7 +251,8 @@ class Soldier(PlayerClass):
 
 
 class RaiderClass(PlayerClass):
-    """ You've taken up arms without joining a military. """
+    """You've taken up arms without joining a military."""
+
     @property
     def name(self) -> str:
         return "Raider"
@@ -251,7 +267,7 @@ class RaiderClass(PlayerClass):
 
     @property
     def sprite_path(self) -> str:
-        return str(SPRITE_FOLDER / "Actors" / "raider_class.png")   
+        return str(SPRITE_FOLDER / "Actors" / "raider_class.png")
 
 
 class PlayerCharacter(Actor):
@@ -294,7 +310,9 @@ class PlayerCharacter(Actor):
     def has_weapon_equipped(self) -> bool:
         return self.weapon is not None
 
-    def equip(self, equipment: Equipment, equipment_type: Type[Equipment] | None = None):
+    def equip(
+        self, equipment: Equipment, equipment_type: Type[Equipment] | None = None
+    ):
         self.equipment_set.equip(equipment, equipment_type)
         equipment.on_equip(self)
 
@@ -312,5 +330,3 @@ class PlayerCharacter(Actor):
     @property
     def sprite_path(self) -> str:
         return self._player_class.sprite_path
-
-

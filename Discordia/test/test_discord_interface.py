@@ -7,14 +7,28 @@ from discord import app_commands
 
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.WorldAdapter import (InvalidSpaceException, NotRegisteredException, NotSpawnedException,
-                                              WorldAdapter)
+from Discordia.Interface.WorldAdapter import (
+    InvalidSpaceException,
+    NotRegisteredException,
+    NotSpawnedException,
+    WorldAdapter,
+)
 
 EXPECTED = {
-    "register", "look", "move", "attack", "equipment",
-    "inventory list", "inventory equip", "inventory unequip",
-    "town status", "town inn", "town recruit",
-    "town store list", "town store buy", "town store sell",
+    "register",
+    "look",
+    "move",
+    "attack",
+    "equipment",
+    "inventory list",
+    "inventory equip",
+    "inventory unequip",
+    "town status",
+    "town inn",
+    "town recruit",
+    "town store list",
+    "town store buy",
+    "town store sell",
 }
 
 
@@ -37,10 +51,16 @@ def loaded_cog(adapter=None) -> DiscordInterface:
     return interface
 
 
-def command_named(interface: DiscordInterface, qualified_name: str) -> app_commands.Command:
+def command_named(
+    interface: DiscordInterface, qualified_name: str
+) -> app_commands.Command:
     """Look a command up by qualified name, so nested ones ('town inn') need no group walking."""
-    return next(cmd for cmd in interface.bot.tree.walk_commands()
-                if isinstance(cmd, app_commands.Command) and cmd.qualified_name == qualified_name)
+    return next(
+        cmd
+        for cmd in interface.bot.tree.walk_commands()
+        if isinstance(cmd, app_commands.Command)
+        and cmd.qualified_name == qualified_name
+    )
 
 
 def build(character, command_name="look"):
@@ -60,8 +80,11 @@ def test_slash_commands_registered():
 
 def test_every_command_but_register_requires_a_character():
     interface = loaded_cog()
-    unchecked = {cmd.qualified_name for cmd in interface.bot.tree.walk_commands()
-                 if isinstance(cmd, app_commands.Command) and not cmd.checks}
+    unchecked = {
+        cmd.qualified_name
+        for cmd in interface.bot.tree.walk_commands()
+        if isinstance(cmd, app_commands.Command) and not cmd.checks
+    }
     assert unchecked == {"register"}, unchecked
 
 
@@ -89,18 +112,22 @@ def test_check_passes_for_spawned_character():
 
 def test_space_check_rejects_character_outside_a_town():
     wilds = GameSpace.Wilds(0, 0, "Nowhere")
-    _, command, interaction = build(SimpleNamespace(registered=True, location=wilds), "town inn")
+    _, command, interaction = build(
+        SimpleNamespace(registered=True, location=wilds), "town inn"
+    )
     with pytest.raises(InvalidSpaceException, match="town"):
         run_checks(command, interaction)
 
 
 def test_space_check_passes_inside_a_town():
     town = GameSpace.Town(0, 0, "Testville")
-    _, command, interaction = build(SimpleNamespace(registered=True, location=town), "town inn")
+    _, command, interaction = build(
+        SimpleNamespace(registered=True, location=town), "town inn"
+    )
     assert run_checks(command, interaction)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_slash_commands_registered()
     test_every_command_but_register_requires_a_character()
     test_check_rejects_unregistered()

@@ -20,28 +20,11 @@ class NameGenerator(ABC):
 
 
 class TownNameGenerator(NameGenerator):
-    _prefixes = [
-        "New",
-        "Old",
-        "Lost"
-    ]
+    _prefixes = ["New", "Old", "Lost"]
 
-    _roots = [
-        "Luxem",
-        "Rodder",
-        "Halls",
-        "Alds",
-        "Brax"
-    ]
+    _roots = ["Luxem", "Rodder", "Halls", "Alds", "Brax"]
 
-    _postfixes = [
-        "burg",
-        "borough",
-        "ton",
-        "town",
-        "ville",
-        "brooke"
-    ]
+    _postfixes = ["burg", "borough", "ton", "town", "ville", "brooke"]
 
 
 class WildsNameGenerator(NameGenerator):
@@ -56,32 +39,17 @@ class WildsNameGenerator(NameGenerator):
         "Evil ",
     ]
 
-    _postfixes = [
-        "Forrest",
-        "Swamp",
-        "Bog",
-        "Fen",
-        "Marsh"
-    ]
+    _postfixes = ["Forrest", "Swamp", "Bog", "Fen", "Marsh"]
 
 
 class CharacterNameGenerator(NameGenerator):
     _roots = [c + "." for c in ascii_uppercase] + [""]
 
-    _postfixes = [
-        "Smith",
-        "Jones",
-        "Lee"
-    ]
+    _postfixes = ["Smith", "Jones", "Lee"]
 
     @classmethod
     def male_name(cls):
-        cls._prefixes = [
-            "Matthew",
-            "Mark",
-            "Luke",
-            "John"
-        ]
+        cls._prefixes = ["Matthew", "Mark", "Luke", "John"]
 
         cls._roots.append("Son of ")
 
@@ -89,12 +57,7 @@ class CharacterNameGenerator(NameGenerator):
 
     @classmethod
     def female_name(cls):
-        cls._prefixes = [
-            "Susan",
-            "Karen",
-            "Jessie",
-            "Sarah"
-        ]
+        cls._prefixes = ["Susan", "Karen", "Jessie", "Sarah"]
 
         cls._roots.append("Daughter of ")
 

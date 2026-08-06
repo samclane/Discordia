@@ -11,7 +11,12 @@ from abc import ABC
 from typing import Optional
 
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment, FullyImplemented
+from Discordia.GameLogic.Items import (
+    Equipment,
+    MainHandEquipment,
+    OffHandEquipment,
+    FullyImplemented,
+)
 
 
 class ProjectileType:
@@ -67,7 +72,7 @@ class Weapon(Equipment, ABC):
 
 class RangedWeapon(Weapon, ABC):
 
-    def __init__(self, range_: int = 1, range_falloff: float = 1., *args, **kwargs):
+    def __init__(self, range_: int = 1, range_falloff: float = 1.0, *args, **kwargs):
         """
         Any weapon that can strike >1 squares away from the player.
         """
@@ -81,10 +86,12 @@ class RangedWeapon(Weapon, ABC):
         self.base_value = int(self.base_value + (50 * range_) * (1 - range_falloff))
 
     def __repr__(self):
-        return super().__repr__() + " {}sq {}%-falloff".format(self.range_, self.range_falloff)
+        return super().__repr__() + " {}sq {}%-falloff".format(
+            self.range_, self.range_falloff
+        )
 
     def calc_damage(self, distance: int) -> int:
-        damage = self.damage * ((1. - self.range_falloff) ** distance)
+        damage = self.damage * ((1.0 - self.range_falloff) ** distance)
         return int(damage)
 
     @property
@@ -108,8 +115,9 @@ class ProjectileWeapon(RangedWeapon, ABC):
         self._current_capacity = capacity
 
     def __repr__(self):
-        return super().__repr__() + " AmmoTypeEnum:{} {}/{} shots".format(self.ammo_type, self.current_capacity,
-                                                                          self.capacity)
+        return super().__repr__() + " AmmoTypeEnum:{} {}/{} shots".format(
+            self.ammo_type, self.current_capacity, self.capacity
+        )
 
     @property
     def is_single_shot(self) -> bool:
@@ -135,21 +143,33 @@ class ProjectileWeapon(RangedWeapon, ABC):
 
 class Firearm(ProjectileWeapon, ABC):
 
-    def __init__(self, caliber: int, action: int = FiringAction.SingleShot, burst_size: int = 1, *args, **kwargs):
+    def __init__(
+        self,
+        caliber: int,
+        action: int = FiringAction.SingleShot,
+        burst_size: int = 1,
+        *args,
+        **kwargs,
+    ):
         super().__init__(ProjectileType.Bullet, *args, **kwargs)
         self.caliber = caliber
         self._action = action
         if self.action < FiringAction.BurstFireOnly and burst_size > 1:
-            raise ValueError("Firing action must be BurstFireOnly or FullyAutomatic to have a burst > 1")
+            raise ValueError(
+                "Firing action must be BurstFireOnly or FullyAutomatic to have a burst > 1"
+            )
         if self.is_single_shot:
             self._action = FiringAction.SingleShot
         self.burst_size = burst_size
-        self.base_value += (10 * self._action)  # Better firing action => Costs more
+        self.base_value += 10 * self._action  # Better firing action => Costs more
 
     def __repr__(self):
-        return super().__repr__() + " CaliberEnum:{} ActionEnum:{} {} shots-per-attack".format(self.caliber,
-                                                                                               self._action,
-                                                                                               self.burst_size)
+        return (
+            super().__repr__()
+            + " CaliberEnum:{} ActionEnum:{} {} shots-per-attack".format(
+                self.caliber, self._action, self.burst_size
+            )
+        )
 
     def fire(self):
         self._current_capacity -= self.burst_size
@@ -183,48 +203,57 @@ class WeblyRevolver(Pistol, FullyImplemented):
     """
     Based on the Webly Mk. IV
     """
+
     name: str = "Webly Mk. IV Revolver"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.IN_38,
-                         action=FiringAction.SemiAutomatic,
-                         capacity=6,
-                         range_falloff=.5,
-                         base_damage=10,
-                         name=self.name,
-                         weightlb=2.4)
+        super().__init__(
+            caliber=Caliber.IN_38,
+            action=FiringAction.SemiAutomatic,
+            capacity=6,
+            range_falloff=0.5,
+            base_damage=10,
+            name=self.name,
+            weightlb=2.4,
+        )
 
 
 class M1911(Pistol, FullyImplemented):
     """
     Based on the M1911
     """
+
     name: str = "M1911 Pistol"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.IN_45,
-                         action=FiringAction.SemiAutomatic,
-                         capacity=7,
-                         range_falloff=.4,
-                         base_damage=8,
-                         name=self.name,
-                         weightlb=2.44)
+        super().__init__(
+            caliber=Caliber.IN_45,
+            action=FiringAction.SemiAutomatic,
+            capacity=7,
+            range_falloff=0.4,
+            base_damage=8,
+            name=self.name,
+            weightlb=2.44,
+        )
 
 
 class APS(Pistol, SelectiveFire, FullyImplemented):
     """
     Based on the Stechkin automatic pistol (APS)
     """
+
     name: str = "Stechkin Automatic Pistol"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.MM_9,
-                         action=FiringAction.SemiAutomatic,
-                         capacity=20,
-                         range_falloff=.7,
-                         base_damage=4,
-                         name=self.name,
-                         weightlb=2.69)
+        super().__init__(
+            caliber=Caliber.MM_9,
+            action=FiringAction.SemiAutomatic,
+            capacity=20,
+            range_falloff=0.7,
+            base_damage=4,
+            name=self.name,
+            weightlb=2.69,
+        )
 
 
 class SMG(Firearm, MainHandEquipment, OffHandEquipment, ABC):
@@ -235,32 +264,38 @@ class PPSh41(SMG, SelectiveFire, FullyImplemented):
     """
     Based on the PPSh-41 (Shpagin machine pistol)
     """
+
     name: str = "PPSh-41 (Shpagin machine pistol)"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.MM_762,
-                         action=FiringAction.FullyAutomatic,
-                         capacity=35,
-                         range_falloff=.55,
-                         base_damage=7,
-                         name=self.name,
-                         weightlb=8.0)
+        super().__init__(
+            caliber=Caliber.MM_762,
+            action=FiringAction.FullyAutomatic,
+            capacity=35,
+            range_falloff=0.55,
+            base_damage=7,
+            name=self.name,
+            weightlb=8.0,
+        )
 
 
 class OwenSMG(SMG, FullyImplemented):
     """
     Based on the Owen Machine Carbine (Australian)
     """
+
     name: str = "Owen Machine Carbine"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.MM_9,
-                         action=FiringAction.FullyAutomatic,
-                         capacity=33,
-                         range_falloff=.7,
-                         base_damage=4,
-                         name=self.name,
-                         weightlb=9.33)
+        super().__init__(
+            caliber=Caliber.MM_9,
+            action=FiringAction.FullyAutomatic,
+            capacity=33,
+            range_falloff=0.7,
+            base_damage=4,
+            name=self.name,
+            weightlb=9.33,
+        )
 
 
 class Rifle(Firearm, MainHandEquipment, OffHandEquipment, ABC):
@@ -271,32 +306,38 @@ class AK47(Rifle, SelectiveFire, FullyImplemented):
     """
     Based on the AK-47
     """
+
     name: str = "AK-47"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.MM_762,
-                         action=FiringAction.FullyAutomatic,
-                         capacity=30,
-                         range_falloff=.35,
-                         base_damage=15,
-                         name=self.name,
-                         weightlb=7.7)
+        super().__init__(
+            caliber=Caliber.MM_762,
+            action=FiringAction.FullyAutomatic,
+            capacity=30,
+            range_falloff=0.35,
+            base_damage=15,
+            name=self.name,
+            weightlb=7.7,
+        )
 
 
 class HKG3(Rifle, SelectiveFire, FullyImplemented):
     """
     Based on the Heckler & Koch G3
     """
+
     name: str = "Heckler & Koch G3"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.MM_762,
-                         action=FiringAction.FullyAutomatic,
-                         capacity=20,
-                         range_falloff=.3,
-                         base_damage=14,
-                         name=self.name,
-                         weightlb=9.7)
+        super().__init__(
+            caliber=Caliber.MM_762,
+            action=FiringAction.FullyAutomatic,
+            capacity=20,
+            range_falloff=0.3,
+            base_damage=14,
+            name=self.name,
+            weightlb=9.7,
+        )
 
 
 class Jezail(Rifle, FullyImplemented):
@@ -304,16 +345,19 @@ class Jezail(Rifle, FullyImplemented):
     Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
     https://en.wikipedia.org/wiki/Jezail
     """
+
     name: str = "Jezail Musket"
 
     def __init__(self):
-        super().__init__(caliber=Caliber.BB,
-                         action=FiringAction.SingleShot,
-                         capacity=1,
-                         range_falloff=.3,
-                         base_damage=20,
-                         name=self.name,
-                         weightlb=12)
+        super().__init__(
+            caliber=Caliber.BB,
+            action=FiringAction.SingleShot,
+            capacity=1,
+            range_falloff=0.3,
+            base_damage=20,
+            name=self.name,
+            weightlb=12,
+        )
 
         self.player: Optional[Actors.PlayerCharacter] = None
 
@@ -327,7 +371,9 @@ class Jezail(Rifle, FullyImplemented):
 
     def calc_damage(self, distance: int) -> int:
         damage = super().calc_damage(distance)
-        if self.player and isinstance(self.player.location.terrain, GameSpace.MountainTerrain):
+        if self.player and isinstance(
+            self.player.location.terrain, GameSpace.MountainTerrain
+        ):
             damage *= 2
         return damage
 
@@ -352,11 +398,13 @@ class MachineGun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
         if self.mounted == new:  # no change; don't do anything
             return
         if not self.mountable:
-            raise AttributeError("Cannot change mounting status of unmountable MachineGun.")
+            raise AttributeError(
+                "Cannot change mounting status of unmountable MachineGun."
+            )
         if self.mounted:
-            self.range_falloff -= .1
+            self.range_falloff -= 0.1
         else:
-            self.range_falloff += .1
+            self.range_falloff += 0.1
         self._mounted = new
 
 
@@ -364,17 +412,20 @@ class FNMinimi(MachineGun, FullyImplemented):
     """
     Based on the FN Minimi
     """
+
     name: str = "FN Minimi"
 
     def __init__(self):
-        super().__init__(mountable=True,
-                         caliber=Caliber.MM_762,
-                         action=FiringAction.FullyAutomatic,
-                         capacity=100,
-                         range_falloff=.25,
-                         base_damage=13,
-                         name=self.name,
-                         weightlb=15.1)
+        super().__init__(
+            mountable=True,
+            caliber=Caliber.MM_762,
+            action=FiringAction.FullyAutomatic,
+            capacity=100,
+            range_falloff=0.25,
+            base_damage=13,
+            name=self.name,
+            weightlb=15.1,
+        )
 
 
 class Shotgun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
@@ -428,13 +479,10 @@ class BluntWeapon(MeleeWeapon, ABC):
 class Hammer(BluntWeapon, MainHandEquipment, FullyImplemented):
 
     def __init__(self):
-        super().__init__(cripple_chance=0.4,
-                         base_damage=10)
+        super().__init__(cripple_chance=0.4, base_damage=10)
 
 
 class Fist(BluntWeapon, MainHandEquipment, OffHandEquipment):
 
     def __init__(self):
-        super().__init__(base_value=0,
-                         cripple_chance=0.1,
-                         base_damage=2)
+        super().__init__(base_value=0, cripple_chance=0.1, base_damage=2)

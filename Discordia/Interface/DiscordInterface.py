@@ -13,15 +13,31 @@ from ConfigParser import DISCORD_PREFIX
 from Discordia.GameLogic import GameSpace
 from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTORS
 from Discordia.GameLogic.Items import Equipment
-from Discordia.Interface.WorldAdapter import WorldAdapter, AlreadyRegisteredException, NotRegisteredException, \
-    NotSpawnedException, InvalidSpaceException, NoWeaponEquippedException, RangedAttackException, CombatException
+from Discordia.Interface.WorldAdapter import (
+    WorldAdapter,
+    AlreadyRegisteredException,
+    NotRegisteredException,
+    NotSpawnedException,
+    InvalidSpaceException,
+    NoWeaponEquippedException,
+    RangedAttackException,
+    CombatException,
+)
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
 DIRECTION_CHOICES = [
     app_commands.Choice(name=name, value=key)
-    for name, key in [("north", 'n'), ("south", 's'), ("east", 'e'), ("west", 'w'),
-                      ("northeast", 'ne'), ("southeast", 'se'), ("southwest", 'sw'), ("northwest", 'nw')]
+    for name, key in [
+        ("north", "n"),
+        ("south", "s"),
+        ("east", "e"),
+        ("west", "w"),
+        ("northeast", "ne"),
+        ("southeast", "se"),
+        ("southwest", "sw"),
+        ("northwest", "nw"),
+    ]
 ]
 
 NO_STORE = "There's no store here. Find a town that has one."
@@ -30,8 +46,12 @@ NO_STORE = "There's no store here. Find a town that has one."
 def _character(interaction: discord.Interaction) -> Actors.PlayerCharacter:
     """The character behind an interaction. Checks only get the interaction, so dig the cog out of the command."""
     cog = getattr(interaction.command, "binding", None)
-    assert isinstance(cog, DiscordInterface), "check used outside the DiscordInterface cog"
-    return cog.world_adapter.get_player(interaction.user.id)  # raises NotRegisteredException
+    assert isinstance(
+        cog, DiscordInterface
+    ), "check used outside the DiscordInterface cog"
+    return cog.world_adapter.get_player(
+        interaction.user.id
+    )  # raises NotRegisteredException
 
 
 def requires_character():
@@ -50,7 +70,9 @@ def requires_space(space_type: type[GameSpace.Space]):
 
     async def predicate(interaction: discord.Interaction) -> bool:
         if not isinstance(_character(interaction).location, space_type):
-            raise InvalidSpaceException(f"You need to be in a {space_type.__name__.lower()} to do that.")
+            raise InvalidSpaceException(
+                f"You need to be in a {space_type.__name__.lower()} to do that."
+            )
         return True
 
     return app_commands.check(predicate)
@@ -70,12 +92,20 @@ async def _send(interaction: discord.Interaction, content: str, **kwargs):
 
 
 class DiscordInterface(commands.Cog):
-    inventory = app_commands.Group(name="inventory", description="Look at and equip the items you're carrying")
-    town = app_commands.Group(name="town", description="Interact with the town you're standing in")
-    store = app_commands.Group(name="store", description="Buy and sell items", parent=town)
+    inventory = app_commands.Group(
+        name="inventory", description="Look at and equip the items you're carrying"
+    )
+    town = app_commands.Group(
+        name="town", description="Interact with the town you're standing in"
+    )
+    store = app_commands.Group(
+        name="store", description="Buy and sell items", parent=town
+    )
 
     def __init__(self, world_adapter: WorldAdapter):
-        self.bot: commands.Bot = commands.Bot(command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default())
+        self.bot: commands.Bot = commands.Bot(
+            command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default()
+        )
         # ponytail: attribute override instead of a Bot subclass; subclass it if the bot needs more hooks
         self.bot.setup_hook = self._setup_hook
         self.world_adapter: WorldAdapter = world_adapter
@@ -83,7 +113,9 @@ class DiscordInterface(commands.Cog):
     async def _setup_hook(self):
         await self.bot.add_cog(self)
         synced = await self.bot.tree.sync()
-        LOG.info(f"Synced {len(synced)} slash commands (global commands can take up to an hour to appear).")
+        LOG.info(
+            f"Synced {len(synced)} slash commands (global commands can take up to an hour to appear)."
+        )
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -92,7 +124,9 @@ class DiscordInterface(commands.Cog):
             return
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
 
-    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    async def cog_app_command_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ):
         """One handler for every game exception, instead of the same try/except in every command."""
         error = getattr(error, "original", error)
         if isinstance(error, NotRegisteredException):
@@ -110,7 +144,10 @@ class DiscordInterface(commands.Cog):
         elif isinstance(error, CombatException):
             msg = f"Attack failed: {error}"
         else:
-            LOG.error(f"Unhandled error in /{interaction.command.name if interaction.command else '?'}", exc_info=error)
+            LOG.error(
+                f"Unhandled error in /{interaction.command.name if interaction.command else '?'}",
+                exc_info=error,
+            )
             msg = "Something went wrong on the server."
         LOG.warning(f"{interaction.user.display_name}: {type(error).__name__}")
         await _send(interaction, msg, ephemeral=True)
@@ -119,9 +156,13 @@ class DiscordInterface(commands.Cog):
         return self.world_adapter.get_player(interaction.user.id)
 
     @app_commands.command()
-    async def register(self, interaction: discord.Interaction, name: app_commands.Range[str, 1, 32]):
+    async def register(
+        self, interaction: discord.Interaction, name: app_commands.Range[str, 1, 32]
+    ):
         """*START HERE* Make a new character in the world"""
-        LOG.info(f"/register called by {interaction.user.display_name}: <{interaction.user.id}>")
+        LOG.info(
+            f"/register called by {interaction.user.display_name}: <{interaction.user.id}>"
+        )
         self.world_adapter.register_player(interaction.user.id, player_name=name)
         await _send(interaction, f"Welcome, {name}! Good luck out there, comrade!")
 
@@ -130,9 +171,9 @@ class DiscordInterface(commands.Cog):
     async def equipment(self, interaction: discord.Interaction):
         """List all equipped items on character"""
         character = self._player(interaction)
-        await _send(interaction, f"Equipment: \n"
-                                 f"---------- \n"
-                                 f"{character.equipment_set}")
+        await _send(
+            interaction, f"Equipment: \n" f"---------- \n" f"{character.equipment_set}"
+        )
 
     @app_commands.command()
     @requires_character()
@@ -147,11 +188,18 @@ class DiscordInterface(commands.Cog):
             msg += f"You are also in the wilds, {character.location.name}. "
         nearby_npcs = self.world_adapter.get_nearby_npcs(character)
         if nearby_npcs:
-            msg += "There are some NPCs nearby: \n" + ", ".join([str(npc) for npc in nearby_npcs])
+            msg += "There are some NPCs nearby: \n" + ", ".join(
+                [str(npc) for npc in nearby_npcs]
+            )
         nearby_players = self.world_adapter.get_nearby_players(character)
         if len(nearby_players) > 1:
-            msg += "\nThere are also some Players nearby: \n" + \
-                   ", ".join([player.name for player in nearby_players if player.name != character.name])
+            msg += "\nThere are also some Players nearby: \n" + ", ".join(
+                [
+                    player.name
+                    for player in nearby_players
+                    if player.name != character.name
+                ]
+            )
         screenshot_path = self.world_adapter.get_player_screenshot(character)
         files = [discord.File(screenshot_path)] if screenshot_path else []
         await interaction.followup.send(msg, files=files)
@@ -159,17 +207,20 @@ class DiscordInterface(commands.Cog):
     @app_commands.command()
     @app_commands.choices(direction=DIRECTION_CHOICES)
     @requires_character()
-    async def move(self, interaction: discord.Interaction, direction: app_commands.Choice[str]):
+    async def move(
+        self, interaction: discord.Interaction, direction: app_commands.Choice[str]
+    ):
         """Move your character one space in the given direction"""
         await interaction.response.defer()
         character = self._player(interaction)
-        results: List[PlayerActionResponse] = self.world_adapter.move_player(character,
-                                                                            DIRECTION_VECTORS[direction.value])
+        results: List[PlayerActionResponse] = self.world_adapter.move_player(
+            character, DIRECTION_VECTORS[direction.value]
+        )
         msg = ""
         # If any Events happen, let the PC know step-by-step
         for r in results:
             if r.text:
-                msg += (r.text + '\n')
+                msg += r.text + "\n"
             if not r.is_successful:
                 break
 
@@ -179,22 +230,26 @@ class DiscordInterface(commands.Cog):
             msg = f"You move {direction.name}."
         # Break message up so Discord can send everything.
         for i in range(0, len(msg), 2000):
-            await interaction.followup.send(msg[i:i + 2000])
+            await interaction.followup.send(msg[i : i + 2000])
 
     @app_commands.command()
     @app_commands.choices(direction=DIRECTION_CHOICES)
     @requires_character()
-    async def attack(self, interaction: discord.Interaction, direction: app_commands.Choice[str]):
+    async def attack(
+        self, interaction: discord.Interaction, direction: app_commands.Choice[str]
+    ):
         """Attack; give a direction for a ranged attack"""
         character = self._player(interaction)
         response: PlayerActionResponse = self.world_adapter.attack(
-            character,
-            DIRECTION_VECTORS[direction.value]
+            character, DIRECTION_VECTORS[direction.value]
         )
         target_name = response.target.name if response.target else "nobody"
-        await _send(interaction, f"{character.name} deals {response.damage} to {target_name}.\n"
-                                 f"\n"
-                                 f" {response.text}")
+        await _send(
+            interaction,
+            f"{character.name} deals {response.damage} to {target_name}.\n"
+            f"\n"
+            f" {response.text}",
+        )
 
     @inventory.command(name="list")
     @requires_character()
@@ -273,7 +328,10 @@ class DiscordInterface(commands.Cog):
         if store is None:
             await _send(interaction, NO_STORE)
         elif not store.inventory:
-            await _send(interaction, "There are no items in the store at the moment. Please try again later.")
+            await _send(
+                interaction,
+                "There are no items in the store at the moment. Please try again later.",
+            )
         else:
             msg = "Index\tName\tPrice\tCount\n"
             for idx, item in enumerate(store.inventory):

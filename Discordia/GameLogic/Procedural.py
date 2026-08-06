@@ -17,8 +17,8 @@ def normal(avg, positive=False, integer=False, spread=1.0):
 @dataclass
 class WorldGenerationParameters:
     resolution_constant: float = 0.2
-    water: float = .075
-    grass: float = .3
-    mountains: float = .4
-    wilds: float = .1
-    towns: float = .003
+    water: float = 0.075
+    grass: float = 0.3
+    mountains: float = 0.4
+    wilds: float = 0.1
+    towns: float = 0.003
