@@ -127,6 +127,38 @@ def test_space_check_passes_inside_a_town():
     assert run_checks(command, interaction)
 
 
+def test_jobs_run_on_the_bots_event_loop():
+    ticks = []
+    interface = DiscordInterface(
+        world_adapter=cast(WorldAdapter, None),
+        jobs=[(0.01, lambda: ticks.append(1), "Test job")],
+    )
+
+    async def run_a_few_ticks():
+        interface._start_job(*interface.jobs[0])
+        await asyncio.sleep(0.05)
+
+    asyncio.run(run_a_few_ticks())
+    assert len(ticks) > 1
+
+
+def test_a_failing_job_keeps_ticking():
+    calls = []
+
+    def boom():
+        calls.append(1)
+        raise RuntimeError("job blew up")
+
+    interface = DiscordInterface(world_adapter=cast(WorldAdapter, None))
+
+    async def run_a_few_ticks():
+        interface._start_job(0.01, boom, "Exploding job")
+        await asyncio.sleep(0.05)
+
+    asyncio.run(run_a_few_ticks())
+    assert len(calls) > 1
+
+
 if __name__ == "__main__":
     test_slash_commands_registered()
     test_every_command_but_register_requires_a_character()

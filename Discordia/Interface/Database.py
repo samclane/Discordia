@@ -87,8 +87,8 @@ class Database:
     """Loads and saves the whole server. Cheap enough to call save() on a timer; see main.py."""
 
     def __init__(self, path: Path | str = DEFAULT_PATH):
-        # check_same_thread=False: the autosave thread and the shutdown save use the same connection, and sqlite
-        # serializes them for us.
+        # check_same_thread=False: the periodic autosave runs on the bot's event loop and the shutdown save
+        # doesn't, so the same connection gets used from more than one thread. sqlite serializes them for us.
         self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")

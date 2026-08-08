@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 import argparse
 
 import ConfigParser
@@ -15,17 +14,6 @@ logging.basicConfig(level=logging.INFO)
 
 AUTOSAVE_SECONDS = 60
 TICK_SECONDS = 5
-
-
-def every(seconds: float, action, name: str):
-    # ponytail: a plain timer loop, so a crash loses at most AUTOSAVE_SECONDS of play, and ticks
-    # drift by however long the action took. Both fine at these intervals.
-    while True:
-        time.sleep(seconds)
-        try:
-            action()
-        except Exception:
-            LOG.exception("%s failed", name)
 
 
 def main():
@@ -51,17 +39,12 @@ def main():
     display = WindowRenderer(adapter)
 
     threading.Thread(target=update_display, args=(display, args.show_window), daemon=True).start()
-    threading.Thread(
-        target=every,
-        args=(AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave"),
-        daemon=True,
-    ).start()
-    threading.Thread(
-        target=every,
-        args=(TICK_SECONDS, adapter.world.tick, "World tick"),
-        daemon=True,
-    ).start()
-    discord_interface = DiscordInterface(adapter)
+    # Both jobs run on the bot's event loop, in lockstep with the commands: no locking needed, and a
+    # crash loses at most AUTOSAVE_SECONDS of play.
+    discord_interface = DiscordInterface(adapter, jobs=[
+        (TICK_SECONDS, adapter.world.tick, "World tick"),
+        (AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave"),
+    ])
     # discord_interface.bot.loop.create_task(update_display(display))
     # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")

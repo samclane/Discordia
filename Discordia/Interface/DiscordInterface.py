@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List, cast
+from typing import Callable, List, Sequence, Tuple, cast
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import Discordia.GameLogic.Actors as Actors
 from ConfigParser import DISCORD_PREFIX
@@ -102,16 +102,43 @@ class DiscordInterface(commands.Cog):
         name="store", description="Buy and sell items", parent=town
     )
 
-    def __init__(self, world_adapter: WorldAdapter):
+    def __init__(
+        self,
+        world_adapter: WorldAdapter,
+        jobs: Sequence[Tuple[float, Callable[[], None], str]] = (),
+    ):
+        """`jobs` are (seconds, action, name) triples run periodically alongside the commands."""
         self.bot: commands.Bot = commands.Bot(
             command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default()
         )
         # ponytail: attribute override instead of a Bot subclass; subclass it if the bot needs more hooks
         self.bot.setup_hook = self._setup_hook
         self.world_adapter: WorldAdapter = world_adapter
+        self.jobs = jobs
+        self._job_loops: List[tasks.Loop] = (
+            []
+        )  # kept alive; a Loop nobody holds gets collected
+
+    def _start_job(self, seconds: float, action: Callable[[], None], name: str):
+        """Run `action` every `seconds` on the bot's event loop: same thread as the commands, so no locking.
+
+        Each job blocks command handling while it runs, which is why they're all short and synchronous.
+        """
+
+        @tasks.loop(seconds=seconds)
+        async def job():
+            try:
+                action()
+            except Exception:
+                LOG.exception("%s failed", name)
+
+        job.start()
+        self._job_loops.append(job)
 
     async def _setup_hook(self):
         await self.bot.add_cog(self)
+        for seconds, action, name in self.jobs:
+            self._start_job(seconds, action, name)
         synced = await self.bot.tree.sync()
         LOG.info(
             f"Synced {len(synced)} slash commands (global commands can take up to an hour to appear)."
