@@ -39,12 +39,13 @@ def main():
     display = WindowRenderer(adapter)
 
     threading.Thread(target=update_display, args=(display, args.show_window), daemon=True).start()
-    # Both jobs run on the bot's event loop, in lockstep with the commands: no locking needed, and a
-    # crash loses at most AUTOSAVE_SECONDS of play.
-    discord_interface = DiscordInterface(adapter, jobs=[
-        (TICK_SECONDS, adapter.world.tick, "World tick"),
-        (AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave"),
-    ])
+    # The tick and the autosave run on the bot's event loop, in lockstep with the commands: no locking
+    # needed, and a crash loses at most AUTOSAVE_SECONDS of play.
+    discord_interface = DiscordInterface(
+        adapter,
+        jobs=[(AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave")],
+        tick_seconds=TICK_SECONDS,
+    )
     # discord_interface.bot.loop.create_task(update_display(display))
     # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")

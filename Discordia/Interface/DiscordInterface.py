@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 import time
-from typing import Callable, List, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
 
 import discord
 from discord import app_commands
@@ -41,6 +43,10 @@ DIRECTION_CHOICES = [
 ]
 
 NO_STORE = "There's no store here. Find a town that has one."
+
+SUPERSEDED = (
+    object()
+)  # what an order resolves to when the player replaces it before the tick
 
 
 def _character(interaction: discord.Interaction) -> Actors.PlayerCharacter:
@@ -106,6 +112,7 @@ class DiscordInterface(commands.Cog):
         self,
         world_adapter: WorldAdapter,
         jobs: Sequence[Tuple[float, Callable[[], None], str]] = (),
+        tick_seconds: float = 5.0,
     ):
         """`jobs` are (seconds, action, name) triples run periodically alongside the commands."""
         self.bot: commands.Bot = commands.Bot(
@@ -115,9 +122,13 @@ class DiscordInterface(commands.Cog):
         self.bot.setup_hook = self._setup_hook
         self.world_adapter: WorldAdapter = world_adapter
         self.jobs = jobs
+        self.tick_seconds = tick_seconds
         self._job_loops: List[tasks.Loop] = (
             []
         )  # kept alive; a Loop nobody holds gets collected
+        self._orders: Dict[
+            Actors.PlayerCharacter, Tuple[Callable[[], Any], asyncio.Future]
+        ] = {}
 
     def _start_job(self, seconds: float, action: Callable[[], None], name: str):
         """Run `action` every `seconds` on the bot's event loop: same thread as the commands, so no locking.
@@ -135,8 +146,36 @@ class DiscordInterface(commands.Cog):
         job.start()
         self._job_loops.append(job)
 
+    def order(
+        self, character: Actors.PlayerCharacter, action: Callable[[], Any]
+    ) -> asyncio.Future:
+        """Hold a world-changing action until the next tick, and hand back its eventual result.
+
+        One order per character: typing a second one before the tick replaces the first, whose command
+        gets SUPERSEDED back. Spamming a command therefore buys nothing but a change of mind.
+        """
+        _, previous = self._orders.pop(character, (None, None))
+        if previous is not None and not previous.done():
+            previous.set_result(SUPERSEDED)
+        future = asyncio.get_running_loop().create_future()
+        self._orders[character] = (action, future)
+        return future
+
+    def tick(self):
+        """Resolve everyone's orders, then let the world act. Same-tick orders resolve in random order."""
+        orders, self._orders = self._orders, {}
+        for action, future in random.sample(list(orders.values()), len(orders)):
+            if future.done():  # the command that asked for it went away
+                continue
+            try:
+                future.set_result(action())
+            except Exception as exc:
+                future.set_exception(exc)
+        self.world_adapter.world.tick()
+
     async def _setup_hook(self):
         await self.bot.add_cog(self)
+        self._start_job(self.tick_seconds, self.tick, "World tick")
         for seconds, action, name in self.jobs:
             self._start_job(seconds, action, name)
         synced = await self.bot.tree.sync()
@@ -237,12 +276,19 @@ class DiscordInterface(commands.Cog):
     async def move(
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
-        """Move your character one space in the given direction"""
+        """Move your character one space in the given direction, resolved on the next tick"""
         await interaction.response.defer()
         character = self._player(interaction)
-        results: List[PlayerActionResponse] = self.world_adapter.move_player(
-            character, DIRECTION_VECTORS[direction.value]
+        results = await self.order(
+            character,
+            lambda: self.world_adapter.move_player(
+                character, DIRECTION_VECTORS[direction.value]
+            ),
         )
+        if results is SUPERSEDED:
+            await interaction.followup.send("You change your mind before setting off.")
+            return
+        results = cast(List[PlayerActionResponse], results)
         msg = ""
         # If any Events happen, let the PC know step-by-step
         for r in results:
@@ -265,11 +311,19 @@ class DiscordInterface(commands.Cog):
     async def attack(
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
-        """Attack; give a direction for a ranged attack"""
+        """Attack, resolved on the next tick; give a direction for a ranged attack"""
+        await interaction.response.defer()
         character = self._player(interaction)
-        response: PlayerActionResponse = self.world_adapter.attack(
-            character, DIRECTION_VECTORS[direction.value]
+        response = await self.order(
+            character,
+            lambda: self.world_adapter.attack(
+                character, DIRECTION_VECTORS[direction.value]
+            ),
         )
+        if response is SUPERSEDED:
+            await interaction.followup.send("You hold your fire.")
+            return
+        response = cast(PlayerActionResponse, response)
         target_name = response.target.name if response.target else "nobody"
         await _send(
             interaction,

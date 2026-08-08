@@ -5,8 +5,8 @@ from typing import cast
 import pytest
 from discord import app_commands
 
-from Discordia.GameLogic import GameSpace
-from Discordia.Interface.DiscordInterface import DiscordInterface
+from Discordia.GameLogic import Actors, GameSpace
+from Discordia.Interface.DiscordInterface import SUPERSEDED, DiscordInterface
 from Discordia.Interface.WorldAdapter import (
     InvalidSpaceException,
     NotRegisteredException,
@@ -125,6 +125,72 @@ def test_space_check_passes_inside_a_town():
         SimpleNamespace(registered=True, location=town), "town inn"
     )
     assert run_checks(command, interaction)
+
+
+PLAYER = cast(Actors.PlayerCharacter, "a player")  # orders only ever key on identity
+
+
+def ticking_interface(on_world_tick=lambda: None) -> DiscordInterface:
+    """A cog whose world does nothing but record that it ticked."""
+    adapter = SimpleNamespace(world=SimpleNamespace(tick=on_world_tick))
+    return DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
+
+
+def test_orders_wait_for_the_tick_instead_of_resolving_when_typed():
+    done = []
+    interface = ticking_interface()
+
+    async def scenario():
+        future = interface.order(PLAYER, lambda: done.append("moved") or "arrived")
+        assert not done, "the order ran before the tick"
+        interface.tick()
+        assert await future == "arrived"
+
+    asyncio.run(scenario())
+    assert done == ["moved"]
+
+
+def test_a_second_order_replaces_the_first_so_spamming_buys_nothing():
+    ran = []
+    interface = ticking_interface()
+
+    async def scenario():
+        first = interface.order(PLAYER, lambda: ran.append("north"))
+        second = interface.order(PLAYER, lambda: ran.append("south"))
+        interface.tick()
+        assert await first is SUPERSEDED
+        assert await second is None
+
+    asyncio.run(scenario())
+    assert ran == ["south"]
+
+
+def test_orders_resolve_before_the_world_acts():
+    sequence = []
+    interface = ticking_interface(on_world_tick=lambda: sequence.append("world"))
+
+    async def scenario():
+        future = interface.order(PLAYER, lambda: sequence.append("player"))
+        interface.tick()
+        await future
+
+    asyncio.run(scenario())
+    assert sequence == ["player", "world"]
+
+
+def test_a_rejected_order_raises_in_the_command_that_asked_for_it():
+    interface = ticking_interface()
+
+    async def scenario():
+        def blocked():
+            raise InvalidSpaceException("You can't go that way.")
+
+        future = interface.order(PLAYER, blocked)
+        interface.tick()
+        with pytest.raises(InvalidSpaceException):
+            await future
+
+    asyncio.run(scenario())
 
 
 def test_jobs_run_on_the_bots_event_loop():
