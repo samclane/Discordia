@@ -703,6 +703,7 @@ class World:
         self.map[wilds.y][wilds.x] = wilds
 
     def add_actor(self, actor: Actors.Actor, space: Space | None = None):
+        actor.parent_world = self
         if isinstance(actor, Actors.PlayerCharacter):
             actor.location = self.starting_town
             self.players.append(actor)
@@ -779,6 +780,20 @@ class World:
                 loc = self.map[loc.y][loc.x]
                 dmg = weapon.calc_damage(int(player_character.location.distance(loc)))
         return response
+
+    def tick(self):
+        """One step of world time: NPCs spawn, wander and fight without any player input."""
+        # ponytail: no lock. Discord commands mutate the world from the bot's thread too, so a
+        # tick can interleave with a command. Wrap both in one world lock if that ever misfires.
+        self.npcs = [npc for npc in self.npcs if not npc.is_dead]
+        if self.wilds and len(self.npcs) < len(self.wilds):
+            self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
+        for npc in self.npcs:
+            targets = [p for p in self.players if p.location == npc.location]
+            if targets:
+                npc.brain.update(random.choice(targets))
+            else:
+                npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
         LOG.info(f"Player {player.name} has died")

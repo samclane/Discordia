@@ -552,3 +552,54 @@ def test_a_player_sees_their_own_neighbourhood(adapter):
 
 def test_screenshots_degrade_gracefully_without_a_renderer(adapter):
     assert adapter.get_player_screenshot(adapter.get_player(1)) == "<No Renderer>"
+
+
+# --- World tick: NPCs act on real time, not on player input ------------------------------------
+
+
+def test_ticking_spawns_npcs_and_moves_them_without_the_player(adapter):
+    world = adapter.world
+    assert not world.npcs
+
+    world.tick()
+    assert len(world.npcs) == 1
+    npc = world.npcs[0]
+    assert npc.parent_world is world
+    assert world.is_space_valid(npc.location)
+
+    # Somewhere with room to walk, so "it never moved" means the tick is broken, not that it's boxed in
+    npc.location = next(
+        space
+        for space in adapter.iter_spaces()
+        if all(
+            world.is_space_valid(neighbor)
+            for neighbor in world.get_adjacent_spaces(space)
+        )
+    )
+    start = npc.location
+    seen = {start}
+    for _ in range(50):
+        world.tick()
+        seen.add(npc.location)
+        assert world.is_space_valid(npc.location)
+    assert len(seen) > 1
+
+
+def test_a_tick_lets_an_npc_hit_a_player_sharing_its_space(adapter):
+    world = adapter.world
+    player = adapter.get_player(1)
+    npc = Actors.Raider(world, 50, "Mugger")
+    world.add_actor(npc, player.location)
+
+    world.tick()
+    assert player.hit_points < player.hit_points_max
+
+
+def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
+    world = adapter.world
+    npc = Actors.Raider(world, 1, "Doomed")
+    world.add_actor(npc, world.starting_town)
+    npc.take_damage(10)
+
+    world.tick()
+    assert npc not in world.npcs

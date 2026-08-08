@@ -14,17 +14,18 @@ LOG = logging.getLogger("Discordia")
 logging.basicConfig(level=logging.INFO)
 
 AUTOSAVE_SECONDS = 60
+TICK_SECONDS = 5
 
 
-def autosave(database: Database, adapter: WorldAdapter):
-    # ponytail: a plain timer loop, so a crash loses at most AUTOSAVE_SECONDS of play. Save on each mutating
-    # command instead if that ever costs someone a real purchase.
+def every(seconds: float, action, name: str):
+    # ponytail: a plain timer loop, so a crash loses at most AUTOSAVE_SECONDS of play, and ticks
+    # drift by however long the action took. Both fine at these intervals.
     while True:
-        time.sleep(AUTOSAVE_SECONDS)
+        time.sleep(seconds)
         try:
-            database.save(adapter)
+            action()
         except Exception:
-            LOG.exception("Autosave failed")
+            LOG.exception("%s failed", name)
 
 
 def main():
@@ -50,7 +51,16 @@ def main():
     display = WindowRenderer(adapter)
 
     threading.Thread(target=update_display, args=(display, args.show_window), daemon=True).start()
-    threading.Thread(target=autosave, args=(database, adapter), daemon=True).start()
+    threading.Thread(
+        target=every,
+        args=(AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave"),
+        daemon=True,
+    ).start()
+    threading.Thread(
+        target=every,
+        args=(TICK_SECONDS, adapter.world.tick, "World tick"),
+        daemon=True,
+    ).start()
     discord_interface = DiscordInterface(adapter)
     # discord_interface.bot.loop.create_task(update_display(display))
     # threading.Thread(target=discord_interface.bot.run, args=(ConfigParser.DISCORD_TOKEN,), daemon=True).start()
