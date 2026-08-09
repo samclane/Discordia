@@ -5,7 +5,7 @@ import inspect
 import logging
 import random
 import time
-from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, Iterator, List, Sequence, Tuple, cast
 
 import discord
 from discord import app_commands
@@ -88,6 +88,12 @@ def requires_space(space_type: type[GameSpace.Space]):
 def _town_of(character: Actors.PlayerCharacter) -> GameSpace.Town:
     """The town the character is standing in. Only valid under @requires_space(GameSpace.Town)."""
     return cast(GameSpace.Town, character.location)
+
+
+def _chunks(text: str, size: int = 2000) -> Iterator[str]:
+    """Discord rejects any message over 2000 characters."""
+    for start in range(0, len(text), size):
+        yield text[start : start + size]
 
 
 async def _send(interaction: discord.Interaction, content: str, **kwargs):
@@ -175,17 +181,23 @@ class DiscordInterface(commands.Cog):
                 future.set_result(action())
             except Exception as exc:
                 future.set_exception(exc)
+        # One DM per player per tick, however many NPCs piled on: Discord rate-limits, players tilt.
+        news: Dict[Actors.Actor, List[str]] = {}
         for event in self.world_adapter.world.tick():
-            await self._dm(event.target, event.text)
+            if event.target is not None:
+                news.setdefault(event.target, []).append(event.text)
+        for character, lines in news.items():
+            await self._dm(character, "\n".join(lines))
 
-    async def _dm(self, character: Actors.Actor | None, text: str):
+    async def _dm(self, character: Actors.Actor, text: str):
         """Tell a player something that happened while they weren't looking. Best effort: DMs can be closed."""
-        member_id = self.world_adapter.get_member_id(character) if character else None
+        member_id = self.world_adapter.get_member_id(character)
         if member_id is None:
             return
         try:
             user = self.bot.get_user(member_id) or await self.bot.fetch_user(member_id)
-            await user.send(text)
+            for chunk in _chunks(text):
+                await user.send(chunk)
         except discord.HTTPException:  # closed DMs, blocked bot, deleted account
             LOG.info("Could not DM %s", member_id)
 
@@ -317,9 +329,8 @@ class DiscordInterface(commands.Cog):
 
         if not msg:
             msg = f"You move {direction.name}."
-        # Break message up so Discord can send everything.
-        for i in range(0, len(msg), 2000):
-            await interaction.followup.send(msg[i : i + 2000])
+        for chunk in _chunks(msg):
+            await interaction.followup.send(chunk)
 
     @app_commands.command()
     @app_commands.choices(direction=DIRECTION_CHOICES)

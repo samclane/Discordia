@@ -224,6 +224,35 @@ def test_a_player_gets_dmd_about_what_happened_while_they_werent_looking():
     assert sent == ["A raider hits you."]
 
 
+def test_a_tick_full_of_npcs_is_one_dm_not_ten():
+    sent = []
+    interface = ticking_interface(
+        on_world_tick=lambda: [
+            GameSpace.PlayerActionResponse(target=PLAYER, text=f"Raider {i} hits you.")
+            for i in range(10)
+        ]
+    )
+    stub_user(interface, sent)
+
+    asyncio.run(interface.tick())
+    assert len(sent) == 1
+    assert sent[0].splitlines() == [f"Raider {i} hits you." for i in range(10)]
+
+
+def test_an_oversized_batch_is_split_to_discords_limit():
+    sent = []
+    interface = ticking_interface(
+        on_world_tick=lambda: [
+            GameSpace.PlayerActionResponse(target=PLAYER, text="x" * 1500)
+            for _ in range(2)
+        ]
+    )
+    stub_user(interface, sent)
+
+    asyncio.run(interface.tick())
+    assert [len(chunk) for chunk in sent] == [2000, 1001]  # 1500 + "\n" + 1500
+
+
 def test_a_closed_dm_doesnt_take_the_tick_down():
     sent = []
     interface = ticking_interface(on_world_tick=hit_by_an_npc)
