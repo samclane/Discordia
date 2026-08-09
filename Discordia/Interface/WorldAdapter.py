@@ -105,6 +105,17 @@ class WorldAdapter:
 
         return self._discord_player_map[member_id]
 
+    def get_member_id(self, character: Actors.Actor) -> int | None:
+        """Who plays this character, or None if it isn't a registered player's."""
+        return next(
+            (
+                member_id
+                for member_id, player in self._discord_player_map.items()
+                if player is character
+            ),
+            None,
+        )
+
     def is_town(self, location: Space) -> bool:
         return isinstance(self.world.map[location.y][location.x], Town)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import random
 import time
@@ -130,16 +131,19 @@ class DiscordInterface(commands.Cog):
             Actors.PlayerCharacter, Tuple[Callable[[], Any], asyncio.Future]
         ] = {}
 
-    def _start_job(self, seconds: float, action: Callable[[], None], name: str):
+    def _start_job(self, seconds: float, action: Callable[[], Any], name: str):
         """Run `action` every `seconds` on the bot's event loop: same thread as the commands, so no locking.
 
-        Each job blocks command handling while it runs, which is why they're all short and synchronous.
+        Each job blocks command handling while it runs, which is why they're all short. A job may be
+        a coroutine function; the tick is one, because it sends DMs.
         """
 
         @tasks.loop(seconds=seconds)
         async def job():
             try:
-                action()
+                result = action()
+                if inspect.isawaitable(result):
+                    await result
             except Exception:
                 LOG.exception("%s failed", name)
 
@@ -161,7 +165,7 @@ class DiscordInterface(commands.Cog):
         self._orders[character] = (action, future)
         return future
 
-    def tick(self):
+    async def tick(self):
         """Resolve everyone's orders, then let the world act. Same-tick orders resolve in random order."""
         orders, self._orders = self._orders, {}
         for action, future in random.sample(list(orders.values()), len(orders)):
@@ -171,7 +175,19 @@ class DiscordInterface(commands.Cog):
                 future.set_result(action())
             except Exception as exc:
                 future.set_exception(exc)
-        self.world_adapter.world.tick()
+        for event in self.world_adapter.world.tick():
+            await self._dm(event.target, event.text)
+
+    async def _dm(self, character: Actors.Actor | None, text: str):
+        """Tell a player something that happened while they weren't looking. Best effort: DMs can be closed."""
+        member_id = self.world_adapter.get_member_id(character) if character else None
+        if member_id is None:
+            return
+        try:
+            user = self.bot.get_user(member_id) or await self.bot.fetch_user(member_id)
+            await user.send(text)
+        except discord.HTTPException:  # closed DMs, blocked bot, deleted account
+            LOG.info("Could not DM %s", member_id)
 
     async def _setup_hook(self):
         await self.bot.add_cog(self)

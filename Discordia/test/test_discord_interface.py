@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from typing import cast
 
+import discord
 import pytest
 from discord import app_commands
 
@@ -130,9 +131,11 @@ def test_space_check_passes_inside_a_town():
 PLAYER = cast(Actors.PlayerCharacter, "a player")  # orders only ever key on identity
 
 
-def ticking_interface(on_world_tick=lambda: None) -> DiscordInterface:
-    """A cog whose world does nothing but record that it ticked."""
-    adapter = SimpleNamespace(world=SimpleNamespace(tick=on_world_tick))
+def ticking_interface(on_world_tick=lambda: []) -> DiscordInterface:
+    """A cog whose world does nothing but record that it ticked and report its events."""
+    adapter = SimpleNamespace(
+        world=SimpleNamespace(tick=on_world_tick), get_member_id=lambda character: 7
+    )
     return DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
 
 
@@ -143,7 +146,7 @@ def test_orders_wait_for_the_tick_instead_of_resolving_when_typed():
     async def scenario():
         future = interface.order(PLAYER, lambda: done.append("moved") or "arrived")
         assert not done, "the order ran before the tick"
-        interface.tick()
+        await interface.tick()
         assert await future == "arrived"
 
     asyncio.run(scenario())
@@ -157,7 +160,7 @@ def test_a_second_order_replaces_the_first_so_spamming_buys_nothing():
     async def scenario():
         first = interface.order(PLAYER, lambda: ran.append("north"))
         second = interface.order(PLAYER, lambda: ran.append("south"))
-        interface.tick()
+        await interface.tick()
         assert await first is SUPERSEDED
         assert await second is None
 
@@ -167,11 +170,11 @@ def test_a_second_order_replaces_the_first_so_spamming_buys_nothing():
 
 def test_orders_resolve_before_the_world_acts():
     sequence = []
-    interface = ticking_interface(on_world_tick=lambda: sequence.append("world"))
+    interface = ticking_interface(on_world_tick=lambda: sequence.append("world") or [])
 
     async def scenario():
         future = interface.order(PLAYER, lambda: sequence.append("player"))
-        interface.tick()
+        await interface.tick()
         await future
 
     asyncio.run(scenario())
@@ -186,11 +189,49 @@ def test_a_rejected_order_raises_in_the_command_that_asked_for_it():
             raise InvalidSpaceException("You can't go that way.")
 
         future = interface.order(PLAYER, blocked)
-        interface.tick()
+        await interface.tick()
         with pytest.raises(InvalidSpaceException):
             await future
 
     asyncio.run(scenario())
+
+
+def stub_user(interface: DiscordInterface, sent: list, raises=None):
+    """Point the bot's user lookup at a recorder, so a DM lands in `sent` instead of on Discord."""
+
+    async def send(text):
+        if raises is not None:
+            raise raises
+        sent.append(text)
+
+    interface.bot.get_user = lambda member_id: SimpleNamespace(send=send)  # type: ignore[method-assign]
+
+
+def hit_by_an_npc():
+    return [
+        GameSpace.PlayerActionResponse(
+            is_successful=True, damage=2, target=PLAYER, text="A raider hits you."
+        )
+    ]
+
+
+def test_a_player_gets_dmd_about_what_happened_while_they_werent_looking():
+    sent = []
+    interface = ticking_interface(on_world_tick=hit_by_an_npc)
+    stub_user(interface, sent)
+
+    asyncio.run(interface.tick())
+    assert sent == ["A raider hits you."]
+
+
+def test_a_closed_dm_doesnt_take_the_tick_down():
+    sent = []
+    interface = ticking_interface(on_world_tick=hit_by_an_npc)
+    closed_dms = SimpleNamespace(status=403, reason="Forbidden")
+    stub_user(interface, sent, raises=discord.HTTPException(closed_dms, "DMs closed"))  # type: ignore[arg-type]
+
+    asyncio.run(interface.tick())  # the exception stays inside _dm
+    assert sent == []
 
 
 def test_jobs_run_on_the_bots_event_loop():

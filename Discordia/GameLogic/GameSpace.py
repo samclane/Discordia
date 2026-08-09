@@ -781,19 +781,38 @@ class World:
                 dmg = weapon.calc_damage(int(player_character.location.distance(loc)))
         return response
 
-    def tick(self):
-        """One step of world time: NPCs spawn, wander and fight without any player input."""
-        # ponytail: no lock. Discord commands mutate the world from the bot's thread too, so a
-        # tick can interleave with a command. Wrap both in one world lock if that ever misfires.
+    def tick(self) -> List[PlayerActionResponse]:
+        """One step of world time: NPCs spawn, wander and fight without any player input.
+
+        Returns what happened *to players*, so an interface can tell them about it: nobody is watching
+        the world when a tick lands on them.
+        """
+        events: List[PlayerActionResponse] = []
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds):
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
         for npc in self.npcs:
             targets = [p for p in self.players if p.location == npc.location]
-            if targets:
-                npc.brain.update(random.choice(targets))
-            else:
+            if not targets:
                 npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
+                continue
+            target = random.choice(targets)
+            damage = npc.brain.update(target)
+            if damage is None:  # disengaged; not worth waking the player up for
+                continue
+            text = f"{npc.name} hits you for {damage} damage."
+            if target.is_dead:  # handle_player_death already sent them home
+                text += f" You black out, and come to in {self.starting_town.name}."
+            events.append(
+                PlayerActionResponse(
+                    is_successful=True,
+                    damage=damage,
+                    target=target,
+                    source=npc,
+                    text=text,
+                )
+            )
+        return events
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
         LOG.info(f"Player {player.name} has died")
