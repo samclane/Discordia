@@ -1,0 +1,95 @@
+{
+  "WeblyRevolver": {
+    "name": "Webly Mk. IV Revolver",
+    "caliber": "IN_38",
+    "action": "SemiAutomatic",
+    "capacity": 6,
+    "range_falloff": 0.5,
+    "base_damage": 10,
+    "weight_lb": 2.4
+  },
+  "M1911": {
+    "name": "M1911 Pistol",
+    "caliber": "IN_45",
+    "action": "SemiAutomatic",
+    "capacity": 7,
+    "range_falloff": 0.4,
+    "base_damage": 8,
+    "weight_lb": 2.44
+  },
+  "APS": {
+    "name": "Stechkin Automatic Pistol",
+    "caliber": "MM_9",
+    "action": "SemiAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.7,
+    "base_damage": 4,
+    "weight_lb": 2.69
+  },
+  "PPSh41": {
+    "name": "PPSh-41 (Shpagin machine pistol)",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 35,
+    "range_falloff": 0.55,
+    "base_damage": 7,
+    "weight_lb": 8.0
+  },
+  "OwenSMG": {
+    "name": "Owen Machine Carbine",
+    "caliber": "MM_9",
+    "action": "FullyAutomatic",
+    "capacity": 33,
+    "range_falloff": 0.7,
+    "base_damage": 4,
+    "weight_lb": 9.33
+  },
+  "AK47": {
+    "name": "AK-47",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.35,
+    "base_damage": 15,
+    "weight_lb": 7.7
+  },
+  "HKG3": {
+    "name": "Heckler & Koch G3",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.3,
+    "base_damage": 14,
+    "weight_lb": 9.7
+  },
+  "Jezail": {
+    "name": "Jezail Musket",
+    "caliber": "BB",
+    "action": "SingleShot",
+    "capacity": 1,
+    "range_falloff": 0.3,
+    "base_damage": 20,
+    "weight_lb": 12
+  },
+  "FNMinimi": {
+    "name": "FN Minimi",
+    "mountable": true,
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 100,
+    "range_falloff": 0.25,
+    "base_damage": 13,
+    "weight_lb": 15.1
+  },
+  "Hammer": {
+    "name": "Hammer",
+    "cripple_chance": 0.4,
+    "base_damage": 10
+  },
+  "Fist": {
+    "name": "Fist",
+    "base_value": 0,
+    "cripple_chance": 0.1,
+    "base_damage": 2
+  }
+}

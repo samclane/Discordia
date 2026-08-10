@@ -1,15 +1,17 @@
 """
-Ostensibly, this file contains information about all weapons players can purchase and wield.
+Weapons players can purchase and wield.
 
-This module is just a mess. I've hardcoded everything, added a weird "FullyImplemented" class to signify non-abstract
-classes. It's written more like a C header file than an actual Python script. I don't even remember how half this stuff
-works. I was playing a lot of "Escape from Tarkov" at the time; the realism bug must have caught on.
+The classes here are behaviour -- how a weapon fires, falls off with range, or crits. The numbers that tell
+one gun from another live in data/weapons.json, keyed by class name, and reach the class through FromData.
 """
 
 from __future__ import annotations
-from abc import ABC
-from typing import Optional
 
+import json
+from abc import ABC
+from typing import Any, Dict, Optional
+
+from Discordia import DATA_FOLDER
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.GameLogic.Items import (
     Ammo,
@@ -18,6 +20,8 @@ from Discordia.GameLogic.Items import (
     OffHandEquipment,
     FullyImplemented,
 )
+
+STATS_PATH = DATA_FOLDER / "weapons.json"
 
 
 class ProjectileType:
@@ -42,6 +46,36 @@ class FiringAction:
     SemiAutomatic = 2
     BurstFireOnly = 3
     FullyAutomatic = 4
+
+
+_ENUM_FIELDS = {
+    "caliber": Caliber,
+    "action": FiringAction,
+    "projectile_type": ProjectileType,
+}
+
+
+def load_stats(path=STATS_PATH) -> Dict[str, Dict[str, Any]]:
+    """Stat blocks by class name. Enum fields are written by name in the JSON, so the file stays readable."""
+    return {
+        weapon: {
+            field: (
+                getattr(_ENUM_FIELDS[field], value) if field in _ENUM_FIELDS else value
+            )
+            for field, value in stats.items()
+        }
+        for weapon, stats in json.loads(path.read_text(encoding="utf-8")).items()
+    }
+
+
+STATS = load_stats()
+
+
+class FromData:
+    """Mixin for a weapon whose whole definition is its stat block. Must come first in the bases."""
+
+    def __init__(self):
+        super().__init__(**STATS[type(self).__name__])
 
 
 class Weapon(Equipment, ABC):
@@ -210,166 +244,64 @@ class Pistol(Firearm, MainHandEquipment, ABC):
     pass
 
 
-class WeblyRevolver(Pistol, FullyImplemented):
+class WeblyRevolver(FromData, Pistol, FullyImplemented):
     """
     Based on the Webly Mk. IV
     """
 
-    name: str = "Webly Mk. IV Revolver"
 
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.IN_38,
-            action=FiringAction.SemiAutomatic,
-            capacity=6,
-            range_falloff=0.5,
-            base_damage=10,
-            name=self.name,
-            weightlb=2.4,
-        )
-
-
-class M1911(Pistol, FullyImplemented):
+class M1911(FromData, Pistol, FullyImplemented):
     """
     Based on the M1911
     """
 
-    name: str = "M1911 Pistol"
 
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.IN_45,
-            action=FiringAction.SemiAutomatic,
-            capacity=7,
-            range_falloff=0.4,
-            base_damage=8,
-            name=self.name,
-            weightlb=2.44,
-        )
-
-
-class APS(Pistol, SelectiveFire, FullyImplemented):
+class APS(FromData, Pistol, SelectiveFire, FullyImplemented):
     """
     Based on the Stechkin automatic pistol (APS)
     """
-
-    name: str = "Stechkin Automatic Pistol"
-
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.MM_9,
-            action=FiringAction.SemiAutomatic,
-            capacity=20,
-            range_falloff=0.7,
-            base_damage=4,
-            name=self.name,
-            weightlb=2.69,
-        )
 
 
 class SMG(Firearm, MainHandEquipment, OffHandEquipment, ABC):
     pass
 
 
-class PPSh41(SMG, SelectiveFire, FullyImplemented):
+class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
     """
     Based on the PPSh-41 (Shpagin machine pistol)
     """
 
-    name: str = "PPSh-41 (Shpagin machine pistol)"
 
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.MM_762,
-            action=FiringAction.FullyAutomatic,
-            capacity=35,
-            range_falloff=0.55,
-            base_damage=7,
-            name=self.name,
-            weightlb=8.0,
-        )
-
-
-class OwenSMG(SMG, FullyImplemented):
+class OwenSMG(FromData, SMG, FullyImplemented):
     """
     Based on the Owen Machine Carbine (Australian)
     """
-
-    name: str = "Owen Machine Carbine"
-
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.MM_9,
-            action=FiringAction.FullyAutomatic,
-            capacity=33,
-            range_falloff=0.7,
-            base_damage=4,
-            name=self.name,
-            weightlb=9.33,
-        )
 
 
 class Rifle(Firearm, MainHandEquipment, OffHandEquipment, ABC):
     pass
 
 
-class AK47(Rifle, SelectiveFire, FullyImplemented):
+class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
     """
     Based on the AK-47
     """
 
-    name: str = "AK-47"
 
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.MM_762,
-            action=FiringAction.FullyAutomatic,
-            capacity=30,
-            range_falloff=0.35,
-            base_damage=15,
-            name=self.name,
-            weightlb=7.7,
-        )
-
-
-class HKG3(Rifle, SelectiveFire, FullyImplemented):
+class HKG3(FromData, Rifle, SelectiveFire, FullyImplemented):
     """
     Based on the Heckler & Koch G3
     """
 
-    name: str = "Heckler & Koch G3"
 
-    def __init__(self):
-        super().__init__(
-            caliber=Caliber.MM_762,
-            action=FiringAction.FullyAutomatic,
-            capacity=20,
-            range_falloff=0.3,
-            base_damage=14,
-            name=self.name,
-            weightlb=9.7,
-        )
-
-
-class Jezail(Rifle, FullyImplemented):
+class Jezail(FromData, Rifle, FullyImplemented):
     """
     Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
     https://en.wikipedia.org/wiki/Jezail
     """
 
-    name: str = "Jezail Musket"
-
     def __init__(self):
-        super().__init__(
-            caliber=Caliber.BB,
-            action=FiringAction.SingleShot,
-            capacity=1,
-            range_falloff=0.3,
-            base_damage=20,
-            name=self.name,
-            weightlb=12,
-        )
-
+        super().__init__()
         self.player: Optional[Actors.PlayerCharacter] = None
 
     def on_equip(self, player_character: Actors.PlayerCharacter):
@@ -419,24 +351,10 @@ class MachineGun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
         self._mounted = new
 
 
-class FNMinimi(MachineGun, FullyImplemented):
+class FNMinimi(FromData, MachineGun, FullyImplemented):
     """
     Based on the FN Minimi
     """
-
-    name: str = "FN Minimi"
-
-    def __init__(self):
-        super().__init__(
-            mountable=True,
-            caliber=Caliber.MM_762,
-            action=FiringAction.FullyAutomatic,
-            capacity=100,
-            range_falloff=0.25,
-            base_damage=13,
-            name=self.name,
-            weightlb=15.1,
-        )
 
 
 class Shotgun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
@@ -487,13 +405,9 @@ class BluntWeapon(MeleeWeapon, ABC):
         self.cripple_chance = cripple_chance
 
 
-class Hammer(BluntWeapon, MainHandEquipment, FullyImplemented):
-
-    def __init__(self):
-        super().__init__(cripple_chance=0.4, base_damage=10)
+class Hammer(FromData, BluntWeapon, MainHandEquipment, FullyImplemented):
+    pass
 
 
-class Fist(BluntWeapon, MainHandEquipment, OffHandEquipment):
-
-    def __init__(self):
-        super().__init__(base_value=0, cripple_chance=0.1, base_damage=2)
+class Fist(FromData, BluntWeapon, MainHandEquipment, OffHandEquipment):
+    """Everyone starts with these; not FullyImplemented, so no store stocks them."""

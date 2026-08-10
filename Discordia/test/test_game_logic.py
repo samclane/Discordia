@@ -631,3 +631,23 @@ def test_a_broken_names_file_fails_at_load_not_mid_game(tmp_path):
     broken.write_text('{"town": {"prefixes": [], "roots": []}}', encoding="utf-8")
     with pytest.raises(TypeError):  # postfixes missing
         StringGenerator.load(broken)
+
+
+# --- Weapons: the stat blocks are data, so the loader is what needs guarding ---------------------
+
+
+def test_every_weapon_stat_block_builds_the_weapon_it_names():
+    for class_name, stats in Weapons.STATS.items():
+        weapon = getattr(Weapons, class_name)()
+        assert weapon.name == stats["name"]
+        assert (
+            weapon.damage == stats["base_damage"]
+        )  # nothing in the file bursts or scatters yet
+        assert weapon.weight_lb == stats.get("weight_lb", 0)
+
+
+def test_a_misspelled_enum_in_the_stats_fails_at_load(tmp_path):
+    bad = tmp_path / "weapons.json"
+    bad.write_text('{"AK47": {"caliber": "MM_999"}}', encoding="utf-8")
+    with pytest.raises(AttributeError):
+        Weapons.load_stats(bad)
