@@ -1,64 +1,43 @@
+"""Name generation. The word lists live in data/names.json, so adding names needs no code change."""
+
+import json
 import random
-from abc import ABC
-from string import ascii_uppercase
-from typing import List
+from pathlib import Path
+from typing import Dict, List
+
+from Discordia import DATA_FOLDER
+
+NAMES_PATH = DATA_FOLDER / "names.json"
 
 
-class NameGenerator(ABC):
-    _prefixes: List[str]
-    _roots: List[str]
-    _postfixes: List[str]
+class NameGenerator:
+    """Builds "[prefix ]root+postfix" out of one named set of word lists."""
 
-    @classmethod
-    def generate_name(cls) -> str:
+    def __init__(self, prefixes: List[str], roots: List[str], postfixes: List[str]):
+        self.prefixes = prefixes
+        self.roots = roots
+        self.postfixes = postfixes
+
+    def generate_name(self) -> str:
         name = ""
-        if random.random() > 0.5:
-            name += random.choice(cls._prefixes) + " "
-        name += random.choice(cls._roots)
-        name += random.choice(cls._postfixes)
+        if self.prefixes and random.random() > 0.5:
+            name += random.choice(self.prefixes) + " "
+        name += random.choice(self.roots)
+        name += random.choice(self.postfixes)
         return name
 
 
-class TownNameGenerator(NameGenerator):
-    _prefixes = ["New", "Old", "Lost"]
-
-    _roots = ["Luxem", "Rodder", "Halls", "Alds", "Brax"]
-
-    _postfixes = ["burg", "borough", "ton", "town", "ville", "brooke"]
-
-
-class WildsNameGenerator(NameGenerator):
-    _prefixes = [
-        "The",
-        "A",
-    ]
-
-    _roots = [
-        "Dark ",
-        "Foreboding ",
-        "Evil ",
-    ]
-
-    _postfixes = ["Forrest", "Swamp", "Bog", "Fen", "Marsh"]
+def load(path: Path = NAMES_PATH) -> Dict[str, NameGenerator]:
+    """One generator per top-level key. A missing or misspelled list raises here, at import, not mid-game."""
+    return {
+        key: NameGenerator(**word_lists)
+        for key, word_lists in json.loads(path.read_text(encoding="utf-8")).items()
+    }
 
 
-class CharacterNameGenerator(NameGenerator):
-    _roots = [c + "." for c in ascii_uppercase] + [""]
+GENERATORS = load()
 
-    _postfixes = ["Smith", "Jones", "Lee"]
-
-    @classmethod
-    def male_name(cls):
-        cls._prefixes = ["Matthew", "Mark", "Luke", "John"]
-
-        cls._roots.append("Son of ")
-
-        return cls
-
-    @classmethod
-    def female_name(cls):
-        cls._prefixes = ["Susan", "Karen", "Jessie", "Sarah"]
-
-        cls._roots.append("Daughter of ")
-
-        return cls
+TownNameGenerator = GENERATORS["town"]
+WildsNameGenerator = GENERATORS["wilds"]
+MaleNameGenerator = GENERATORS["character_male"]
+FemaleNameGenerator = GENERATORS["character_female"]

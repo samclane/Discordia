@@ -603,3 +603,31 @@ def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
 
     world.tick()
     assert npc not in world.npcs
+
+
+# --- Names: the word lists are data, so the loader is what needs guarding ------------------------
+
+
+def test_every_name_list_in_the_json_builds_a_usable_generator():
+    from Discordia.GameLogic import StringGenerator
+
+    assert set(StringGenerator.GENERATORS) >= {
+        "town",
+        "wilds",
+        "character_male",
+        "character_female",
+    }
+    for key, generator in StringGenerator.GENERATORS.items():
+        assert (
+            generator.roots and generator.postfixes
+        ), f"{key} has nothing to build from"
+        assert generator.generate_name().strip(), f"{key} generated an empty name"
+
+
+def test_a_broken_names_file_fails_at_load_not_mid_game(tmp_path):
+    from Discordia.GameLogic import StringGenerator
+
+    broken = tmp_path / "names.json"
+    broken.write_text('{"town": {"prefixes": [], "roots": []}}', encoding="utf-8")
+    with pytest.raises(TypeError):  # postfixes missing
+        StringGenerator.load(broken)

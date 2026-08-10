@@ -1,0 +1,128 @@
+{
+  "town": {
+    "prefixes": [
+      "New",
+      "Old",
+      "Lost"
+    ],
+    "roots": [
+      "Luxem",
+      "Rodder",
+      "Halls",
+      "Alds",
+      "Brax"
+    ],
+    "postfixes": [
+      "burg",
+      "borough",
+      "ton",
+      "town",
+      "ville",
+      "brooke"
+    ]
+  },
+  "wilds": {
+    "prefixes": [
+      "The",
+      "A"
+    ],
+    "roots": [
+      "Dark ",
+      "Foreboding ",
+      "Evil "
+    ],
+    "postfixes": [
+      "Forrest",
+      "Swamp",
+      "Bog",
+      "Fen",
+      "Marsh"
+    ]
+  },
+  "character_male": {
+    "prefixes": [
+      "Matthew",
+      "Mark",
+      "Luke",
+      "John"
+    ],
+    "roots": [
+      "A.",
+      "B.",
+      "C.",
+      "D.",
+      "E.",
+      "F.",
+      "G.",
+      "H.",
+      "I.",
+      "J.",
+      "K.",
+      "L.",
+      "M.",
+      "N.",
+      "O.",
+      "P.",
+      "Q.",
+      "R.",
+      "S.",
+      "T.",
+      "U.",
+      "V.",
+      "W.",
+      "X.",
+      "Y.",
+      "Z.",
+      "",
+      "Son of "
+    ],
+    "postfixes": [
+      "Smith",
+      "Jones",
+      "Lee"
+    ]
+  },
+  "character_female": {
+    "prefixes": [
+      "Susan",
+      "Karen",
+      "Jessie",
+      "Sarah"
+    ],
+    "roots": [
+      "A.",
+      "B.",
+      "C.",
+      "D.",
+      "E.",
+      "F.",
+      "G.",
+      "H.",
+      "I.",
+      "J.",
+      "K.",
+      "L.",
+      "M.",
+      "N.",
+      "O.",
+      "P.",
+      "Q.",
+      "R.",
+      "S.",
+      "T.",
+      "U.",
+      "V.",
+      "W.",
+      "X.",
+      "Y.",
+      "Z.",
+      "",
+      "Daughter of "
+    ],
+    "postfixes": [
+      "Smith",
+      "Jones",
+      "Lee"
+    ]
+  }
+}

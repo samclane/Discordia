@@ -8,7 +8,7 @@ from enum import Enum, auto
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Behavior, GameSpace, Items, Weapons, Procedural
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
-from Discordia.GameLogic.StringGenerator import CharacterNameGenerator
+from Discordia.GameLogic.StringGenerator import FemaleNameGenerator, MaleNameGenerator
 
 
 class BodySize(Enum):
@@ -185,10 +185,7 @@ class NPC(Actor):
 
     @classmethod
     def generate(cls, level) -> NPC:
-        if random.random() > 0.5:
-            name = CharacterNameGenerator.male_name().generate_name()
-        else:
-            name = CharacterNameGenerator.female_name().generate_name()
+        generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator
         return cls(
             None,
             Procedural.normal(
@@ -196,7 +193,7 @@ class NPC(Actor):
                 positive=True,
                 integer=True,
             ),
-            name,
+            generator.generate_name(),
             random.choice(BodyType.__subclasses__())(),
         )
 
