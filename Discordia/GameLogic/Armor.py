@@ -5,10 +5,10 @@ The classes here are behaviour -- how coverage turns a hit into a graze. The num
 from another live in data/armor.json, keyed by class name, and reach the class through FromData.
 """
 
-import json
 from random import random
 
-from Discordia import DATA_FOLDER
+from Discordia.GameLogic import Data
+from Discordia.GameLogic.Data import DATA_FOLDER
 from Discordia.GameLogic.Items import (
     HeadArmorAbstract,
     ChestArmorAbstract,
@@ -17,15 +17,12 @@ from Discordia.GameLogic.Items import (
 
 STATS_PATH = DATA_FOLDER / "armor.json"
 
-# ponytail: no enum fields here, so the stat blocks load as plain JSON -- no decoding pass like Weapons.
-STATS = json.loads(STATS_PATH.read_text(encoding="utf-8"))
+# No enum fields here, so the blocks load as written -- no decoding pass like Weapons.
+STATS = Data.load(STATS_PATH)
 
 
-class FromData:
-    """Mixin for armor whose whole definition is its stat block. Must come first in the bases."""
-
-    def __init__(self):
-        super().__init__(**STATS[type(self).__name__])
+class FromData(Data.FromData):
+    STATS = STATS
 
 
 class Helmet(HeadArmorAbstract):

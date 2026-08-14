@@ -7,12 +7,11 @@ one gun from another live in data/weapons.json, keyed by class name, and reach t
 
 from __future__ import annotations
 
-import json
 from abc import ABC
 from typing import Any, Dict, Optional
 
-from Discordia import DATA_FOLDER
-from Discordia.GameLogic import Actors, GameSpace
+from Discordia.GameLogic import Actors, Data, GameSpace
+from Discordia.GameLogic.Data import DATA_FOLDER
 from Discordia.GameLogic.Items import (
     Ammo,
     Equipment,
@@ -56,26 +55,15 @@ _ENUM_FIELDS = {
 
 
 def load_stats(path=STATS_PATH) -> Dict[str, Dict[str, Any]]:
-    """Stat blocks by class name. Enum fields are written by name in the JSON, so the file stays readable."""
-    return {
-        weapon: {
-            field: (
-                getattr(_ENUM_FIELDS[field], value) if field in _ENUM_FIELDS else value
-            )
-            for field, value in stats.items()
-        }
-        for weapon, stats in json.loads(path.read_text(encoding="utf-8")).items()
-    }
+    """Stat blocks by class name, with this module's enum fields decoded."""
+    return Data.load(path, _ENUM_FIELDS)
 
 
 STATS = load_stats()
 
 
-class FromData:
-    """Mixin for a weapon whose whole definition is its stat block. Must come first in the bases."""
-
-    def __init__(self):
-        super().__init__(**STATS[type(self).__name__])
+class FromData(Data.FromData):
+    STATS = STATS
 
 
 class Weapon(Equipment, ABC):

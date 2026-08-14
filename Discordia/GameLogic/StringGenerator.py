@@ -1,11 +1,11 @@
 """Name generation. The word lists live in data/names.json, so adding names needs no code change."""
 
-import json
 import random
 from pathlib import Path
 from typing import Dict, List
 
-from Discordia import DATA_FOLDER
+from Discordia.GameLogic import Data
+from Discordia.GameLogic.Data import DATA_FOLDER
 
 NAMES_PATH = DATA_FOLDER / "names.json"
 
@@ -30,8 +30,7 @@ class NameGenerator:
 def load(path: Path = NAMES_PATH) -> Dict[str, NameGenerator]:
     """One generator per top-level key. A missing or misspelled list raises here, at import, not mid-game."""
     return {
-        key: NameGenerator(**word_lists)
-        for key, word_lists in json.loads(path.read_text(encoding="utf-8")).items()
+        key: NameGenerator(**word_lists) for key, word_lists in Data.load(path).items()
     }
 
 
