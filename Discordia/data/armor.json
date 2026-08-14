@@ -1,0 +1,21 @@
+{
+  "SSh68": {
+    "name": "SSh-68",
+    "coverage": 0.5,
+    "armor_count": 1,
+    "weight_lb": 3.31
+  },
+  "Helm6B27": {
+    "name": "6B27",
+    "coverage": 0.5,
+    "armor_count": 3,
+    "weight_lb": 2.0
+  },
+  "Chest6B45": {
+    "name": "6B45",
+    "coverage": 0.7,
+    "efficiency": 0.0,
+    "armor_count": 10,
+    "weight_lb": 16.5
+  }
+}

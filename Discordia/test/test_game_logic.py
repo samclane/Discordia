@@ -651,3 +651,13 @@ def test_a_misspelled_enum_in_the_stats_fails_at_load(tmp_path):
     bad.write_text('{"AK47": {"caliber": "MM_999"}}', encoding="utf-8")
     with pytest.raises(AttributeError):
         Weapons.load_stats(bad)
+
+
+def test_every_armor_stat_block_builds_the_armor_it_names():
+    for class_name, stats in Armor.STATS.items():
+        piece = getattr(Armor, class_name)()
+        assert piece.name == stats["name"]
+        assert piece.weight_lb == stats["weight_lb"]
+        assert piece.coverage == stats["coverage"]
+        # armor_count rolls against coverage, so the stat block is checked on the field behind it
+        assert piece._armor_count == stats["armor_count"]

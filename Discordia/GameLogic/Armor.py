@@ -1,10 +1,31 @@
+"""
+Armor players can purchase and wear.
+
+The classes here are behaviour -- how coverage turns a hit into a graze. The numbers that tell one piece
+from another live in data/armor.json, keyed by class name, and reach the class through FromData.
+"""
+
+import json
 from random import random
 
+from Discordia import DATA_FOLDER
 from Discordia.GameLogic.Items import (
     HeadArmorAbstract,
     ChestArmorAbstract,
     FullyImplemented,
 )
+
+STATS_PATH = DATA_FOLDER / "armor.json"
+
+# ponytail: no enum fields here, so the stat blocks load as plain JSON -- no decoding pass like Weapons.
+STATS = json.loads(STATS_PATH.read_text(encoding="utf-8"))
+
+
+class FromData:
+    """Mixin for armor whose whole definition is its stat block. Must come first in the bases."""
+
+    def __init__(self):
+        super().__init__(**STATS[type(self).__name__])
 
 
 class Helmet(HeadArmorAbstract):
@@ -42,36 +63,19 @@ class ChestArmor(ChestArmorAbstract):
         self._armor_count = val
 
 
-class SSh68(Helmet, FullyImplemented):
+class SSh68(FromData, Helmet, FullyImplemented):
     """
     Based on the Soviet SSh-68 helmet
     """
 
-    name: str = "SSh-68"
 
-    def __init__(self):
-        super().__init__(coverage=0.50, armor_count=1, name=self.name, weightlb=3.31)
-
-
-class Helm6B27(Helmet, FullyImplemented):
+class Helm6B27(FromData, Helmet, FullyImplemented):
     """
     Based on the Soviet 6B27/6B26/6B28
     """
 
-    name: str = "6B27"
 
-    def __init__(self):
-        super().__init__(
-            coverage=0.50, armor_count=3, name=self.name, weight_lb=2.0
-        )  # est
-
-
-class Chest6B45(ChestArmor):
+class Chest6B45(FromData, ChestArmor):
     """
     Based on the Soviet 6B45
     """
-
-    name: str = "6B45"
-
-    def __init__(self):
-        super().__init__(coverage=0.70, armor_count=10, name=self.name, weight_lb=16.5)
