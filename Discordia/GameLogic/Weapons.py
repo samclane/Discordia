@@ -232,83 +232,6 @@ class Pistol(Firearm, MainHandEquipment, ABC):
     pass
 
 
-class WeblyRevolver(FromData, Pistol, FullyImplemented):
-    """
-    Based on the Webly Mk. IV
-    """
-
-
-class M1911(FromData, Pistol, FullyImplemented):
-    """
-    Based on the M1911
-    """
-
-
-class APS(FromData, Pistol, SelectiveFire, FullyImplemented):
-    """
-    Based on the Stechkin automatic pistol (APS)
-    """
-
-
-class SMG(Firearm, MainHandEquipment, OffHandEquipment, ABC):
-    pass
-
-
-class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
-    """
-    Based on the PPSh-41 (Shpagin machine pistol)
-    """
-
-
-class OwenSMG(FromData, SMG, FullyImplemented):
-    """
-    Based on the Owen Machine Carbine (Australian)
-    """
-
-
-class Rifle(Firearm, MainHandEquipment, OffHandEquipment, ABC):
-    pass
-
-
-class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
-    """
-    Based on the AK-47
-    """
-
-
-class HKG3(FromData, Rifle, SelectiveFire, FullyImplemented):
-    """
-    Based on the Heckler & Koch G3
-    """
-
-
-class Jezail(FromData, Rifle, FullyImplemented):
-    """
-    Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
-    https://en.wikipedia.org/wiki/Jezail
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.player: Optional[Actors.PlayerCharacter] = None
-
-    def on_equip(self, player_character: Actors.PlayerCharacter):
-        super().on_equip(player_character)
-        self.player = player_character
-
-    def on_unequip(self, player_character: Actors.PlayerCharacter):
-        super().on_unequip(player_character)
-        self.player = None
-
-    def calc_damage(self, distance: int) -> int:
-        damage = super().calc_damage(distance)
-        if self.player and isinstance(
-            self.player.location.terrain, GameSpace.MountainTerrain
-        ):
-            damage *= 2
-        return damage
-
-
 class MachineGun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
 
     def __init__(self, mountable: bool = False, *args, **kwargs):
@@ -399,3 +322,102 @@ class Hammer(FromData, BluntWeapon, MainHandEquipment, FullyImplemented):
 
 class Fist(FromData, BluntWeapon, MainHandEquipment, OffHandEquipment):
     """Everyone starts with these; not FullyImplemented, so no store stocks them."""
+
+
+class SMG(Firearm, MainHandEquipment, OffHandEquipment, ABC):
+    pass
+
+
+class MachinePistol(Firearm, MainHandEquipment, OffHandEquipment, ABC):
+    pass
+
+
+class Rifle(Firearm, MainHandEquipment, OffHandEquipment, ABC):
+    pass
+
+
+class WeblyRevolver(FromData, Pistol, FullyImplemented):
+    """
+    Based on the Webly Mk. IV
+    """
+
+
+class TT33(FromData, Pistol, FullyImplemented):
+    """
+    Based on the TT-33
+    """
+
+
+class Makarov(FromData, Pistol, FullyImplemented):
+    """
+    Based on the Makarov PM
+    """
+
+
+class M1911(FromData, Pistol, FullyImplemented):
+    """
+    Based on the M1911
+    """
+
+
+class StechkinAPS(FromData, Pistol, SelectiveFire, FullyImplemented):
+    """
+    Based on the Stechkin automatic pistol (APS)
+    """
+
+
+class APS(FromData, Pistol, SelectiveFire, FullyImplemented):
+    """
+    Based on the Stechkin automatic pistol (APS)
+    """
+
+
+class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
+    """
+    Based on the PPSh-41 (Shpagin machine pistol)
+    """
+
+
+class OwenSMG(FromData, SMG, FullyImplemented):
+    """
+    Based on the Owen Machine Carbine (Australian)
+    """
+
+
+class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
+    """
+    Based on the AK-47
+    """
+
+
+class HKG3(FromData, Rifle, SelectiveFire, FullyImplemented):
+    """
+    Based on the Heckler & Koch G3
+    """
+
+
+class Jezail(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
+    https://en.wikipedia.org/wiki/Jezail
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.player: Optional[Actors.PlayerCharacter] = None
+
+    def on_equip(self, player_character: Actors.PlayerCharacter):
+        super().on_equip(player_character)
+        self.player = player_character
+
+    def on_unequip(self, player_character: Actors.PlayerCharacter):
+        super().on_unequip(player_character)
+        self.player = None
+
+    def calc_damage(self, distance: int) -> int:
+        damage = super().calc_damage(distance)
+        if self.player and isinstance(
+            self.player.location.terrain, GameSpace.MountainTerrain
+        ):
+            damage *= 2
+        return damage

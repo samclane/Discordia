@@ -8,6 +8,33 @@
     "base_damage": 10,
     "weight_lb": 2.4
   },
+  "TT33": {
+    "name": "TT-33 Pistol",
+    "caliber": "IN_762",
+    "action": "SemiAutomatic",
+    "capacity": 8,
+    "range_falloff": 0.4,
+    "base_damage": 9,
+    "weight_lb": 2.8
+  },
+  "Makarov": {
+    "name": "Makarov PM",
+    "caliber": "IN_762",
+    "action": "SemiAutomatic",
+    "capacity": 8,
+    "range_falloff": 0.4,
+    "base_damage": 9,
+    "weight_lb": 2.8
+  },
+  "StechkinAPS": {
+      "name": "Stechkin Automatic Pistol",
+      "caliber": "MM_9",
+      "action": "SemiAutomatic",
+      "capacity": 20,
+      "range_falloff": 0.7,
+      "base_damage": 4,
+      "weight_lb": 2.69
+  },
   "M1911": {
     "name": "M1911 Pistol",
     "caliber": "IN_45",
