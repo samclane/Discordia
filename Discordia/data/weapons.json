@@ -27,13 +27,49 @@
     "weight_lb": 2.8
   },
   "StechkinAPS": {
-      "name": "Stechkin Automatic Pistol",
-      "caliber": "MM_9",
-      "action": "SemiAutomatic",
-      "capacity": 20,
-      "range_falloff": 0.7,
-      "base_damage": 4,
-      "weight_lb": 2.69
+    "name": "Stechkin Automatic Pistol",
+    "caliber": "MM_9",
+    "action": "SemiAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.7,
+    "base_damage": 4,
+    "weight_lb": 2.69
+  },
+  "CarlGustafm45": {
+    "name": "Carl Gustaf m/45",
+    "caliber": "MM_9",
+    "action": "SemiAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.6,
+    "base_damage": 5,
+    "weight_lb": 10.0
+  },
+  "Sten": {
+    "name": "Sten Submachine Gun",
+    "caliber": "MM_9",
+    "action": "FullyAutomatic",
+    "capacity": 32,
+    "range_falloff": 0.6,
+    "base_damage": 4,
+    "weight_lb": 8.0
+  },
+  "NorincoCQ": {
+    "name": "Norinco CQ",
+    "caliber": "MM_556",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.6,
+    "base_damage": 4,
+    "weight_lb": 8.0
+  },
+  "L1A1": {
+    "name": "L1A1 (FN FAL)",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.3,
+    "base_damage": 14,
+    "weight_lb": 9.7
   },
   "M1911": {
     "name": "M1911 Pistol",
@@ -73,6 +109,24 @@
   },
   "AK47": {
     "name": "AK-47",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.35,
+    "base_damage": 15,
+    "weight_lb": 7.7
+  },
+  "AKM": {
+    "name": "AKM",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.35,
+    "base_damage": 15,
+    "weight_lb": 7.7
+  },
+  "Type56": {
+    "name": "Type 56",
     "caliber": "MM_762",
     "action": "FullyAutomatic",
     "capacity": 30,

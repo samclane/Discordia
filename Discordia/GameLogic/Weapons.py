@@ -33,10 +33,11 @@ class ProjectileType:
 
 class Caliber:
     BB = 0
-    MM_9 = IN_38 = 1  # Pistol & SMG
-    MM_762 = 2  # AK47
-    IN_577 = 3  # Rifles
+    MM_9 = IN_38 = 1
+    MM_762 = 2
+    IN_577 = 3
     IN_45 = 4
+    MM_556 = 5
 
 
 class FiringAction:
@@ -360,21 +361,39 @@ class M1911(FromData, Pistol, FullyImplemented):
     """
 
 
-class StechkinAPS(FromData, Pistol, SelectiveFire, FullyImplemented):
+class StechkinAPS(FromData, MachinePistol, SelectiveFire, FullyImplemented):
     """
     Based on the Stechkin automatic pistol (APS)
     """
 
 
-class APS(FromData, Pistol, SelectiveFire, FullyImplemented):
+class CarlGustafm45(FromData, SMG, FullyImplemented):
     """
-    Based on the Stechkin automatic pistol (APS)
+    Based on the Carl Gustaf m/45
     """
 
 
 class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
     """
     Based on the PPSh-41 (Shpagin machine pistol)
+    """
+
+
+class Sten(FromData, SMG, SelectiveFire, FullyImplemented):
+    """
+    Based on the Sten submachine gun
+    """
+
+
+class NorincoCQ(FromData, SMG, FullyImplemented):
+    """
+    Based on the Norinco CQ
+    """
+
+
+class L1A1(FromData, Rifle, FullyImplemented):
+    """
+    Based on the L1A1 (FN FAL)
     """
 
 
@@ -387,6 +406,18 @@ class OwenSMG(FromData, SMG, FullyImplemented):
 class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
     """
     Based on the AK-47
+    """
+
+
+class AKM(FromData, Rifle, SelectiveFire, FullyImplemented):
+    """
+    Based on the AKM
+    """
+
+
+class Type56(FromData, Rifle, SelectiveFire, FullyImplemented):
+    """
+    Based on the Type 56
     """
 
 
