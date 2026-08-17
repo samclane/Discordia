@@ -152,6 +152,123 @@
     "base_damage": 20,
     "weight_lb": 12
   },
+  "MartiniHenry": {
+    "name": "Martini-Henry Rifle",
+    "caliber": "IN_577",
+    "action": "SingleShot",
+    "capacity": 1,
+    "range_falloff": 0.3,
+    "base_damage": 18,
+    "weight_lb": 8
+  },
+  "MosinNagant": {
+    "name": "Mosin-Nagant Rifle",
+    "caliber": "MM_762",
+    "action": "BoltAction",
+    "capacity": 5,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 9
+  },
+  "Lebel": {
+    "name": "Lebel Model 1886 Rifle",
+    "caliber": "MM_8",
+    "action": "BoltAction",
+    "capacity": 8,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 10
+  },
+  "LeeEnfield": {
+    "name": "Lee-Enfield Rifle",
+    "caliber": "IN_303",
+    "action": "BoltAction",
+    "capacity": 10,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 9
+  },
+  "M1917": {
+    "name": "M1917 Rifle",
+    "caliber": "IN_762",
+    "action": "BoltAction",
+    "capacity": 5,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 9
+  },
+  "Hanyang": {
+    "name": "Hanyang 88 Rifle",
+    "caliber": "M88",
+    "action": "BoltAction",
+    "capacity": 5,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 9
+  },
+  "SKS": {
+    "name": "SKS Rifle",
+    "caliber": "MM_762",
+    "action": "SemiAutomatic",
+    "capacity": 10,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 8
+  },
+  "M1Garand": {
+    "name": "M1 Garand Rifle",
+    "caliber": "MM_762",
+    "action": "SemiAutomatic",
+    "capacity": 8,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 9
+  },
+  "RPD": {
+    "name": "RPD Light Machine Gun",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 100,
+    "range_falloff": 0.25,
+    "base_damage": 8,
+    "weight_lb": 16
+  },
+  "RPK": {
+    "name": "RPK Light Machine Gun",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 40,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 10
+  },
+  "ZBvz26": {
+    "name": "ZB vz. 26",
+    "caliber": "MM_792",
+    "action": "FullyAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.3,
+    "base_damage": 15,
+    "weight_lb": 21
+  },
+  "PKM": {
+    "name": "PKM",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 100,
+    "range_falloff": 0.25,
+    "base_damage": 13,
+    "weight_lb": 19
+  },
+  "Type67": {
+    "name": "Type 67",
+    "caliber": "MM_762",
+    "action": "FullyAutomatic",
+    "capacity": 100,
+    "range_falloff": 0.25,
+    "base_damage": 13,
+    "weight_lb": 24
+  },
   "FNMinimi": {
     "name": "FN Minimi",
     "mountable": true,

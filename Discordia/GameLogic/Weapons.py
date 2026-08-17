@@ -38,6 +38,10 @@ class Caliber:
     IN_577 = 3
     IN_45 = 4
     MM_556 = 5
+    MM_8 = 6
+    IN_303 = 7
+    M88 = 8
+    MM_792 = 9
 
 
 class FiringAction:
@@ -452,3 +456,81 @@ class Jezail(FromData, Rifle, FullyImplemented):
         ):
             damage *= 2
         return damage
+
+
+class MartiniHenry(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Martini-Henry rifle
+    """
+
+
+class MosinNagant(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Mosin-Nagant rifle
+    """
+
+
+class Lebel(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Lebel Model 1886 rifle
+    """
+
+
+class LeeEnfield(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Lee-Enfield rifle
+    """
+
+
+class M1917(FromData, Rifle, FullyImplemented):
+    """
+    Based on the M1917 rifle
+    """
+
+
+class Hanyang(FromData, Rifle, FullyImplemented):
+    """
+    Based on the Hanyang 88 rifle
+    """
+
+
+class SKS(FromData, Rifle, FullyImplemented):
+    """
+    Based on the SKS rifle
+    """
+
+
+class M1Garand(FromData, Rifle, FullyImplemented):
+    """
+    Based on the M1 Garand rifle
+    """
+
+
+class RPD(FromData, MachineGun, FullyImplemented):
+    """
+    Based on the RPD light machine gun
+    """
+
+
+class RPK(FromData, MachineGun, FullyImplemented):
+    """
+    Based on the RPK light machine gun
+    """
+
+
+class ZBvz26(FromData, MachineGun, FullyImplemented):
+    """
+    Based on the ZB vz. 26 light machine gun
+    """
+
+
+class PKM(FromData, MachineGun, FullyImplemented):
+    """
+    Based on the PKM general-purpose machine gun
+    """
+
+
+class Type67(FromData, MachineGun, FullyImplemented):
+    """
+    Based on the Type 67 general-purpose machine gun
+    """
