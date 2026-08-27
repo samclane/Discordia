@@ -748,7 +748,9 @@ class World:
             response.text = "You have no weapon equipped!"
             return response
         loc: Space = player_character.location
-        dmg: int = weapon.damage
+        dmg: int = int(
+            weapon.damage
+        )  # weapons compute in floats; a hit lands in whole points
         while dmg > 0:
             if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
                 response.text = "Your currently equipped weapon is empty!"
@@ -778,7 +780,9 @@ class World:
                     break
                 loc += direction
                 loc = self.map[loc.y][loc.x]
-                dmg = weapon.calc_damage(int(player_character.location.distance(loc)))
+                dmg = int(
+                    weapon.calc_damage(int(player_character.location.distance(loc)))
+                )
         return response
 
     def tick(self) -> List[PlayerActionResponse]:

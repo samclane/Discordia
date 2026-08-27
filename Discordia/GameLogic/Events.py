@@ -65,7 +65,7 @@ class CombatEvent(Event):
                     )
                     yield attack_response
                     break
-                dmg = player_character.weapon.damage
+                dmg = int(player_character.weapon.damage)
                 player_character.weapon.on_damage()
                 enemy.take_damage(dmg)
                 attack_response.is_successful = True

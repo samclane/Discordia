@@ -80,15 +80,6 @@
     "base_damage": 8,
     "weight_lb": 2.44
   },
-  "APS": {
-    "name": "Stechkin Automatic Pistol",
-    "caliber": "MM_9",
-    "action": "SemiAutomatic",
-    "capacity": 20,
-    "range_falloff": 0.7,
-    "base_damage": 4,
-    "weight_lb": 2.69
-  },
   "PPSh41": {
     "name": "PPSh-41 (Shpagin machine pistol)",
     "caliber": "MM_762",
@@ -100,6 +91,7 @@
   },
   "OwenSMG": {
     "name": "Owen Machine Carbine",
+    "range_": 4,
     "caliber": "MM_9",
     "action": "FullyAutomatic",
     "capacity": 33,
@@ -163,6 +155,7 @@
   },
   "MosinNagant": {
     "name": "Mosin-Nagant Rifle",
+    "range_": 6,
     "caliber": "MM_762",
     "action": "BoltAction",
     "capacity": 5,
@@ -235,6 +228,7 @@
   },
   "RPK": {
     "name": "RPK Light Machine Gun",
+    "mountable": true,
     "caliber": "MM_762",
     "action": "FullyAutomatic",
     "capacity": 40,
@@ -244,6 +238,7 @@
   },
   "ZBvz26": {
     "name": "ZB vz. 26",
+    "mountable": true,
     "caliber": "MM_792",
     "action": "FullyAutomatic",
     "capacity": 20,

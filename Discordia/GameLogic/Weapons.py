@@ -7,6 +7,8 @@ one gun from another live in data/weapons.json, keyed by class name, and reach t
 
 from __future__ import annotations
 
+import random
+import sys
 from abc import ABC
 from typing import Any, Dict, Optional
 
@@ -42,6 +44,7 @@ class Caliber:
     IN_303 = 7
     M88 = 8
     MM_792 = 9
+    IN_762 = 10  # 7.62x25 Tokarev; a pistol round, not the rifle 7.62 above
 
 
 class FiringAction:
@@ -72,7 +75,9 @@ class FromData(Data.FromData):
 
 
 class Weapon(Equipment, ABC):
-    _base_damage: int
+    _base_damage: float
+
+    player: Optional[Actors.PlayerCharacter] = None
 
     def __init__(self, base_damage: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,6 +85,14 @@ class Weapon(Equipment, ABC):
             raise ValueError("base_damage must be 0 or greater.")
         self._base_damage = base_damage
         self.base_value = 10 * self._base_damage
+
+    def on_equip(self, player_character: Actors.PlayerCharacter):
+        super().on_equip(player_character)
+        self.player = player_character
+
+    def on_unequip(self, player_character: Actors.PlayerCharacter):
+        super().on_unequip(player_character)
+        self.player = None
 
     def __eq__(self, other):
         return self.name == other.name
@@ -118,9 +131,9 @@ class RangedWeapon(Weapon, ABC):
             self.range_, self.range_falloff
         )
 
-    def calc_damage(self, distance: int) -> int:
+    def calc_damage(self, distance: int) -> float:
         damage = self.damage * ((1.0 - self.range_falloff) ** distance)
-        return int(damage)
+        return damage
 
     @property
     def range_falloff(self) -> float:
@@ -133,6 +146,8 @@ class RangedWeapon(Weapon, ABC):
 
 
 class ProjectileWeapon(RangedWeapon, ABC):
+    reload_size: int = sys.maxsize  # rounds per reload; single-loaders override
+    chambered: int = 0  # extra round riding in the chamber past a full magazine
 
     def __init__(self, projectile_type: int, capacity: int = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -170,8 +185,8 @@ class ProjectileWeapon(RangedWeapon, ABC):
     def reload(self, actor: Actors.Actor):
         for item in actor.inventory:
             if isinstance(item, Ammo) and item.caliber == self.caliber:
-                ammo_needed = self.capacity - self.current_capacity
-                ammo_to_load = min(ammo_needed, item.quantity)
+                ammo_needed = self.capacity + self.chambered - self.current_capacity
+                ammo_to_load = min(ammo_needed, item.quantity, self.reload_size)
                 self._current_capacity += ammo_to_load
                 item.quantity -= ammo_to_load
                 if item.quantity <= 0:
@@ -213,7 +228,7 @@ class Firearm(ProjectileWeapon, ABC):
         self._current_capacity -= self.burst_size
 
     @property
-    def damage(self):
+    def damage(self) -> float:
         return super().damage * self.burst_size
 
     @property
@@ -260,11 +275,48 @@ class MachineGun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
             raise AttributeError(
                 "Cannot change mounting status of unmountable MachineGun."
             )
-        if self.mounted:
-            self.range_falloff -= 0.1
-        else:
-            self.range_falloff += 0.1
+        # A deployed gun is steadier, so it loses less damage per square, not more.
+        self.range_falloff += -0.1 if new else 0.1
         self._mounted = new
+
+
+class BeltFedMachineGun(MachineGun, ABC):
+    """
+    Fed from a belt rather than a magazine: sustained fire walks onto the target.
+
+    Every shot without a reload is +10% damage, capped at double. Break to reload and you start over.
+    """
+
+    _consecutive_fires: int = 0
+
+    def fire(self):
+        self._consecutive_fires += 1
+        super().fire()
+
+    def reload(self, actor: Actors.Actor):
+        super().reload(actor)
+        self._consecutive_fires = 0
+
+    @property
+    def damage(self) -> float:
+        return super().damage * min(1 + 0.1 * self._consecutive_fires, 2.0)
+
+
+class Bipod(MachineGun, ABC):
+    """Folding bipod: deploys itself on high ground, where there is something to rest it on."""
+
+    def calc_damage(self, distance: int) -> float:
+        if self.player:
+            self.mounted = isinstance(
+                self.player.location.terrain, GameSpace.MountainTerrain
+            )
+        return super().calc_damage(distance)
+
+
+class SingleLoad(ProjectileWeapon, ABC):
+    """Rounds go in one at a time -- there is no magazine to swap."""
+
+    reload_size = 1
 
 
 class FNMinimi(FromData, MachineGun, FullyImplemented):
@@ -283,8 +335,14 @@ class Shotgun(Firearm, MainHandEquipment, OffHandEquipment, ABC):
         self.pellet_count = pellet_count
 
     @property
-    def damage(self):
+    def damage(self) -> float:
         return super().damage * self.pellet_count
+
+    def calc_damage(self, distance: int) -> float:
+        """pellet_count scales down with distance: max(1, pellet_count - distance). Free spread modelling using a field that's already there."""
+        damage = super().calc_damage(distance)
+        damage *= max(1, self.pellet_count - distance) / self.pellet_count
+        return damage
 
 
 class MeleeWeapon(Weapon, ABC):
@@ -379,14 +437,39 @@ class CarlGustafm45(FromData, SMG, FullyImplemented):
 
 class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
     """
-    Based on the PPSh-41 (Shpagin machine pistol)
+    Based on the PPSh-41 (Shpagin machine pistol). The drum lets it rip while it is more than half
+    full; below that it stutters back down to single shots.
     """
+
+    _burst_size: int = 1
+
+    @property
+    def burst_size(self) -> int:
+        if self.current_capacity > self.capacity / 2:
+            return self._burst_size * 3
+        return self._burst_size
+
+    @burst_size.setter
+    def burst_size(self, value: int):
+        self._burst_size = value
 
 
 class Sten(FromData, SMG, SelectiveFire, FullyImplemented):
     """
-    Based on the Sten submachine gun
+    Based on the Sten submachine gun. Stamped out of tube and sheet: one shot in five jams, and the
+    shot you spend clearing it lands at half.
     """
+
+    _jammed: bool = False
+
+    @property
+    def damage(self) -> float:
+        return super().damage / 2 if self._jammed else super().damage
+
+    def fire(self):
+        # ponytail: damage is read before fire() everywhere, so a jam only spoils the *next* shot.
+        self._jammed = not self._jammed and random.random() < 0.2
+        super().fire()
 
 
 class NorincoCQ(FromData, SMG, FullyImplemented):
@@ -405,6 +488,15 @@ class OwenSMG(FromData, SMG, FullyImplemented):
     """
     Based on the Owen Machine Carbine (Australian)
     """
+
+    def calc_damage(self, distance: int) -> float:
+        """Top-mounted magazine keeps the mud out: no falloff at all in the wet and the sand."""
+        if self.player and isinstance(
+            self.player.location.terrain,
+            (GameSpace.WaterTerrain, GameSpace.SandTerrain),
+        ):
+            return self.damage if distance <= self.range_ else 0.0
+        return super().calc_damage(distance)
 
 
 class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
@@ -437,19 +529,7 @@ class Jezail(FromData, Rifle, FullyImplemented):
     https://en.wikipedia.org/wiki/Jezail
     """
 
-    def __init__(self):
-        super().__init__()
-        self.player: Optional[Actors.PlayerCharacter] = None
-
-    def on_equip(self, player_character: Actors.PlayerCharacter):
-        super().on_equip(player_character)
-        self.player = player_character
-
-    def on_unequip(self, player_character: Actors.PlayerCharacter):
-        super().on_unequip(player_character)
-        self.player = None
-
-    def calc_damage(self, distance: int) -> int:
+    def calc_damage(self, distance: int) -> float:
         damage = super().calc_damage(distance)
         if self.player and isinstance(
             self.player.location.terrain, GameSpace.MountainTerrain
@@ -463,23 +543,49 @@ class MartiniHenry(FromData, Rifle, FullyImplemented):
     Based on the Martini-Henry rifle
     """
 
+    def calc_damage(self, distance: int) -> float:
+        """A .577 slug: double damage in its face, twice the usual falloff past that."""
+        damage = super().calc_damage(distance)
+        if distance <= 1:
+            return damage * 2
+        return max(damage * (1 - self.range_falloff * distance * 2), 0.0)
+
 
 class MosinNagant(FromData, Rifle, FullyImplemented):
     """
     Based on the Mosin-Nagant rifle
     """
 
+    def calc_damage(self, distance: int) -> float:
+        """Scoped: falloff runs backwards, so it hits harder the further out you are -- to a point."""
+        if distance > self.range_:
+            return 0.0
+        return self.damage * min(1 + self.range_falloff * distance, 2.0)
 
-class Lebel(FromData, Rifle, FullyImplemented):
+
+class Lebel(FromData, SingleLoad, Rifle, FullyImplemented):
     """
-    Based on the Lebel Model 1886 rifle
+    Based on the Lebel Model 1886 rifle. Tube magazine: thumbed full one round at a time.
     """
+
+    def calc_damage(self, distance: int) -> float:
+        """Trench rifle: +50% on Grass/lowland, penalty on Mountain. Mirror of the Jezail, gives the two a rivalry."""
+        damage = super().calc_damage(distance)
+        if self.player:
+            if isinstance(self.player.location.terrain, GameSpace.MountainTerrain):
+                damage *= 0.5
+            elif isinstance(self.player.location.terrain, GameSpace.GrassTerrain):
+                damage *= 1.5
+        return damage
 
 
 class LeeEnfield(FromData, Rifle, FullyImplemented):
     """
-    Based on the Lee-Enfield rifle
+    Based on the Lee-Enfield rifle. Stripper clips and a round left in the chamber: reloads to one
+    over a full magazine.
     """
+
+    chambered = 1
 
 
 class M1917(FromData, Rifle, FullyImplemented):
@@ -488,49 +594,62 @@ class M1917(FromData, Rifle, FullyImplemented):
     """
 
 
-class Hanyang(FromData, Rifle, FullyImplemented):
+class Hanyang(FromData, SingleLoad, Rifle, FullyImplemented):
     """
-    Based on the Hanyang 88 rifle
+    Based on the Hanyang 88 rifle. Worn out long before anyone here got hold of one: single loading.
     """
 
 
 class SKS(FromData, Rifle, FullyImplemented):
     """
-    Based on the SKS rifle
+    Based on the SKS rifle. Stripper clips over an open bolt, one up the spout.
     """
+
+    chambered = 1
 
 
 class M1Garand(FromData, Rifle, FullyImplemented):
     """
-    Based on the M1 Garand rifle
+    Based on the M1 Garand rifle. The en-bloc clip pings out when the last round goes and everyone in
+    earshot knows you are empty -- the first shot after that reload lands at half.
     """
 
+    _pinged: bool = False
 
-class RPD(FromData, MachineGun, FullyImplemented):
+    @property
+    def damage(self) -> float:
+        return super().damage / 2 if self._pinged else super().damage
+
+    def fire(self):
+        super().fire()
+        self._pinged = self.is_empty
+
+
+class RPD(FromData, BeltFedMachineGun, FullyImplemented):
     """
     Based on the RPD light machine gun
     """
 
 
-class RPK(FromData, MachineGun, FullyImplemented):
+class RPK(FromData, Bipod, FullyImplemented):
     """
     Based on the RPK light machine gun
     """
 
 
-class ZBvz26(FromData, MachineGun, FullyImplemented):
+class ZBvz26(FromData, Bipod, FullyImplemented):
     """
     Based on the ZB vz. 26 light machine gun
     """
 
 
-class PKM(FromData, MachineGun, FullyImplemented):
+class PKM(FromData, BeltFedMachineGun, FullyImplemented):
     """
     Based on the PKM general-purpose machine gun
     """
 
 
-class Type67(FromData, MachineGun, FullyImplemented):
+class Type67(FromData, BeltFedMachineGun, FullyImplemented):
     """
     Based on the Type 67 general-purpose machine gun
     """

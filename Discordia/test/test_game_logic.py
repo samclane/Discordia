@@ -640,9 +640,8 @@ def test_every_weapon_stat_block_builds_the_weapon_it_names():
     for class_name, stats in Weapons.STATS.items():
         weapon = getattr(Weapons, class_name)()
         assert weapon.name == stats["name"]
-        assert (
-            weapon.damage == stats["base_damage"]
-        )  # nothing in the file bursts or scatters yet
+        # .damage is behaviour (bursts, pellets, jams); the stat block only sets the base
+        assert weapon._base_damage == stats["base_damage"]
         assert weapon.weight_lb == stats.get("weight_lb", 0)
 
 
@@ -661,3 +660,142 @@ def test_every_armor_stat_block_builds_the_armor_it_names():
         assert piece.coverage == stats["coverage"]
         # armor_count rolls against coverage, so the stat block is checked on the field behind it
         assert piece._armor_count == stats["armor_count"]
+
+
+# --- Weapon-specific modifiers -------------------------------------------------------------------
+
+
+def _wielding(weapon, terrain=None):
+    """A character holding `weapon` while standing on `terrain`. Modifiers read the player off equip."""
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.location = Space(1, 1, terrain or GrassTerrain())
+    weapon.on_equip(character)
+    return weapon
+
+
+def _ammo_for(weapon, quantity=500):
+    actor = Actors.PlayerCharacter(parent_world=None, name="Loader")
+    actor.inventory.append(Items.Ammo(caliber=weapon.caliber, quantity=quantity))
+    return actor
+
+
+def test_every_weapon_runs_out_of_damage_without_ever_going_negative():
+    """World.attack_() walks outwards until a shot does no damage, so a modifier that never decays hangs it."""
+    for class_name in Weapons.STATS:
+        for terrain in (MountainTerrain(), WaterTerrain(), GrassTerrain()):
+            weapon = _wielding(getattr(Weapons, class_name)(), terrain)
+            if not isinstance(weapon, Weapons.RangedWeapon):
+                continue
+            damages = [weapon.calc_damage(d) for d in range(20)]
+            assert min(damages) >= 0, (class_name, damages)
+            assert int(damages[-1]) == 0, (class_name, damages)
+
+
+def test_jezail_and_lebel_want_opposite_ground():
+    high, low = MountainTerrain(), GrassTerrain()
+    assert _wielding(Weapons.Jezail(), high).calc_damage(1) > _wielding(
+        Weapons.Jezail(), low
+    ).calc_damage(1)
+    assert _wielding(Weapons.Lebel(), low).calc_damage(1) > _wielding(
+        Weapons.Lebel(), high
+    ).calc_damage(1)
+
+
+def test_owen_ignores_falloff_in_the_mud():
+    wet = _wielding(Weapons.OwenSMG(), WaterTerrain())
+    dry = _wielding(Weapons.OwenSMG(), GrassTerrain())
+    assert wet.calc_damage(3) == wet.damage
+    assert dry.calc_damage(3) < dry.damage
+
+
+def test_martini_henry_hits_hardest_in_your_face():
+    rifle = Weapons.MartiniHenry()
+    assert rifle.calc_damage(0) == rifle.damage * 2
+    assert rifle.calc_damage(3) < rifle.calc_damage(1)
+    assert rifle.calc_damage(9) == 0
+
+
+def test_mosin_nagant_rewards_distance_up_to_its_range():
+    rifle = Weapons.MosinNagant()
+    assert rifle.calc_damage(3) > rifle.calc_damage(0)
+    assert rifle.calc_damage(rifle.range_) > 0
+    assert rifle.calc_damage(rifle.range_ + 1) == 0
+
+
+def test_belt_fed_fire_ramps_and_a_reload_starts_it_over():
+    gun = Weapons.PKM()
+    cold = gun.damage
+    for _ in range(5):
+        gun.on_damage()
+    assert gun.damage > cold
+    for _ in range(100):
+        gun.on_damage()
+    assert gun.damage == cold * 2  # the ramp is capped
+    gun.reload(_ammo_for(gun))
+    assert gun.damage == cold
+
+
+def test_a_bipod_deploys_itself_on_high_ground():
+    on_the_flat = _wielding(Weapons.RPK(), GrassTerrain())
+    on_the_rocks = _wielding(Weapons.RPK(), MountainTerrain())
+    on_the_flat.calc_damage(1)
+    on_the_rocks.calc_damage(1)
+    assert on_the_rocks.mounted and not on_the_flat.mounted
+    assert on_the_rocks.calc_damage(3) > on_the_flat.calc_damage(3)
+
+
+def test_mounting_a_machine_gun_steadies_it():
+    gun = Weapons.FNMinimi()
+    loose = gun.calc_damage(3)
+    gun.mounted = True
+    assert gun.calc_damage(3) > loose
+    gun.mounted = False
+    assert gun.calc_damage(3) == loose
+
+
+def test_ppsh_drum_rips_until_it_is_half_empty():
+    smg = Weapons.PPSh41()
+    assert smg.burst_size == 3
+    while smg.current_capacity > smg.capacity / 2:
+        smg.on_damage()
+    assert smg.burst_size == 1
+
+
+def test_the_garand_ping_costs_you_the_shot_after_the_reload():
+    rifle = Weapons.M1Garand()
+    full_power = rifle.damage
+    for _ in range(rifle.capacity):
+        rifle.on_damage()
+    assert rifle.is_empty
+    rifle.reload(_ammo_for(rifle))
+    assert rifle.damage == full_power / 2  # they heard the clip go
+    rifle.on_damage()
+    assert rifle.damage == full_power
+
+
+def test_a_jammed_sten_still_shoots_and_clears_itself(monkeypatch):
+    smg = Weapons.Sten()
+    full_power = smg.damage
+    monkeypatch.setattr(Weapons.random, "random", lambda: 0.0)  # always jams
+    smg.on_damage()
+    assert 0 < smg.damage < full_power
+    smg.on_damage()
+    assert smg.damage == full_power  # cleared, and cannot jam twice running
+
+
+def test_single_loaders_take_one_round_per_reload():
+    rifle = Weapons.Lebel()
+    for _ in range(rifle.capacity):
+        rifle.on_damage()
+    actor = _ammo_for(rifle)
+    rifle.reload(actor)
+    assert rifle.current_capacity == 1
+    rifle.reload(actor)
+    assert rifle.current_capacity == 2
+
+
+def test_a_chambered_rifle_reloads_to_one_over_a_full_magazine():
+    rifle = Weapons.LeeEnfield()
+    rifle.on_damage()
+    rifle.reload(_ammo_for(rifle))
+    assert rifle.current_capacity == rifle.capacity + 1
