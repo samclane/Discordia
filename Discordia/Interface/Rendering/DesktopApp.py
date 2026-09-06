@@ -1,23 +1,27 @@
 """
-Holds classes for the basic window and rendering surface for a Desktop view. Image rendering should be independent.
+Holds the rendering surface for the world map. Output device independent: WebApp.py serves it over HTTP,
+the Discord interface crops PNGs out of it.
 Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
 
 """
 
 from __future__ import annotations
 
+import io
 import logging
+import threading
 import time
+from pathlib import Path
 from typing import Any, Callable
 
-import pixelhouse as ph
-
+from PIL import Image
 
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 WINDOW_NAME = "Discordia"
+VIEW_FOLDER = Path("./Discordia/PlayerViews")  # both view types land here; cv2 used to fail silently on a missing dir
 
 
 class keydefaultdict(dict):
@@ -42,50 +46,63 @@ class WindowRenderer:
     def __init__(self, world_adapter: WorldAdapter):
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
+        VIEW_FOLDER.mkdir(parents=True, exist_ok=True)
 
-        self.terrain_map = [
-            [
-                ph.Canvas().load(GameSpace.WaterTerrain().sprite_path_string)
-                for x in range(self.world_adapter.width)
-            ]
-            for y in range(self.world_adapter.height)
-        ]
+        self._sprite_cache = keydefaultdict(
+            lambda path: Image.open(path).convert("RGBA")
+        )
+        self._draw_lock = threading.Lock()  # web requests and Discord commands both trigger draws
 
-        self.rendered_canvas = ph.gridstack(self.terrain_map)
-        self.rendered_canvas.name = WINDOW_NAME
+        water = self._sprite_cache[GameSpace.WaterTerrain().sprite_path_string]
+        self.base_cell_width, self.base_cell_height = water.size
 
-        self.base_cell_width = self.terrain_map[0][0].width
-        self.base_cell_height = self.terrain_map[0][0].height
+        # Shoreline tiles have soft alpha edges, so they need water under them or they fringe black.
+        self._background = Image.new(
+            "RGB",
+            (
+                self.world_adapter.width * self.base_cell_width,
+                self.world_adapter.height * self.base_cell_height,
+            ),
+        )
+        for y in range(self.world_adapter.height):
+            for x in range(self.world_adapter.width):
+                self._background.paste(
+                    water, (x * self.base_cell_width, y * self.base_cell_height), water
+                )
+        self.rendered_canvas = self._background.copy()
 
-        self._sprite_cache = keydefaultdict(lambda k: ph.Canvas().load(k))
+    def _paste(self, sprite_path: str, x: int, y: int):
+        """Blit a tile-sized sprite at grid position (x, y), honouring its alpha."""
+        sprite = self._sprite_cache[sprite_path]
+        pos = (x * self.base_cell_width, y * self.base_cell_height)
+        self.rendered_canvas.paste(sprite, pos, sprite)
 
-    def on_draw(self, show_window=False) -> int | ph.Canvas:
-        for y, row in enumerate(self.terrain_map):
-            for x, cnv in enumerate(row):
-                with cnv.layer() as layer:
-                    layer += self._sprite_cache[
-                        self.world_adapter.world.map[y][x].terrain.sprite_path_string
-                    ]
-        for town in self.world_adapter.world.towns:
-            with self.terrain_map[town.y][town.x].layer() as layer:
-                layer += self._sprite_cache[town.sprite_path_string]
-        for wilds in self.world_adapter.world.wilds:
-            with self.terrain_map[wilds.y][wilds.x].layer() as layer:
-                layer += self._sprite_cache[wilds.sprite_path_string]
-        for player in self.world_adapter.iter_players():
-            x, y = player.location.x, player.location.y
-            with self.terrain_map[y][x].layer() as layer:
-                layer += self._sprite_cache[player.sprite_path_string]
+    def on_draw(self) -> Image.Image:
+        with self._draw_lock:
+            # Start clean each frame: alpha sprites would otherwise pile up on the previous one.
+            self.rendered_canvas = self._background.copy()
+            for y, row in enumerate(self.world_adapter.world.map):
+                for x, space in enumerate(row):
+                    self._paste(space.terrain.sprite_path_string, x, y)
+            for town in self.world_adapter.world.towns:
+                self._paste(town.sprite_path_string, town.x, town.y)
+            for wilds in self.world_adapter.world.wilds:
+                self._paste(wilds.sprite_path_string, wilds.x, wilds.y)
+            for player in self.world_adapter.iter_players():
+                self._paste(
+                    player.sprite_path_string, player.location.x, player.location.y
+                )
+            return self.rendered_canvas
 
-        self.rendered_canvas: ph.Canvas = ph.gridstack(self.terrain_map)
-        self.rendered_canvas.name = WINDOW_NAME
-
-        if show_window:
-            return self.rendered_canvas.show(1, return_status=True)
-        else:
-            return -1
+    def render_png(self) -> bytes:
+        """The whole world as PNG bytes, freshly drawn."""
+        buffer = io.BytesIO()
+        self.on_draw().save(buffer, "PNG")
+        return buffer.getvalue()
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
+        world = self.on_draw()
+
         # Need to find top left coordinate
         # Find tile first
         top_left_tile: GameSpace.Space = character.location - (
@@ -104,21 +121,21 @@ class WindowRenderer:
         # Debugging
         LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
 
-        view = [self.terrain_map[i][x1:x2] for i in range(y1, y2)]
-        img = ph.gridstack(view)
-        img_path = f"./Discordia/PlayerViews/{character.name}_screenshot.png"
+        img = world.crop(
+            (
+                x1 * self.base_cell_width,
+                y1 * self.base_cell_height,
+                x2 * self.base_cell_width,
+                y2 * self.base_cell_height,
+            )
+        )
+        img_path = VIEW_FOLDER / f"{character.name}_screenshot.png"
         img.save(img_path)
         return str(img_path)
 
     def get_world_view(self, title: str | None = None) -> str:
         if title is None:
             title = str(int(time.time()))
-        img_path = f"./PlayerViews/world_{title}.png"
-        self.rendered_canvas.save(img_path)
+        img_path = VIEW_FOLDER / f"world_{title}.png"
+        self.on_draw().save(img_path)
         return str(img_path)
-
-
-def update_display(display: WindowRenderer, show_window=False):
-    k = -1  # Placeholder
-    while k != 27:  # 27 is key-id of ESC
-        k = display.on_draw(show_window=show_window)

@@ -1,13 +1,18 @@
 import asyncio
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import discord
 import pytest
 from discord import app_commands
 
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.Interface.DiscordInterface import SUPERSEDED, DiscordInterface
+from Discordia.Interface.DiscordInterface import (
+    SUPERSEDED,
+    DiscordInterface,
+    _defer,
+    _send,
+)
 from Discordia.Interface.WorldAdapter import (
     InvalidSpaceException,
     NotRegisteredException,
@@ -304,3 +309,40 @@ if __name__ == "__main__":
     test_space_check_rejects_character_outside_a_town()
     test_space_check_passes_inside_a_town()
     print("ok")
+
+
+class DeadResponse:
+    """An interaction Discord has already forgotten: every reply route 404s."""
+
+    def __init__(self):
+        self.attempts = 0
+
+    def is_done(self):
+        return False
+
+    def _dead(self):
+        self.attempts += 1
+        raise discord.NotFound(
+            cast(Any, SimpleNamespace(status=404, reason="Not Found")),
+            {"code": 10062, "message": "Unknown interaction"},
+        )
+
+    async def defer(self):
+        self._dead()
+
+    async def send_message(self, *args, **kwargs):
+        self._dead()
+
+
+def test_expired_interaction_does_not_abort_the_command():
+    """A dropped reply channel must cost the reply, not the world change: /move used to raise out of
+    defer() before it could queue the order, so the character silently never moved."""
+    response = DeadResponse()
+    interaction = cast(
+        discord.Interaction, SimpleNamespace(command="move", response=response)
+    )
+
+    asyncio.run(_defer(interaction))
+    asyncio.run(_send(interaction, "you move north"))
+
+    assert response.attempts == 2  # both were tried, neither was allowed to propagate

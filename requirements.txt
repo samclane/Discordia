@@ -1,7 +1,6 @@
 noise
 discord.py>=2.4
 pillow
-pixelhouse
 numpy
 astar
 pytest

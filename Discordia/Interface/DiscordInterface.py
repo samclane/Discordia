@@ -97,11 +97,27 @@ def _chunks(text: str, size: int = 2000) -> Iterator[str]:
 
 
 async def _send(interaction: discord.Interaction, content: str, **kwargs):
-    """Reply to an interaction whether or not it's already been responded to/deferred."""
-    if interaction.response.is_done():
-        await interaction.followup.send(content, **kwargs)
-    else:
-        await interaction.response.send_message(content, **kwargs)
+    """Reply to an interaction whether or not it's already been responded to/deferred.
+
+    Best effort, like _dm: an interaction dies 3s after Discord sends it, and with it over a bot
+    restart. Losing the reply must never take the world change down with it.
+    """
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(content, **kwargs)
+        else:
+            await interaction.response.send_message(content, **kwargs)
+    except discord.HTTPException as exc:
+        LOG.info("Could not reply to /%s: %s", interaction.command, exc)
+
+
+async def _defer(interaction: discord.Interaction):
+    """Buy the full 15 minutes for a slow command. Best effort for the same reason as _send:
+    a dead interaction must not abort the order the command was about to queue."""
+    try:
+        await interaction.response.defer()
+    except discord.HTTPException as exc:
+        LOG.info("Could not defer /%s: %s", interaction.command, exc)
 
 
 class DiscordInterface(commands.Cog):
@@ -273,7 +289,7 @@ class DiscordInterface(commands.Cog):
     @requires_character()
     async def look(self, interaction: discord.Interaction):
         """Describes your character's surroundings"""
-        await interaction.response.defer()
+        await _defer(interaction)
         character = self._player(interaction)
         msg = f"Your coordinates are {character.location}. The terrain is {character.location.terrain.name}-y. "
         if self.world_adapter.is_town(character.location):
@@ -296,7 +312,7 @@ class DiscordInterface(commands.Cog):
             )
         screenshot_path = self.world_adapter.get_player_screenshot(character)
         files = [discord.File(screenshot_path)] if screenshot_path else []
-        await interaction.followup.send(msg, files=files)
+        await _send(interaction, msg, files=files)
 
     @app_commands.command()
     @app_commands.choices(direction=DIRECTION_CHOICES)
@@ -305,7 +321,7 @@ class DiscordInterface(commands.Cog):
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
         """Move your character one space in the given direction, resolved on the next tick"""
-        await interaction.response.defer()
+        await _defer(interaction)
         character = self._player(interaction)
         results = await self.order(
             character,
@@ -314,7 +330,7 @@ class DiscordInterface(commands.Cog):
             ),
         )
         if results is SUPERSEDED:
-            await interaction.followup.send("You change your mind before setting off.")
+            await _send(interaction, "You change your mind before setting off.")
             return
         results = cast(List[PlayerActionResponse], results)
         msg = ""
@@ -330,7 +346,7 @@ class DiscordInterface(commands.Cog):
         if not msg:
             msg = f"You move {direction.name}."
         for chunk in _chunks(msg):
-            await interaction.followup.send(chunk)
+            await _send(interaction, chunk)
 
     @app_commands.command()
     @app_commands.choices(direction=DIRECTION_CHOICES)
@@ -339,7 +355,7 @@ class DiscordInterface(commands.Cog):
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
         """Attack, resolved on the next tick; give a direction for a ranged attack"""
-        await interaction.response.defer()
+        await _defer(interaction)
         character = self._player(interaction)
         response = await self.order(
             character,
@@ -348,7 +364,7 @@ class DiscordInterface(commands.Cog):
             ),
         )
         if response is SUPERSEDED:
-            await interaction.followup.send("You hold your fire.")
+            await _send(interaction, "You hold your fire.")
             return
         response = cast(PlayerActionResponse, response)
         target_name = response.target.name if response.target else "nobody"
