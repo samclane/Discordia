@@ -56,6 +56,8 @@ class WindowRenderer:
         water = self._sprite_cache[GameSpace.WaterTerrain().sprite_path_string]
         self.base_cell_width, self.base_cell_height = water.size
 
+        # Terrain, towns and wilds are fixed at world generation, so bake them into the background once
+        # instead of re-blitting every tile on every frame; only actors move.
         # Shoreline tiles have soft alpha edges, so they need water under them or they fringe black.
         self._background = Image.new(
             "RGB",
@@ -69,25 +71,29 @@ class WindowRenderer:
                 self._background.paste(
                     water, (x * self.base_cell_width, y * self.base_cell_height), water
                 )
+        for y, row in enumerate(self.world_adapter.world.map):
+            for x, space in enumerate(row):
+                self._paste(space.terrain.sprite_path_string, x, y, self._background)
+        for town in self.world_adapter.world.towns:
+            self._paste(town.sprite_path_string, town.x, town.y, self._background)
+        for wilds in self.world_adapter.world.wilds:
+            self._paste(wilds.sprite_path_string, wilds.x, wilds.y, self._background)
         self.rendered_canvas = self._background.copy()
 
-    def _paste(self, sprite_path: str, x: int, y: int):
+    def _paste(
+        self, sprite_path: str, x: int, y: int, target: Image.Image | None = None
+    ):
         """Blit a tile-sized sprite at grid position (x, y), honouring its alpha."""
+        if target is None:
+            target = self.rendered_canvas
         sprite = self._sprite_cache[sprite_path]
         pos = (x * self.base_cell_width, y * self.base_cell_height)
-        self.rendered_canvas.paste(sprite, pos, sprite)
+        target.paste(sprite, pos, sprite)
 
     def on_draw(self) -> Image.Image:
         with self._draw_lock:
             # Start clean each frame: alpha sprites would otherwise pile up on the previous one.
             self.rendered_canvas = self._background.copy()
-            for y, row in enumerate(self.world_adapter.world.map):
-                for x, space in enumerate(row):
-                    self._paste(space.terrain.sprite_path_string, x, y)
-            for town in self.world_adapter.world.towns:
-                self._paste(town.sprite_path_string, town.x, town.y)
-            for wilds in self.world_adapter.world.wilds:
-                self._paste(wilds.sprite_path_string, wilds.x, wilds.y)
             for npc in self.world_adapter.world.npcs:
                 if npc.location is None:  # dead, not yet reaped by the next tick
                     continue
