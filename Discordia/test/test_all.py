@@ -127,6 +127,23 @@ class TestGeneral(unittest.TestCase):
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
 
+    def test_npc_is_rendered(self):
+        """NPCs must show up on the map: they attack players, so players need to see them coming."""
+        space = self.world.map[10][10]
+        before = self.display.on_draw().copy()
+        self.world.add_actor(Actors.Raider.generate(1), space)
+        after = self.display.on_draw()
+
+        cw, ch = self.display.base_cell_width, self.display.base_cell_height
+        box = (space.x * cw, space.y * ch, (space.x + 1) * cw, (space.y + 1) * ch)
+        before_pixels = before.crop(box).tobytes()
+        after_pixels = after.crop(box).tobytes()
+        self.assertNotEqual(
+            before_pixels,
+            after_pixels,
+            "NPC was not drawn on its space",
+        )
+
     def test_store_purchasing(self):
         """
         Have randomly moving users buy weapons from towns they encounter

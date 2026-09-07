@@ -88,6 +88,10 @@ class WindowRenderer:
                 self._paste(town.sprite_path_string, town.x, town.y)
             for wilds in self.world_adapter.world.wilds:
                 self._paste(wilds.sprite_path_string, wilds.x, wilds.y)
+            for npc in self.world_adapter.world.npcs:
+                if npc.location is None:  # dead, not yet reaped by the next tick
+                    continue
+                self._paste(npc.sprite_path_string, npc.location.x, npc.location.y)
             for player in self.world_adapter.iter_players():
                 self._paste(
                     player.sprite_path_string, player.location.x, player.location.y
