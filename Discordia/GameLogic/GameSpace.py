@@ -7,7 +7,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Union
+from typing import List, Tuple, Dict, Iterator, Type, Union
 
 import math
 import numpy as np
@@ -298,6 +298,19 @@ class WesternMilitaryBase(MilitaryBase):
         return "Western Military Base"
 
 
+def concrete_industries() -> List[Type[IndustryType]]:
+    """Industries a town can actually have.
+
+    IndustryType.__subclasses__() only goes one level deep, so it hands back MilitaryBase - which is
+    abstract, has no name, and hides the two real military bases underneath it.
+    """
+    return [
+        leaf
+        for industry in IndustryType.__subclasses__()
+        for leaf in (industry.__subclasses__() or [industry])
+    ]
+
+
 class Space(ABC):
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
@@ -394,7 +407,7 @@ class Town(Space):
     def generate_town(cls, x, y, terrain):
         name = TownNameGenerator.generate_name()
         population = random.randint(1, MAX_POPULATION_TOWN)
-        industry = random.choice(IndustryType.__subclasses__())()
+        industry = random.choice(concrete_industries())()
         store = Store.generate_store()
         return cls(x, y, name, population, industry, terrain, store)
 

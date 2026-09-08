@@ -799,3 +799,12 @@ def test_a_chambered_rifle_reloads_to_one_over_a_full_magazine():
     rifle.on_damage()
     rifle.reload(_ammo_for(rifle))
     assert rifle.current_capacity == rifle.capacity + 1
+
+
+def test_every_generated_town_has_a_named_industry():
+    """MilitaryBase is abstract and has no name, but generation used to hand it to towns anyway."""
+    industries = {
+        GameSpace.Town.generate_town(0, 0, GrassTerrain()).industry.name  # raises if abstract
+        for _ in range(200)
+    }
+    assert {"Eastern Military Base", "Western Military Base"} & industries

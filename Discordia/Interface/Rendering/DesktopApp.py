@@ -78,6 +78,7 @@ class WindowRenderer:
             self._paste(town.sprite_path_string, town.x, town.y, self._background)
         for wilds in self.world_adapter.world.wilds:
             self._paste(wilds.sprite_path_string, wilds.x, wilds.y, self._background)
+        self._background_png: bytes | None = None  # encoded on first request, then never again
         self.rendered_canvas = self._background.copy()
 
     def _paste(
@@ -103,6 +104,14 @@ class WindowRenderer:
                     player.sprite_path_string, player.location.x, player.location.y
                 )
             return self.rendered_canvas
+
+    def background_png(self) -> bytes:
+        """The static layers only, encoded once. The web client draws actors over this itself."""
+        if self._background_png is None:
+            buffer = io.BytesIO()
+            self._background.save(buffer, "PNG")
+            self._background_png = buffer.getvalue()
+        return self._background_png
 
     def render_png(self) -> bytes:
         """The whole world as PNG bytes, freshly drawn."""
