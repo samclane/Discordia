@@ -406,6 +406,35 @@ def test_combat_ends_with_the_enemies_dead_and_their_kit_looted():
     assert any(isinstance(item, Armor.Helmet) for item in character.inventory)
 
 
+def test_a_world_too_small_to_roll_a_town_still_gets_one():
+    """Town placement is a per-tile dice roll: a small map can roll none, and spawning needs one."""
+    world = GameSpace.World("Pebble", 8, 8, seed=7)
+    assert world.towns
+    assert world.starting_town in world.towns
+
+
+def test_killing_an_npc_pays_out_its_money_once():
+    enemy = Actors.NPC(None, 1, "Mook")
+    enemy.currency = 40
+    event = Events.CombatEvent(1.0, "<test>", [enemy])
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.equip(Weapons.Hammer())
+    purse = character.currency
+
+    responses = list(event.run(character))
+    assert character.currency == purse + 40
+    assert enemy.currency == 0  # the corpse is empty now
+    assert any("$40" in response.text for response in responses)
+
+
+def test_a_generated_npc_is_worth_more_at_a_higher_level():
+    """Averaged: the draw is normal, so a single pair can invert."""
+    low = [Actors.NPC.generate(1).currency for _ in range(50)]
+    high = [Actors.NPC.generate(10).currency for _ in range(50)]
+    assert all(money >= 0 for money in low + high)
+    assert sum(high) > sum(low)
+
+
 def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     enemy = Actors.NPC(None, 5, "Mook")
     event = Events.CombatEvent(1.0, "<test>", [enemy])

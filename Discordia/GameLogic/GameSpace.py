@@ -666,6 +666,21 @@ class World:
                 if value != 0:
                     space.terrain.orientation = bitmask_to_orientation(value)
 
+        if not self.towns:
+            # Towns are a per-tile dice roll, so a small or unlucky map can come up with none, and a world
+            # with nowhere to spawn is no world at all. Plant one rather than dying on the empty list.
+            buildable = [
+                space
+                for row in self.map
+                for space in row
+                if self.is_space_buildable(space)
+            ]
+            if not buildable:
+                raise RuntimeError(f"World '{self.name}' generated no buildable land")
+            spot = random.choice(buildable)
+            self.add_town(Town.generate_town(spot.x, spot.y, terrain=spot.terrain))
+            LOG.info(f"No towns were rolled; placed one at ({spot.x}, {spot.y})")
+
         self.starting_town = random.choice(self.towns)
         LOG.info("Generation finished")
 

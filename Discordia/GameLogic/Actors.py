@@ -10,6 +10,8 @@ from Discordia.GameLogic import Behavior, GameSpace, Items, Weapons, Procedural
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
 from Discordia.GameLogic.StringGenerator import FemaleNameGenerator, MaleNameGenerator
 
+CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds level
+
 
 class BodySize(Enum):
     SmallAnimal = auto()
@@ -177,6 +179,7 @@ class NPC(Actor):
         super().__init__(*args, **kwargs)
         self.flavor_text: str = "<NONE>"
         self.base_attack = 1
+        self.currency: int = 0  # what the killer pockets, alongside the inventory
         self.brain = Behavior.FiniteStateMachine(self, Behavior.Aggressive())
 
     def on_death(self) -> Inventory:
@@ -186,7 +189,7 @@ class NPC(Actor):
     @classmethod
     def generate(cls, level) -> NPC:
         generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator
-        return cls(
+        npc = cls(
             None,
             Procedural.normal(
                 (WandererClass().hit_points_max_base // 2) * (level // 2),
@@ -196,6 +199,12 @@ class NPC(Actor):
             generator.generate_name(),
             random.choice(BodyType.__subclasses__())(),
         )
+        # A pistol costs ~100, so a level-1 kill is worth a few percent of one. Raise CURRENCY_PER_LEVEL
+        # if the grind to a first real weapon drags.
+        npc.currency = int(
+            Procedural.normal(CURRENCY_PER_LEVEL * level, positive=True, integer=True)
+        )
+        return npc
 
     @property
     def sprite_path(self) -> str:
