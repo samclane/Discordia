@@ -11,6 +11,7 @@ from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquip
 from Discordia.GameLogic.StringGenerator import FemaleNameGenerator, MaleNameGenerator
 
 CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds level
+HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
 
 
 class BodySize(Enum):
@@ -189,13 +190,19 @@ class NPC(Actor):
     @classmethod
     def generate(cls, level) -> NPC:
         generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator
+        # Wilds hand out levels from 0 up, so floor the level at 1: a 0 hit-point NPC is born unable to
+        # fight (it is already under Aggressive.flee_at) and dies to the first scratch.
+        hit_points = max(
+            1,
+            int(
+                Procedural.normal(
+                    HIT_POINTS_PER_LEVEL * max(level, 1), positive=True, integer=True
+                )
+            ),
+        )
         npc = cls(
             None,
-            Procedural.normal(
-                (WandererClass().hit_points_max_base // 2) * (level // 2),
-                positive=True,
-                integer=True,
-            ),
+            hit_points,
             generator.generate_name(),
             random.choice(BodyType.__subclasses__())(),
         )

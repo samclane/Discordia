@@ -435,6 +435,22 @@ def test_a_generated_npc_is_worth_more_at_a_higher_level():
     assert sum(high) > sum(low)
 
 
+@pytest.mark.parametrize("level", [0, 1, 2, 10])
+def test_a_generated_npc_always_spawns_able_to_fight(level):
+    """Wilds levels start at 0, and an NPC with no hit points starts below Aggressive.flee_at."""
+    npcs = [Actors.NPC.generate(level) for _ in range(30)]
+    assert all(npc.hit_points > 0 for npc in npcs)
+    assert all(npc.hit_points == npc.hit_points_max for npc in npcs)
+    assert not any(npc.is_dead for npc in npcs)
+
+
+def test_a_generated_npc_is_tougher_at_a_higher_level():
+    """Averaged, and on consecutive levels: the old curve floored 1 and 2 to the same value."""
+    weak = sum(Actors.NPC.generate(1).hit_points for _ in range(50))
+    strong = sum(Actors.NPC.generate(2).hit_points for _ in range(50))
+    assert strong > weak
+
+
 def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     enemy = Actors.NPC(None, 5, "Mook")
     event = Events.CombatEvent(1.0, "<test>", [enemy])
