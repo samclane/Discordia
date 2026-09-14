@@ -40,10 +40,11 @@ the bot syncs them.
         * Remove the item from your equipment and put it back into your inventory.
 * `/attack` <`direction`>
     * Directions are (`north`, `east`, `south`, `west`) or (`up`, `down`, `left`, `right`), or valid in-betweens (e.x. `ne` for northeast, etc.)
-    * Attack another player with your currently equipped weapon. If no `direction` is specified, the user will attack
-    in the current position only. Otherwise, ranged weapons go in a single direction like a "beam", until they either a)
-    hit another player and apply damage, or b) Miss, as the damage falloff, as each tile the projectile traverses 
-    removes % damage until it goes to 0. 
+    * Attack another player or an NPC with your currently equipped weapon. If no `direction` is specified, the user
+    will attack in the current position only. Otherwise, ranged weapons go in a single direction like a "beam", until
+    they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
+    traverses removes % damage until it goes to 0.
+    * Killing an NPC hands you its money and whatever it was carrying.
 * `/town status`
     * Calling `town` with no parameters is a debug command to check if you're inside a town or not.
     * `/town inn`

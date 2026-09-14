@@ -541,6 +541,56 @@ def test_pvp_hits_someone_standing_on_the_same_square(adapter):
     assert victim.hit_points < victim.hit_points_max
 
 
+def test_a_space_is_not_equal_to_things_that_are_not_coordinates():
+    """A despawned actor's location is None, and combat compares locations every swing."""
+    space = Space(1, 2, GrassTerrain())
+    assert space == (1, 2)
+    assert space == Space(1, 2, SandTerrain())  # the same square, whatever is on it
+    assert space != None  # noqa: E711 - the point is __eq__, not identity
+    assert space != "over there"
+
+
+def test_attacking_hits_an_npc_standing_on_the_same_square(adapter):
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 100, "Mook")
+    adapter.world.add_actor(mook, player.location)
+
+    response = adapter.attack(player, None)
+    assert response.target is mook
+    assert mook.hit_points < mook.hit_points_max
+
+
+def test_killing_an_npc_with_a_swing_loots_it(adapter):
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 1, "Mook")
+    mook.inventory.append(Armor.Helmet())
+    mook.currency = 40
+    adapter.world.add_actor(mook, player.location)
+    purse = player.currency
+
+    response = adapter.attack(player, None)
+    assert mook.is_dead
+    assert player.currency == purse + 40
+    assert any(isinstance(item, Armor.Helmet) for item in player.inventory)
+    assert "$40" in response.text
+    assert mook.currency == 0 and not mook.inventory  # the body is bare now
+
+
+def test_a_dead_npc_cannot_be_attacked_again(adapter):
+    """on_death despawns the NPC before World.tick prunes it: it must stop being a target immediately."""
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 1, "Mook")
+    adapter.world.add_actor(mook, player.location)
+    adapter.attack(player, None)
+
+    assert mook in adapter.world.npcs  # still on the roster until the next tick
+    with pytest.raises(CombatException):
+        adapter.attack(player, None)
+
+
 def test_an_empty_gun_cannot_shoot(adapter):
     adapter.register_player(2, "Victim")
     attacker = adapter.get_player(1)

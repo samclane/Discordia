@@ -97,17 +97,11 @@ class CombatEvent(Event):
                     break
 
             if enemy.is_dead:
-                kill_response.items += enemy.on_death()
-                kill_response.currency = enemy.currency
-                enemy.currency = 0  # a corpse can only be looted once
+                enemy.on_death()
+                drops = player_character.loot(enemy, kill_response)
                 kill_response.is_successful = True
-                player_character.inventory += kill_response.items
-                player_character.currency += kill_response.currency
-                drops = [str(item) for item in kill_response.items]
-                if kill_response.currency:
-                    drops.append(f"${kill_response.currency}")
                 kill_response.text = f"{player_character.name} kills {enemy.name}" + (
-                    f", receiving {', '.join(drops)}" if drops else ""
+                    f", receiving {drops}" if drops else ""
                 )
                 yield kill_response
             # A live enemy means the player died or can't fight; either way, stop.

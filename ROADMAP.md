@@ -7,7 +7,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 ## Gameplay loop (make it a game)
 
 - [x] Earn money: NPC kills drop currency (`NPC.on_death` -> `PlayerActionResponse`); stores are the only sink today and players start with 1000.
-- [ ] `/attack` only ever hits players (`World.pvp_attack`): NPCs standing on the map are unkillable, so their money is unreachable outside wilds events.
+- [x] `/attack` only ever hits players (`World.pvp_attack`): NPCs standing on the map are unkillable, so their money is unreachable outside wilds events.
 - [ ] `NPC.generate(1)` rolls ~0 hit points: `(50 // 2) * (level // 2)` is 0 for level 1, so tick-spawned raiders die to a breeze.
 - [ ] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
 - [ ] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
@@ -49,12 +49,19 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## Cleanup
 
+- [ ] `Space.__eq__` ignores terrain but `Space.__hash__` includes it, so equal spaces can hash differently. Set
+  operations on spaces (`World.get_players_in_region`) are quietly relying on identity today.
+
 - [ ] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
 - [ ] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
 - [ ] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-14 `/attack` hits NPCs: `World.pvp_attack` became `World.attack` and targets players and NPCs alike,
+  paying out the corpse through a shared `PlayerCharacter.loot`. Fixed `Space.__eq__` raising on a despawned
+  actor's `None` location, which the new targeting walked straight into.
 
 - 2026-09-13 Earn money: generated NPCs carry `CURRENCY_PER_LEVEL * level` on average, and `CombatEvent` pays it out
   once per kill alongside the loot. Also guarded `World.generate_map` against rolling zero towns, which an extra

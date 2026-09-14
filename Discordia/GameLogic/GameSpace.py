@@ -328,7 +328,14 @@ class Space(ABC):
         return str((self.x, self.y, self.terrain))
 
     def __eq__(self, other):
-        return self.x == other[0] and self.y == other[1]
+        if isinstance(other, Space):
+            return self.x == other.x and self.y == other.y
+        try:
+            return self.x == other[0] and self.y == other[1]
+        except (TypeError, IndexError, ValueError):
+            # Anything that isn't a coordinate pair simply isn't this space. A despawned actor's
+            # location is None, and comparing against it must answer False, not raise.
+            return NotImplemented
 
     def __add__(self, other) -> Space:
         if isinstance(other, Space):
@@ -765,9 +772,10 @@ class World:
         ]
         return players
 
-    def pvp_attack(
+    def attack(
         self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)
     ) -> PlayerActionResponse:
+        """Swing or shoot at whatever is standing in the way: another player or an NPC, whichever is there."""
         response = PlayerActionResponse(
             text="No targets found in that direction", source=player_character
         )
@@ -783,26 +791,33 @@ class World:
             if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
                 response.text = "Your currently equipped weapon is empty!"
                 break
-            targets = [
-                player
-                for player in self.players
-                if player != player_character and player.location == loc
+            targets: List[Actors.Actor] = [
+                actor
+                for actor in self.players + self.npcs
+                if actor is not player_character and actor.location == loc
             ]
             if len(targets):
-                target: Actors.PlayerCharacter = random.choice(targets)
+                target: Actors.Actor = random.choice(targets)
                 weapon.on_damage()
                 target.take_damage(dmg)
                 response.is_successful = True
                 response.damage = dmg
                 response.target = target
+                response.text = ""
+                # A dead NPC is despawned by its own on_death, so this is the one chance to take its kit.
+                if target.is_dead and isinstance(target, Actors.NPC):
+                    drops = player_character.loot(target, response)
+                    response.text = f"You kill {target.name}" + (
+                        f" and take {drops}." if drops else "."
+                    )
                 break
             else:
                 if not isinstance(weapon, Weapons.RangedWeapon):
-                    response.text = "No other players in range of your Melee Weapon."
+                    response.text = "Nothing in range of your melee weapon."
                     break
                 if direction == (0, 0):
                     response.text = (
-                        "No other players in current square. "
+                        "Nothing in this square. "
                         "Specify a direction (n,s,e,w,ne,se,sw,nw))"
                     )
                     break

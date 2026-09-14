@@ -354,6 +354,23 @@ class PlayerCharacter(Actor):
         self.equipment_set.unequip(equipment)
         equipment.on_unequip(self)
 
+    def loot(self, corpse: NPC, response: GameSpace.PlayerActionResponse) -> str:
+        """Move a dead NPC's kit and money onto this character, recording both on `response`.
+
+        Returns what was taken, phrased for a player, or "" if the corpse was bare. Emptying the corpse
+        is what keeps a body from paying out twice, so every kill goes through here.
+        """
+        taken = [str(item) for item in corpse.inventory]
+        if corpse.currency:
+            taken.append(f"${corpse.currency}")
+        response.items += corpse.inventory
+        response.currency += corpse.currency
+        self.inventory += corpse.inventory
+        self.currency += corpse.currency
+        corpse.inventory = Inventory()
+        corpse.currency = 0
+        return ", ".join(taken)
+
     def take_damage(self, damage: float):
         damage -= self.equipment_set.armor_count
         self.hit_points -= damage
