@@ -40,6 +40,10 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 
+# The roughest the wilds get, at the far end of the map. A level-8 wilds is a rifle-and-a-few-levels
+# proposition; see danger_level for how distance from the spawn maps onto the range.
+WILDS_MAX_LEVEL = 8
+
 # Share of carried money left behind on death. A flat share is self-balancing: it stings a rich player
 # and barely touches a broke one, so dying never strands anybody at zero.
 DEATH_TAX = 0.25
@@ -515,6 +519,7 @@ class Wilds(Space):
     def __init__(self, x, y, name, terrain: Terrain = NullTerrain()):
         super().__init__(x, y, terrain)
         self.name: str = name
+        self.level: int = 0  # set by populate(); 0 means nothing happens here yet
         self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
@@ -535,13 +540,20 @@ class Wilds(Space):
             results = [PlayerActionResponse(source=player)]
         return list(results)
 
+    def populate(self, level: int):
+        """Fill these wilds with `level` events of that difficulty.
+
+        Separate from construction because how rough a place is depends on how far it is from the
+        starting town, and the map does not know where that is until every town has been placed.
+        """
+        self.level = level
+        for _ in range(level):
+            self.add_event(Events.generate_event(level))
+
     @classmethod
     def generate(cls, x, y, terrain: Terrain, level) -> Wilds:
-        name = WildsNameGenerator.generate_name()
-        wilds = cls(x, y, name, terrain)
-        for _ in range(level):
-            event = Events.generate_event(level)
-            wilds.add_event(event)
+        wilds = cls(x, y, WildsNameGenerator.generate_name(), terrain)
+        wilds.populate(level)
         return wilds
 
     @property
@@ -648,16 +660,14 @@ class World:
                             Town.generate_town(x, y, terrain=self.map[y][x].terrain)
                         )
                     elif random.random() <= self.gen_params.wilds:
+                        # Bare for now: how dangerous it is depends on the starting town, which is
+                        # not picked until every town has been placed.
                         self.add_wilds(
-                            Wilds.generate(
+                            Wilds(
                                 x,
                                 y,
+                                WildsNameGenerator.generate_name(),
                                 self.map[y][x].terrain,
-                                normal(
-                                    sqrt(self.starting_town.distance((x, y))),
-                                    integer=True,
-                                    positive=True,
-                                ),
                             )
                         )
 
@@ -698,7 +708,30 @@ class World:
             LOG.info(f"No towns were rolled; placed one at ({spot.x}, {spot.y})")
 
         self.starting_town = random.choice(self.towns)
+
+        # Only now is there a spawn to measure danger from. Before this ran here, every wilds took its
+        # level from the placeholder town at (0, 0), so a spawn anywhere but the corner was ringed by
+        # wilds far too rough for a starting character.
+        for wilds in self.wilds:
+            wilds.populate(self.danger_level(wilds))
         LOG.info("Generation finished")
+
+    def danger_level(self, space: Space) -> int:
+        """How rough the wilds are at `space`: 1 next to the starting town, WILDS_MAX_LEVEL at the far end.
+
+        Measured as a share of the furthest corner from the spawn, so the whole range fits whatever size
+        the map is and wherever the starting town happened to land. The roll adds a little local variety.
+        """
+        corners = [
+            (0, 0),
+            (self.width - 1, 0),
+            (0, self.height - 1),
+            (self.width - 1, self.height - 1),
+        ]
+        furthest = max(self.starting_town.distance(corner) for corner in corners) or 1
+        share = self.starting_town.distance(space) / furthest
+        rolled = normal(1 + share * (WILDS_MAX_LEVEL - 1), integer=True, positive=True)
+        return int(max(1, min(WILDS_MAX_LEVEL, rolled)))
 
     def is_space_valid(self, space: Space) -> bool:
         return (

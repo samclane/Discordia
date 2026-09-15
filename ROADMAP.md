@@ -9,7 +9,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] Earn money: NPC kills drop currency (`NPC.on_death` -> `PlayerActionResponse`); stores are the only sink today and players start with 1000.
 - [x] `/attack` only ever hits players (`World.pvp_attack`): NPCs standing on the map are unkillable, so their money is unreachable outside wilds events.
 - [x] `NPC.generate(1)` rolls ~0 hit points: `(50 // 2) * (level // 2)` is 0 for level 1, so tick-spawned raiders die to a breeze.
-- [ ] Wilds difficulty outruns the player: a far wilds rolls `normal(level)` enemies of `25 * level` hit points, while a player gains only `HIT_POINTS_PER_PLAYER_LEVEL` (10) per level and no extra damage at all. Scale something the player earns, or cap wilds level by distance.
+- [x] Wilds difficulty outruns the player: a far wilds rolls `normal(level)` enemies of `25 * level` hit points, while a player gains only `HIT_POINTS_PER_PLAYER_LEVEL` (10) per level and no extra damage at all. Scale something the player earns, or cap wilds level by distance.
 - [x] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
 - [x] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
 - [ ] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
@@ -36,7 +36,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## Discord UX
 
-- [ ] `/look` should list visible NPCs and players by direction, not only render the image.
+- [ ] `/look` should list visible NPCs and players by direction, not only render the image. `Wilds.level` now exists, so it can also say how rough the place you are standing in is.
 - [ ] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order.
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [ ] `/help` command generated from the Cog's command descriptions.
@@ -60,6 +60,12 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-15 Wilds difficulty: levels were measured from a placeholder town at (0, 0) rather than the spawn,
+  so most of a map was level 5+ and a starting character had nowhere survivable to fight. `World.danger_level`
+  now spans 1 to `WILDS_MAX_LEVEL` by share of the distance to the furthest corner, and wilds are populated
+  after the starting town is chosen. Measured: fists clear the wilds next door, a hammer at level 3 clears
+  midway, a rifle at level 5 clears the far end.
 
 - 2026-09-15 XP and levels: kills pay experience through `PlayerCharacter.loot`, a flat 100 per level, each
   level adding 10 to the hit point ceiling and handing over the difference. `/equipment` became a real

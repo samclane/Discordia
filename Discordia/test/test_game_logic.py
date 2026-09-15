@@ -406,6 +406,37 @@ def test_combat_ends_with_the_enemies_dead_and_their_kit_looted():
     assert any(isinstance(item, Armor.Helmet) for item in character.inventory)
 
 
+def test_the_wilds_get_rougher_the_further_you_go_from_the_spawn(adapter):
+    """Levels were measured from a placeholder town at (0, 0), so a spawn anywhere else was ringed
+    by wilds far too rough for a character who starts with fists."""
+    world = adapter.world
+    spawn = world.starting_town
+    near = [wilds.level for wilds in world.wilds if spawn.distance(wilds) <= 8]
+    far = [wilds.level for wilds in world.wilds if spawn.distance(wilds) >= 20]
+    assert near and far
+
+    assert min(near) == 1  # somewhere fightable on day one
+    assert sum(near) / len(near) < sum(far) / len(far)
+    assert 1 <= min(near) and max(far) <= GameSpace.WILDS_MAX_LEVEL
+
+
+def test_danger_is_clamped_to_the_range_whatever_the_roll(adapter):
+    world = adapter.world
+    corners = [
+        (0, 0),
+        (world.width - 1, 0),
+        (0, world.height - 1),
+        (world.width - 1, world.height - 1),
+    ]
+    edge = Space(*max(corners, key=world.starting_town.distance))
+
+    at_home = [world.danger_level(world.starting_town) for _ in range(50)]
+    at_the_edge = [world.danger_level(edge) for _ in range(50)]
+    assert min(at_home + at_the_edge) >= 1
+    assert max(at_home + at_the_edge) <= GameSpace.WILDS_MAX_LEVEL
+    assert sum(at_home) < sum(at_the_edge)
+
+
 def test_a_world_too_small_to_roll_a_town_still_gets_one():
     """Town placement is a per-tile dice roll: a small map can roll none, and spawning needs one."""
     world = GameSpace.World("Pebble", 8, 8, seed=7)
