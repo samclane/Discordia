@@ -119,6 +119,7 @@ class CombatEvent(Event):
             victory_response.text = (
                 f"{player_character.name} has fallen in combat. "
                 f"They'll be revived in the starting town."
+                + GameSpace.death_toll_text(player_character)
             )
 
         yield victory_response

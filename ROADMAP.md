@@ -9,8 +9,8 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] Earn money: NPC kills drop currency (`NPC.on_death` -> `PlayerActionResponse`); stores are the only sink today and players start with 1000.
 - [x] `/attack` only ever hits players (`World.pvp_attack`): NPCs standing on the map are unkillable, so their money is unreachable outside wilds events.
 - [x] `NPC.generate(1)` rolls ~0 hit points: `(50 // 2) * (level // 2)` is 0 for level 1, so tick-spawned raiders die to a breeze.
-- [ ] Wilds difficulty now scales but the player does not: a far wilds rolls `normal(level)` enemies of `25 * level` hit points against a flat 50 hit-point Wanderer. Pair this with the XP item below.
-- [ ] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
+- [ ] Wilds difficulty now scales but the player does not: a far wilds rolls `normal(level)` enemies of `25 * level` hit points against a flat 50 hit-point Wanderer. (blocked: needs the XP item below decided first, since player scaling is the other half of the curve.)
+- [x] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
 - [ ] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
 - [ ] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
 - [ ] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
@@ -38,6 +38,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 - [ ] `/look` should list visible NPCs and players by direction, not only render the image.
 - [ ] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order.
+- [ ] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [ ] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
@@ -59,6 +60,10 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-14 Death has a cost: dying leaves `DEATH_TAX` (a quarter) of carried money behind, and both places
+  that narrate a death say what it cost. Skipped dropping inventory: items on the ground need a container on
+  `Space` that does not exist yet.
 
 - 2026-09-14 NPC hit points: `HIT_POINTS_PER_LEVEL * max(level, 1)` replaces the integer-floored formula that
   gave level 1 an average of 0.7 hit points (a third of them dead on arrival) and made levels 2 and 3 identical.

@@ -322,6 +322,8 @@ class PlayerCharacter(Actor):
         self.fov: int = self.fov_default
         self.inventory: Inventory = Inventory()
         self.currency: int = 1000
+        # What the last death took, so whoever narrates it can say. Transient: not worth saving.
+        self.last_death_cost: int = 0
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)

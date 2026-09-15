@@ -628,6 +628,26 @@ def test_dying_sends_you_back_to_the_starting_town(adapter):
     assert player.location == adapter.world.starting_town
 
 
+def test_dying_costs_a_share_of_what_you_were_carrying(adapter):
+    player = adapter.get_player(1)
+    player.currency = 400
+
+    player.take_damage(player.hit_points_max)
+    assert player.currency == 300
+    assert player.last_death_cost == 100
+    assert "$100" in GameSpace.death_toll_text(player)
+
+
+def test_dying_broke_costs_nothing_and_says_nothing(adapter):
+    """A flat share never strands a player at zero, and there is no toll worth narrating."""
+    player = adapter.get_player(1)
+    player.currency = 0
+
+    player.take_damage(player.hit_points_max)
+    assert player.currency == 0
+    assert GameSpace.death_toll_text(player) == ""
+
+
 def test_the_map_holds_exactly_width_times_height_spaces(adapter):
     assert len(list(adapter.iter_spaces())) == adapter.width * adapter.height
     assert [(idx, p.name) for idx, p in adapter.iter_registered()] == [(1, "Tester")]

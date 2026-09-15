@@ -40,6 +40,15 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 
+# Share of carried money left behind on death. A flat share is self-balancing: it stings a rich player
+# and barely touches a broke one, so dying never strands anybody at zero.
+DEATH_TAX = 0.25
+
+
+def death_toll_text(player: Actors.PlayerCharacter) -> str:
+    """What the last death cost, phrased for a player, or "" if they had nothing to lose."""
+    return f" Death cost ${player.last_death_cost}." if player.last_death_cost else ""
+
 
 def bitmask_to_orientation(value: int) -> str:
     if 0xFF & value == 0xFF or 0b01011010 & value == 0b01011010:
@@ -849,7 +858,10 @@ class World:
                 continue
             text = f"{npc.name} hits you for {damage} damage."
             if target.is_dead:  # handle_player_death already sent them home
-                text += f" You black out, and come to in {self.starting_town.name}."
+                text += (
+                    f" You black out, and come to in {self.starting_town.name}."
+                    + death_toll_text(target)
+                )
             events.append(
                 PlayerActionResponse(
                     is_successful=True,
@@ -862,7 +874,10 @@ class World:
         return events
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
+        """Send a dead player home, lighter. Dying is otherwise free, and free death is no risk at all."""
         LOG.info(f"Player {player.name} has died")
+        player.last_death_cost = int(player.currency * DEATH_TAX)
+        player.currency -= player.last_death_cost
         player.location = self.starting_town
         player.hit_points = player.hit_points_max
         return player.inventory
