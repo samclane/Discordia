@@ -282,7 +282,13 @@ class DiscordInterface(commands.Cog):
         """List all equipped items on character"""
         character = self._player(interaction)
         await _send(
-            interaction, f"Equipment: \n" f"---------- \n" f"{character.equipment_set}"
+            interaction,
+            f"{character.name}, level {character.level} {character.player_class} "
+            f"({character.experience_to_next_level} XP to go), ${character.currency}\n"
+            f"HP: {character.hit_points}/{character.hit_points_max}\n"
+            f"Equipment: \n"
+            f"---------- \n"
+            f"{character.equipment_set}",
         )
 
     @app_commands.command()

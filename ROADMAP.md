@@ -9,9 +9,9 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] Earn money: NPC kills drop currency (`NPC.on_death` -> `PlayerActionResponse`); stores are the only sink today and players start with 1000.
 - [x] `/attack` only ever hits players (`World.pvp_attack`): NPCs standing on the map are unkillable, so their money is unreachable outside wilds events.
 - [x] `NPC.generate(1)` rolls ~0 hit points: `(50 // 2) * (level // 2)` is 0 for level 1, so tick-spawned raiders die to a breeze.
-- [ ] Wilds difficulty now scales but the player does not: a far wilds rolls `normal(level)` enemies of `25 * level` hit points against a flat 50 hit-point Wanderer. (blocked: needs the XP item below decided first, since player scaling is the other half of the curve.)
+- [ ] Wilds difficulty outruns the player: a far wilds rolls `normal(level)` enemies of `25 * level` hit points, while a player gains only `HIT_POINTS_PER_PLAYER_LEVEL` (10) per level and no extra damage at all. Scale something the player earns, or cap wilds level by distance.
 - [x] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
-- [ ] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
+- [x] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
 - [ ] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
 - [ ] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
 - [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
@@ -32,13 +32,13 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
 - [ ] Save store inventories and prices per town.
 - [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons.
-- [ ] Schema versioning: a `PRAGMA user_version` bump plus a one-off migration helper for the next column added.
+- [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
 
 ## Discord UX
 
 - [ ] `/look` should list visible NPCs and players by direction, not only render the image.
 - [ ] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order.
-- [ ] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
+- [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [ ] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
@@ -60,6 +60,11 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-15 XP and levels: kills pay experience through `PlayerCharacter.loot`, a flat 100 per level, each
+  level adding 10 to the hit point ceiling and handing over the difference. `/equipment` became a real
+  character sheet (level, experience, money, health), which also closed the money-visibility item.
+  `Database._migrate` adds the new column to save files that predate it.
 
 - 2026-09-14 Death has a cost: dying leaves `DEATH_TAX` (a quarter) of carried money behind, and both places
   that narrate a death say what it cost. Skipped dropping inventory: items on the ground need a container on

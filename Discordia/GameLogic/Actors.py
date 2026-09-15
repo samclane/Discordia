@@ -12,6 +12,8 @@ from Discordia.GameLogic.StringGenerator import FemaleNameGenerator, MaleNameGen
 
 CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds level
 HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
+EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, and so on
+HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
 
 
 class BodySize(Enum):
@@ -317,6 +319,7 @@ class PlayerCharacter(Actor):
         super().__init__(*args, **kwargs)
 
         self._player_class: PlayerClass = WandererClass()
+        self.experience: int = 0
         self._hit_points = self.hit_points_max = self._player_class.hit_points_max_base
         self.equipment_set: Items.EquipmentSet = Items.EquipmentSet()
         self.fov: int = self.fov_default
@@ -339,8 +342,41 @@ class PlayerCharacter(Actor):
     @player_class.setter
     def player_class(self, class_: PlayerClass):
         self._player_class = class_
-        self.hit_points_max = class_.hit_points_max_base
-        self._hit_points = class_.hit_points_max_base
+        self._refresh_hit_points_max()
+        self._hit_points = self.hit_points_max
+
+    @property
+    def level(self) -> int:
+        """Levels start at 1 and cost a flat EXPERIENCE_PER_LEVEL each, so progress is easy to read."""
+        return 1 + self.experience // EXPERIENCE_PER_LEVEL
+
+    @property
+    def experience_to_next_level(self) -> int:
+        return EXPERIENCE_PER_LEVEL - (self.experience % EXPERIENCE_PER_LEVEL)
+
+    def _refresh_hit_points_max(self):
+        """Toughness is the class's base plus what levelling added. Both halves can change underneath."""
+        self.hit_points_max = (
+            self._player_class.hit_points_max_base
+            + HIT_POINTS_PER_PLAYER_LEVEL * (self.level - 1)
+        )
+
+    def gain_experience(self, amount: int) -> int:
+        """Award experience and return how many levels it bought.
+
+        A new level raises the ceiling and hands over the difference, so levelling up in a bad fight
+        is a lifeline rather than a number that does nothing until the next trip to an inn.
+        """
+        if amount <= 0:
+            return 0
+        before = self.level
+        self.experience += amount
+        levels = self.level - before
+        if levels:
+            previous_max = self.hit_points_max
+            self._refresh_hit_points_max()
+            self.hit_points += self.hit_points_max - previous_max
+        return levels
 
     @property
     def weapon(self) -> Union[Weapons.Weapon, None]:
@@ -364,10 +400,10 @@ class PlayerCharacter(Actor):
         equipment.on_unequip(self)
 
     def loot(self, corpse: NPC, response: GameSpace.PlayerActionResponse) -> str:
-        """Move a dead NPC's kit and money onto this character, recording both on `response`.
+        """Claim a kill: the corpse's kit, its money, and the experience for it, recorded on `response`.
 
-        Returns what was taken, phrased for a player, or "" if the corpse was bare. Emptying the corpse
-        is what keeps a body from paying out twice, so every kill goes through here.
+        Returns what was taken, phrased for a player, or "" if there was nothing in it. Emptying the
+        corpse is what keeps a body from paying out twice, so every kill goes through here.
         """
         taken = [str(item) for item in corpse.inventory]
         if corpse.currency:
@@ -378,6 +414,14 @@ class PlayerCharacter(Actor):
         self.currency += corpse.currency
         corpse.inventory = Inventory()
         corpse.currency = 0
+
+        # A tougher corpse is worth more, and NPCs never learned to track their own level.
+        experience = corpse.hit_points_max // 2
+        levels = self.gain_experience(experience)
+        if experience:
+            taken.append(f"{experience} XP")
+        if levels:
+            return ", ".join(taken) + f" (level {self.level}!)"
         return ", ".join(taken)
 
     def take_damage(self, damage: float):

@@ -28,7 +28,7 @@ the bot syncs them.
 * `/look`
     * Get your grid location, and a picture of your surroundings, as far as your `FOV` can see.
 * `/equipment`
-    * Prints your "character sheet" in chat. Contains player name and equipment.
+    * Prints your "character sheet" in chat: name, level and experience to the next one, money, health, and equipment.
 * `/move` [`direction`]
     * Directions are (`north`, `east`, `south`, `west`) or (`up`, `down`, `left`, `right`)
     * Move your player character one space in the direction picked from the dropdown.

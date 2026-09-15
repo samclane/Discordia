@@ -444,6 +444,55 @@ def test_a_generated_npc_always_spawns_able_to_fight(level):
     assert not any(npc.is_dead for npc in npcs)
 
 
+def test_levelling_raises_the_ceiling_and_hands_over_the_difference():
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.take_damage(10)
+    hurt = character.hit_points
+    ceiling = character.hit_points_max
+
+    assert character.gain_experience(Actors.EXPERIENCE_PER_LEVEL) == 1
+    assert character.level == 2
+    assert character.hit_points_max == ceiling + Actors.HIT_POINTS_PER_PLAYER_LEVEL
+    assert character.hit_points == hurt + Actors.HIT_POINTS_PER_PLAYER_LEVEL
+
+
+def test_experience_below_the_next_level_changes_nothing_but_the_tally():
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    ceiling = character.hit_points_max
+
+    assert character.gain_experience(Actors.EXPERIENCE_PER_LEVEL - 1) == 0
+    assert character.level == 1
+    assert character.hit_points_max == ceiling
+    assert character.experience_to_next_level == 1
+
+
+def test_changing_class_keeps_the_levels_you_earned():
+    """Recruiting in a town resets hit points from the class base, which used to be the whole story."""
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.gain_experience(2 * Actors.EXPERIENCE_PER_LEVEL)
+    character.player_class = Actors.Soldier()
+
+    assert character.level == 3
+    assert (
+        character.hit_points_max
+        == Actors.Soldier().hit_points_max_base + 2 * Actors.HIT_POINTS_PER_PLAYER_LEVEL
+    )
+
+
+def test_a_kill_pays_experience_and_announces_a_level(adapter):
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 2 * Actors.EXPERIENCE_PER_LEVEL, "Mook")
+    adapter.world.add_actor(mook, player.location)
+    mook.take_damage(mook.hit_points_max)  # the hammer would take a while
+
+    response = GameSpace.PlayerActionResponse(source=player)
+    phrase = player.loot(mook, response)
+    assert player.experience == Actors.EXPERIENCE_PER_LEVEL
+    assert player.level == 2
+    assert "XP" in phrase and "level 2" in phrase
+
+
 def test_a_generated_npc_is_tougher_at_a_higher_level():
     """Averaged, and on consecutive levels: the old curve floored 1 and 2 to the same value."""
     weak = sum(Actors.NPC.generate(1).hit_points for _ in range(50))

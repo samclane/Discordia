@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -220,6 +221,7 @@ class TestGeneral(unittest.TestCase):
         player = self.adapter.get_player(0)
         player.player_class = Actors.RaiderClass()
         player.currency = 4321
+        player.gain_experience(250)
         player.hit_points -= 7
         player.equip(Jezail())
         player.inventory.append(Armor.Helmet())
@@ -247,6 +249,9 @@ class TestGeneral(unittest.TestCase):
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
         self.assertEqual(restored.currency, player.currency)
+        self.assertEqual(restored.experience, player.experience)
+        self.assertEqual(restored.level, player.level)
+        self.assertEqual(restored.hit_points_max, player.hit_points_max)
         self.assertEqual(restored.hit_points, player.hit_points)
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
         self.assertIsInstance(restored.weapon, Jezail)
@@ -255,6 +260,30 @@ class TestGeneral(unittest.TestCase):
             (restored.location.x, restored.location.y),
             (player.location.x, player.location.y),
         )
+
+    def test_database_migrates_a_save_that_predates_levelling(self):
+        """CREATE TABLE IF NOT EXISTS never touches an existing table, so old worlds need the column added."""
+        path = Path(self.temp_dir.name) / "old.db"
+        database = Database(path)
+        database.save(self.adapter)
+        database.close()
+
+        connection = sqlite3.connect(
+            path
+        )  # put the file back the way an older build left it
+        connection.execute("ALTER TABLE character DROP COLUMN experience")
+        connection.commit()
+        connection.close()
+
+        migrated = Database(path)
+        adapter = migrated.load()
+        self.assertIsNotNone(adapter)
+        assert adapter is not None  # for the type checker
+        migrated.save(adapter)  # the save path needs the column too
+        migrated.close()
+
+        self.assertEqual(adapter.get_player(0).experience, 0)
+        self.assertEqual(adapter.get_player(0).level, 1)
 
     def test_database_starts_empty(self):
         """

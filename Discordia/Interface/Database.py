@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS character (
     hit_points      REAL    NOT NULL,
     hit_points_max  INTEGER NOT NULL,
     currency        INTEGER NOT NULL,
+    experience      INTEGER NOT NULL DEFAULT 0,
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -93,6 +94,24 @@ class Database:
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        """Add columns a save file predates. CREATE TABLE IF NOT EXISTS leaves an existing table alone,
+        so a schema change reaches old worlds only if something adds the column by hand.
+        """
+        columns = {
+            row["name"]
+            for row in self.connection.execute("PRAGMA table_info(character)")
+        }
+        if "experience" not in columns:
+            LOG.info(
+                "Adding character.experience to a save file that predates levelling"
+            )
+            with self.connection:
+                self.connection.execute(
+                    "ALTER TABLE character ADD COLUMN experience INTEGER NOT NULL DEFAULT 0"
+                )
 
     def close(self):
         self.connection.close()
@@ -123,6 +142,8 @@ class Database:
         adapter.register_player(discord_id, row["name"])
         character = adapter.get_player(discord_id)
 
+        # Experience first: setting the class reads the level to work out the hit point ceiling.
+        character.experience = row["experience"]
         character.player_class = _resolve(
             row["class_path"], Actors.PlayerClass
         )()  # resets hit points to the max
@@ -161,8 +182,11 @@ class Database:
                 self._save_character(discord_id, character)
 
     def _save_character(self, discord_id: int, character: Actors.PlayerCharacter):
+        # Columns named, not positional: a migrated column lands at the end of the table, wherever it
+        # sits in SCHEMA.
         self.connection.execute(
-            "INSERT INTO character VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
+            " currency, experience, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -170,6 +194,7 @@ class Database:
                 character.hit_points,
                 character.hit_points_max,
                 character.currency,
+                character.experience,
                 character.location.x,
                 character.location.y,
             ),
