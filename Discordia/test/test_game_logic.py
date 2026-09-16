@@ -38,6 +38,7 @@ from Discordia.Interface.WorldAdapter import (
     AlreadyRegisteredException,
     CombatException,
     InvalidSpaceException,
+    NoEncounterException,
     NoWeaponEquippedException,
     NotRegisteredException,
     RangedAttackException,
@@ -529,6 +530,86 @@ def test_a_generated_npc_is_tougher_at_a_higher_level():
     weak = sum(Actors.NPC.generate(1).hit_points for _ in range(50))
     strong = sum(Actors.NPC.generate(2).hit_points for _ in range(50))
     assert strong > weak
+
+
+def _encounter(adapter, npc_hit_points=25, currency=60):
+    """Park a stranger on the player, the way stepping into the wilds does."""
+    player = adapter.get_player(1)
+    npc = Actors.NPC(adapter.world, npc_hit_points, "Stranger")
+    npc.currency = currency
+    event = Events.EncounterEvent(1.0, "<test>", npc)
+    list(event.run(player))
+    return player, npc, event
+
+
+def test_an_encounter_waits_for_the_player_to_decide(adapter):
+    player, _, event = _encounter(adapter)
+    assert player.pending_encounter is event
+
+
+def test_walking_on_is_how_you_ignore_a_stranger(adapter):
+    player, _, _ = _encounter(adapter)
+    player.attempt_move(DIRECTION_VECTORS["n"])
+    assert player.pending_encounter is None
+
+
+def test_talking_to_a_stranger_gets_you_directions(adapter):
+    player, _, event = _encounter(adapter)
+    (response,) = event.resolve(player, "talk")
+
+    nearest = min(
+        (town for town in adapter.world.towns if town != player.location),
+        key=player.location.distance,
+    )
+    assert nearest.name in response.text
+    assert player.pending_encounter is None  # one encounter, one outcome
+
+
+def test_ignoring_a_stranger_costs_nothing(adapter):
+    player, npc, event = _encounter(adapter)
+    purse, health = player.currency, player.hit_points
+
+    (response,) = event.resolve(player, "ignore")
+    assert response.is_successful
+    assert (player.currency, player.hit_points) == (purse, health)
+    assert npc.currency == 60  # they keep what they had
+
+
+def test_robbing_a_stranger_who_loses_takes_their_money(adapter, monkeypatch):
+    player, npc, event = _encounter(adapter)
+    purse = player.currency
+    monkeypatch.setattr(Events.random, "random", lambda: 0.0)  # always beats the odds
+
+    (response,) = event.resolve(player, "rob")
+    assert response.is_successful
+    assert player.currency == purse + 60
+    assert npc.currency == 0
+    assert "$60" in response.text
+
+
+def test_robbing_a_stranger_who_wins_hurts(adapter, monkeypatch):
+    player, npc, event = _encounter(adapter, npc_hit_points=100, currency=60)
+    purse, health = player.currency, player.hit_points
+    monkeypatch.setattr(Events.random, "random", lambda: 1.0)  # never beats the odds
+
+    (response,) = event.resolve(player, "rob")
+    assert response.failed
+    assert player.currency == purse
+    assert npc.currency == 60
+    assert player.hit_points == health - 20  # a fifth of what the stranger can take
+
+
+def test_an_encounter_refuses_a_choice_it_does_not_offer(adapter):
+    player, _, event = _encounter(adapter)
+    with pytest.raises(ValueError):
+        event.resolve(player, "befriend")
+    assert player.pending_encounter is event  # still waiting
+
+
+def test_choosing_with_nobody_waiting_raises(adapter):
+    player = adapter.get_player(1)
+    with pytest.raises(NoEncounterException):
+        adapter.resolve_encounter(player, "talk")
 
 
 def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():

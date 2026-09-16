@@ -13,7 +13,7 @@ from discord.ext import commands, tasks
 
 import Discordia.GameLogic.Actors as Actors
 from ConfigParser import DISCORD_PREFIX
-from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic import Events, GameSpace
 from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTORS
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import (
@@ -25,6 +25,7 @@ from Discordia.Interface.WorldAdapter import (
     NoWeaponEquippedException,
     RangedAttackException,
     CombatException,
+    NoEncounterException,
 )
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
@@ -41,6 +42,11 @@ DIRECTION_CHOICES = [
         ("southwest", "sw"),
         ("northwest", "nw"),
     ]
+]
+
+ENCOUNTER_CHOICES = [
+    app_commands.Choice(name=choice, value=choice)
+    for choice in Events.EncounterEvent.CHOICES
 ]
 
 NO_STORE = "There's no store here. Find a town that has one."
@@ -253,6 +259,8 @@ class DiscordInterface(commands.Cog):
             msg = str(error) or "You can't go that way."
         elif isinstance(error, CombatException):
             msg = f"Attack failed: {error}"
+        elif isinstance(error, NoEncounterException):
+            msg = "Nobody is waiting on you to decide anything."
         else:
             LOG.error(
                 f"Unhandled error in /{interaction.command.name if interaction.command else '?'}",
@@ -380,6 +388,26 @@ class DiscordInterface(commands.Cog):
             f"\n"
             f" {response.text}",
         )
+
+    @app_commands.command()
+    @app_commands.choices(choice=ENCOUNTER_CHOICES)
+    @requires_character()
+    async def choose(
+        self, interaction: discord.Interaction, choice: app_commands.Choice[str]
+    ):
+        """Decide what to do about whoever is waiting on the road, resolved on the next tick"""
+        await _defer(interaction)
+        character = self._player(interaction)
+        results = await self.order(
+            character,
+            lambda: self.world_adapter.resolve_encounter(character, choice.value),
+        )
+        if results is SUPERSEDED:
+            await _send(interaction, "You think better of it.")
+            return
+        results = cast(List[PlayerActionResponse], results)
+        for chunk in _chunks("\n".join(r.text for r in results if r.text)):
+            await _send(interaction, chunk)
 
     @inventory.command(name="list")
     @requires_character()

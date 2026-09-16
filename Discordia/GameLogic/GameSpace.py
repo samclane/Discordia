@@ -40,6 +40,18 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 
+
+def bearing(origin: Space, target: Space) -> str:
+    """Rough compass direction from one square to another: "northeast", "west", or "" if they match."""
+    vertical = (
+        "north" if target.y < origin.y else "south" if target.y > origin.y else ""
+    )
+    horizontal = (
+        "west" if target.x < origin.x else "east" if target.x > origin.x else ""
+    )
+    return vertical + horizontal
+
+
 # The roughest the wilds get, at the far end of the map. A level-8 wilds is a rifle-and-a-few-levels
 # proposition; see danger_level for how distance from the spawn maps onto the range.
 WILDS_MAX_LEVEL = 8

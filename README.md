@@ -45,6 +45,11 @@ the bot syncs them.
     they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
     traverses removes % damage until it goes to 0.
     * Killing an NPC hands you its money and whatever it was carrying.
+* `/choose` [`talk`|`rob`|`ignore`]
+    * Wandering the wilds can turn up a stranger on the road, who waits for you to decide what to do.
+    * `talk` gets you directions to the nearest town, `rob` is a contest of your level against theirs
+    (win and you take their money, lose and they hurt you), `ignore` walks on. Moving anywhere also
+    counts as walking on.
 * `/town status`
     * Calling `town` with no parameters is a debug command to check if you're inside a town or not.
     * `/town inn`

@@ -12,7 +12,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] Wilds difficulty outruns the player: a far wilds rolls `normal(level)` enemies of `25 * level` hit points, while a player gains only `HIT_POINTS_PER_PLAYER_LEVEL` (10) per level and no extra damage at all. Scale something the player earns, or cap wilds level by distance.
 - [x] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
 - [x] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
-- [ ] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
+- [x] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
 - [ ] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
 - [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
@@ -51,6 +51,9 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## Cleanup
 
+- [ ] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
+  list. Nothing calls it; either fix the slice or delete it.
+
 - [ ] `Space.__eq__` ignores terrain but `Space.__hash__` includes it, so equal spaces can hash differently. Set
   operations on spaces (`World.get_players_in_region`) are quietly relying on identity today.
 
@@ -60,6 +63,10 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-16 `EncounterEvent` is real: a stranger on the road parks a pending choice on the character and
+  waits for the new `/choose` (talk for directions to the nearest town, rob for a contest of levels,
+  ignore to walk on). Moving clears it. Added `GameSpace.bearing`, which the `/look` item can reuse.
 
 - 2026-09-15 Wilds difficulty: levels were measured from a placeholder town at (0, 0) rather than the spawn,
   so most of a map was level 5+ and a starting character had nowhere survivable to fight. `World.danger_level`

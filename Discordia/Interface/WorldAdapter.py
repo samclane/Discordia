@@ -54,6 +54,12 @@ class CombatException(Exception):
     pass
 
 
+class NoEncounterException(Exception):
+    """Nothing is waiting on a decision right now."""
+
+    pass
+
+
 class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
@@ -160,6 +166,14 @@ class WorldAdapter:
         if not response.is_successful:
             raise CombatException(response.text)
         return response
+
+    def resolve_encounter(
+        self, character: Actors.PlayerCharacter, choice: str
+    ) -> List[PlayerActionResponse]:
+        encounter = character.pending_encounter
+        if encounter is None:
+            raise NoEncounterException()
+        return encounter.resolve(character, choice)
 
     def iter_spaces(self) -> Iterator[Space]:
         for space in list(chain.from_iterable(self.world.map)):
