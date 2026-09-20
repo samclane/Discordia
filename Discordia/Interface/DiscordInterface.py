@@ -26,6 +26,7 @@ from Discordia.Interface.WorldAdapter import (
     RangedAttackException,
     CombatException,
     NoEncounterException,
+    NoMerchantException,
 )
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
@@ -96,6 +97,14 @@ def _town_of(character: Actors.PlayerCharacter) -> GameSpace.Town:
     return cast(GameSpace.Town, character.location)
 
 
+def _stock_listing(store: GameSpace.Store) -> str:
+    """What's for sale and what it costs, for a town store or a trader's blanket alike."""
+    msg = "Index\tName\tPrice\tCount\n"
+    for idx, item in enumerate(store.inventory):
+        msg += f"#{idx}\t{item.name}\t${store.get_price(item)}\t{store.inventory.count(item)}\n"
+    return msg
+
+
 def _chunks(text: str, size: int = 2000) -> Iterator[str]:
     """Discord rejects any message over 2000 characters."""
     for start in range(0, len(text), size):
@@ -135,6 +144,9 @@ class DiscordInterface(commands.Cog):
     )
     store = app_commands.Group(
         name="store", description="Buy and sell items", parent=town
+    )
+    trade = app_commands.Group(
+        name="trade", description="Deal with a trader you met on the road"
     )
 
     def __init__(
@@ -261,6 +273,8 @@ class DiscordInterface(commands.Cog):
             msg = f"Attack failed: {error}"
         elif isinstance(error, NoEncounterException):
             msg = "Nobody is waiting on you to decide anything."
+        elif isinstance(error, NoMerchantException):
+            msg = "There is nobody here to trade with."
         else:
             LOG.error(
                 f"Unhandled error in /{interaction.command.name if interaction.command else '?'}",
@@ -409,6 +423,28 @@ class DiscordInterface(commands.Cog):
         for chunk in _chunks("\n".join(r.text for r in results if r.text)):
             await _send(interaction, chunk)
 
+    @trade.command(name="list")
+    @requires_character()
+    async def trade_list(self, interaction: discord.Interaction):
+        """See what the trader in front of you is selling"""
+        store = self.world_adapter.merchant_store(self._player(interaction))
+        await _send(interaction, _stock_listing(store))
+
+    @trade.command(name="buy")
+    @requires_character()
+    async def trade_buy(self, interaction: discord.Interaction, index: int):
+        """Buy the trader's item at the given index"""
+        character = self._player(interaction)
+        store = self.world_adapter.merchant_store(character)
+        if store.sell_item(index, character):
+            await _send(interaction, "The trader takes your money and hands it over.")
+        else:
+            await _send(
+                interaction,
+                "You can't afford that, or there's nothing at that index.",
+                ephemeral=True,
+            )
+
     @inventory.command(name="list")
     @requires_character()
     async def inventory_list(self, interaction: discord.Interaction):
@@ -491,10 +527,7 @@ class DiscordInterface(commands.Cog):
                 "There are no items in the store at the moment. Please try again later.",
             )
         else:
-            msg = "Index\tName\tPrice\tCount\n"
-            for idx, item in enumerate(store.inventory):
-                msg += f"#{idx}\t{item.name}\t${store.get_price(item)}\t{store.inventory.count(item)}\n"
-            await _send(interaction, msg)
+            await _send(interaction, _stock_listing(store))
 
     @store.command()
     @requires_character()

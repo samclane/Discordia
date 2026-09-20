@@ -4,10 +4,11 @@ from __future__ import annotations
 from itertools import chain
 from typing import Dict, Tuple, List, Iterator
 
-from Discordia.GameLogic import Actors
+from Discordia.GameLogic import Actors, Events
 from Discordia.GameLogic.GameSpace import (
     World,
     Space,
+    Store,
     Town,
     Wilds,
     Direction,
@@ -56,6 +57,12 @@ class CombatException(Exception):
 
 class NoEncounterException(Exception):
     """Nothing is waiting on a decision right now."""
+
+    pass
+
+
+class NoMerchantException(Exception):
+    """Nobody is here to trade with."""
 
     pass
 
@@ -170,10 +177,17 @@ class WorldAdapter:
     def resolve_encounter(
         self, character: Actors.PlayerCharacter, choice: str
     ) -> List[PlayerActionResponse]:
-        encounter = character.pending_encounter
-        if encounter is None:
+        encounter = character.pending_event
+        if not isinstance(encounter, Events.EncounterEvent):
             raise NoEncounterException()
         return encounter.resolve(character, choice)
+
+    def merchant_store(self, character: Actors.PlayerCharacter) -> Store:
+        """The blanket the trader in front of you has laid out, if one is."""
+        merchant = character.pending_event
+        if not isinstance(merchant, Events.MerchantEvent):
+            raise NoMerchantException()
+        return merchant.store
 
     def iter_spaces(self) -> Iterator[Space]:
         for space in list(chain.from_iterable(self.world.map)):

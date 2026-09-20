@@ -139,7 +139,7 @@ class EncounterEvent(Event):
         self.npc_involved: Actors.NPC = npc
 
     def run(self, player_character) -> Iterator[GameSpace.PlayerActionResponse]:
-        player_character.pending_encounter = self
+        player_character.pending_event = self
         yield GameSpace.PlayerActionResponse(
             is_successful=True, text=self.flavor_text, source=player_character
         )
@@ -159,7 +159,7 @@ class EncounterEvent(Event):
         """Play out the player's decision. One encounter, one outcome, whichever way it goes."""
         if choice not in self.CHOICES:
             raise ValueError(f"{choice!r} is not one of {self.CHOICES}")
-        player_character.pending_encounter = None
+        player_character.pending_event = None
         npc = self.npc_involved
         response = GameSpace.PlayerActionResponse(
             is_successful=True, source=player_character, target=npc
@@ -219,24 +219,36 @@ class EncounterEvent(Event):
 
 
 class MerchantEvent(Event):
+    """A trader on the road, selling the same goods a town would at a worse price.
 
-    def __init__(
-        self, probability: float, flavor_text: str, items: dict[str, Items.Equipment]
-    ):
+    Waits on the character like an EncounterEvent does, and is browsed with `/trade`. Walking on
+    ends the visit: a trader met in the wilds is not there when you come back.
+    """
+
+    MARKUP = 1.5  # what it costs to buy out here instead of walking to a town
+    MAX_STOCK = 5  # a blanket on the ground, not a shop
+
+    def __init__(self, probability: float, flavor_text: str, store: GameSpace.Store):
         super().__init__(probability, flavor_text)
-        self.items: dict[str, Items.Equipment] = items
+        self.store: GameSpace.Store = store
 
     def run(self, player_character):
+        player_character.pending_event = self
         yield GameSpace.PlayerActionResponse(
             is_successful=True, text=self.flavor_text, source=player_character
         )
 
     @classmethod
     def generate(cls, level) -> MerchantEvent:
-        probability = random.random()
-        flavor_text = f"<Generated MerchantEvent>"
-        items = {}
-        return cls(probability, flavor_text, items)
+        store = GameSpace.Store.generate_store()
+        random.shuffle(store.inventory)
+        del store.inventory[cls.MAX_STOCK :]
+        store.price_ratio = cls.MARKUP
+        flavor_text = (
+            f"A trader has {len(store.inventory)} things laid out on a blanket. "
+            f"Use /trade to look them over."
+        )
+        return cls(random.random(), flavor_text, store)
 
 
 def generate_event(level) -> Event:

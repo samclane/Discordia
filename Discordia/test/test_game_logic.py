@@ -39,6 +39,7 @@ from Discordia.Interface.WorldAdapter import (
     CombatException,
     InvalidSpaceException,
     NoEncounterException,
+    NoMerchantException,
     NoWeaponEquippedException,
     NotRegisteredException,
     RangedAttackException,
@@ -374,7 +375,7 @@ def test_adding_events_eats_into_the_do_nothing_chance():
     wilds = Wilds(1, 1, "The Nowhere")
     assert wilds.null_event.probability == 1.0
 
-    event = Events.MerchantEvent(0.25, "<test>", {})
+    event = Events.MerchantEvent(0.25, "<test>", Store())
     wilds.add_event(event)
     assert wilds.null_event.probability == pytest.approx(0.75)
     assert sum(e.probability for e in wilds.events) == pytest.approx(1.0)
@@ -382,7 +383,7 @@ def test_adding_events_eats_into_the_do_nothing_chance():
 
 def test_an_event_can_never_be_more_likely_than_whats_left():
     wilds = Wilds(1, 1, "The Nowhere")
-    wilds.add_event(Events.MerchantEvent(5.0, "<greedy>", {}))
+    wilds.add_event(Events.MerchantEvent(5.0, "<greedy>", Store()))
     assert wilds.null_event.probability == 0
     assert wilds.events[-1].probability == 1.0
 
@@ -544,13 +545,13 @@ def _encounter(adapter, npc_hit_points=25, currency=60):
 
 def test_an_encounter_waits_for_the_player_to_decide(adapter):
     player, _, event = _encounter(adapter)
-    assert player.pending_encounter is event
+    assert player.pending_event is event
 
 
 def test_walking_on_is_how_you_ignore_a_stranger(adapter):
     player, _, _ = _encounter(adapter)
     player.attempt_move(DIRECTION_VECTORS["n"])
-    assert player.pending_encounter is None
+    assert player.pending_event is None
 
 
 def test_talking_to_a_stranger_gets_you_directions(adapter):
@@ -562,7 +563,7 @@ def test_talking_to_a_stranger_gets_you_directions(adapter):
         key=player.location.distance,
     )
     assert nearest.name in response.text
-    assert player.pending_encounter is None  # one encounter, one outcome
+    assert player.pending_event is None  # one encounter, one outcome
 
 
 def test_ignoring_a_stranger_costs_nothing(adapter):
@@ -603,13 +604,69 @@ def test_an_encounter_refuses_a_choice_it_does_not_offer(adapter):
     player, _, event = _encounter(adapter)
     with pytest.raises(ValueError):
         event.resolve(player, "befriend")
-    assert player.pending_encounter is event  # still waiting
+    assert player.pending_event is event  # still waiting
 
 
 def test_choosing_with_nobody_waiting_raises(adapter):
     player = adapter.get_player(1)
     with pytest.raises(NoEncounterException):
         adapter.resolve_encounter(player, "talk")
+
+
+def test_a_generated_merchant_carries_a_handful_of_goods_at_a_markup():
+    merchant = Events.MerchantEvent.generate(3)
+    assert 0 < len(merchant.store.inventory) <= Events.MerchantEvent.MAX_STOCK
+    assert merchant.store.price_ratio == Events.MerchantEvent.MARKUP
+
+    item = merchant.store.inventory[0]
+    assert merchant.store.get_price(item) > Store([item]).get_price(item)  # town price
+
+
+def test_buying_from_a_trader_on_the_road(adapter):
+    player = adapter.get_player(1)
+    hammer = Weapons.Hammer()
+    store = Store([hammer])
+    store.price_ratio = Events.MerchantEvent.MARKUP
+    list(Events.MerchantEvent(1.0, "<test>", store).run(player))
+    player.currency = 10_000
+
+    assert adapter.merchant_store(player) is store
+    assert store.sell_item(0, player)
+    assert hammer in player.inventory
+    assert player.currency == 10_000 - int(
+        hammer.base_value * Events.MerchantEvent.MARKUP
+    )
+    assert not store.inventory  # the blanket is bare now
+
+
+def test_walking_on_ends_the_trade(adapter):
+    player = adapter.get_player(1)
+    list(Events.MerchantEvent(1.0, "<test>", Store([Armor.Helmet()])).run(player))
+
+    player.attempt_move(DIRECTION_VECTORS["n"])
+    with pytest.raises(NoMerchantException):
+        adapter.merchant_store(player)
+
+
+def test_trading_with_nobody_there_raises(adapter):
+    with pytest.raises(NoMerchantException):
+        adapter.merchant_store(adapter.get_player(1))
+
+
+def test_a_stranger_is_not_a_trader_and_a_trader_is_not_a_stranger(adapter):
+    """Both park on the same slot, so each command has to check what is actually waiting."""
+    player = adapter.get_player(1)
+    list(Events.MerchantEvent(1.0, "<test>", Store()).run(player))
+    with pytest.raises(NoEncounterException):
+        adapter.resolve_encounter(player, "talk")
+
+    list(
+        Events.EncounterEvent(1.0, "<test>", Actors.NPC(None, 5, "Stranger")).run(
+            player
+        )
+    )
+    with pytest.raises(NoMerchantException):
+        adapter.merchant_store(player)
 
 
 def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
@@ -1080,7 +1137,9 @@ def test_a_chambered_rifle_reloads_to_one_over_a_full_magazine():
 def test_every_generated_town_has_a_named_industry():
     """MilitaryBase is abstract and has no name, but generation used to hand it to towns anyway."""
     industries = {
-        GameSpace.Town.generate_town(0, 0, GrassTerrain()).industry.name  # raises if abstract
+        GameSpace.Town.generate_town(
+            0, 0, GrassTerrain()
+        ).industry.name  # raises if abstract
         for _ in range(200)
     }
     assert {"Eastern Military Base", "Western Military Base"} & industries

@@ -13,7 +13,7 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] Death has a cost: `World.handle_player_death` drops or taxes inventory/currency instead of a free respawn.
 - [x] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
 - [x] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
-- [ ] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
+- [x] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
 - [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Player bases: `Base`/`BaseLevel` exist in GameSpace with no command. Add `/base build|upgrade|status` gated on `is_space_buildable`.
@@ -51,6 +51,11 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## Cleanup
 
+- [ ] Armor rolls its coverage randomly and `base_value` is `10 * armor_count`, so a piece worth 0 is
+  free from any store. Give every item a floor price.
+- [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
+  players want to offload loot without walking to a town.
+
 - [ ] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
   list. Nothing calls it; either fix the slice or delete it.
 
@@ -63,6 +68,11 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-09-20 `MerchantEvent` is real: a trader on the road carries up to `MAX_STOCK` items from
+  `Store.generate_store()` at `MARKUP`, browsed and bought with the new `/trade`. `pending_encounter`
+  became `pending_event` so an encounter and a merchant share one slot, each command checking which
+  is actually waiting.
 
 - 2026-09-16 `EncounterEvent` is real: a stranger on the road parks a pending choice on the character and
   waits for the new `/choose` (talk for directions to the nearest town, rob for a contest of levels,

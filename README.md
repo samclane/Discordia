@@ -50,6 +50,11 @@ the bot syncs them.
     * `talk` gets you directions to the nearest town, `rob` is a contest of your level against theirs
     (win and you take their money, lose and they hurt you), `ignore` walks on. Moving anywhere also
     counts as walking on.
+* `/trade list`
+    * The wilds can also turn up a trader with a few things laid out on a blanket. Lists what they have
+    and what they want for it, at a markup over town prices.
+    * `/trade buy` [`index`]
+        * Buy the trader's item at that index. They are gone as soon as you move on.
 * `/town status`
     * Calling `town` with no parameters is a debug command to check if you're inside a town or not.
     * `/town inn`

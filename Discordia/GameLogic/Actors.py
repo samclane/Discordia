@@ -329,7 +329,7 @@ class PlayerCharacter(Actor):
         self.last_death_cost: int = 0
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
-        self.pending_encounter = None
+        self.pending_event = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
@@ -339,7 +339,7 @@ class PlayerCharacter(Actor):
     ) -> List[GameSpace.PlayerActionResponse]:
         # Walking on is how you ignore a stranger. Cleared before the step, so an encounter raised by
         # the square you land on survives.
-        self.pending_encounter = None
+        self.pending_event = None
         return super().attempt_move(shift)
 
     @property
