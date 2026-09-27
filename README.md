@@ -18,6 +18,27 @@ To install:
 
 Set the `DISCORD_TOKEN` environment variable, or fill in `Token` under `[Discord]` in `config.ini`.
 
+# Deploying (Linode / any Ubuntu 24.04 box)
+
+A Nanode (1 GB) is plenty. As root:
+
+```
+apt update && apt install -y git python3-venv python3-dev build-essential
+useradd --system --home /opt/discordia discordia
+git clone https://github.com/samclane/Discordia.git /opt/discordia
+python3 -m venv /opt/discordia/venv
+/opt/discordia/venv/bin/pip install -r /opt/discordia/requirements.txt
+chown -R discordia: /opt/discordia
+echo "DISCORD_TOKEN=your-token" > /etc/discordia.env && chmod 600 /etc/discordia.env
+cp /opt/discordia/deploy/discordia.service /etc/systemd/system/
+systemctl enable --now discordia
+journalctl -u discordia -f
+```
+
+The save is `/opt/discordia/discordia.db`; copy it over first to keep an existing world. The live map binds to
+localhost only, so view it through a tunnel: `ssh -L 8080:localhost:8080 root@<linode-ip>`, then open
+http://localhost:8080. To update: `sudo -u discordia git -C /opt/discordia pull && systemctl restart discordia`.
+
 # Player Controls
 
 All player controls are Discord slash commands. Global commands can take up to an hour to appear the first time

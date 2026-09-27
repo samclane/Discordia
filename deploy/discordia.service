@@ -1,0 +1,19 @@
+[Unit]
+Description=Discordia Discord MUD
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=discordia
+WorkingDirectory=/opt/discordia
+# DISCORD_TOKEN=... lives here, chmod 600
+EnvironmentFile=/etc/discordia.env
+ExecStart=/opt/discordia/venv/bin/python main.py -W 8080
+Restart=on-failure
+RestartSec=10
+# SIGINT, not SIGTERM: main.py saves the world on KeyboardInterrupt
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
