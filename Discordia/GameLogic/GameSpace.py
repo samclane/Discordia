@@ -60,6 +60,10 @@ WILDS_MAX_LEVEL = 8
 # and barely touches a broke one, so dying never strands anybody at zero.
 DEATH_TAX = 0.25
 
+# Roaming raiders are capped at one per this many wilds squares. At one per square every step off the
+# road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes.
+WILDS_PER_RAIDER = 10
+
 
 def death_toll_text(player: Actors.PlayerCharacter) -> str:
     """What the last death cost, phrased for a player, or "" if they had nothing to lose."""
@@ -890,19 +894,25 @@ class World:
         """
         events: List[PlayerActionResponse] = []
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
-        if self.wilds and len(self.npcs) < len(self.wilds):
+        if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
         for npc in self.npcs:
-            targets = [p for p in self.players if p.location == npc.location]
+            # Towns are safe ground: somewhere to respawn, rest and shop without a raider on you.
+            targets = [
+                p
+                for p in self.players
+                if p.location == npc.location and not isinstance(p.location, Town)
+            ]
             if not targets:
                 npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
                 continue
             target = random.choice(targets)
+            deaths = target.deaths
             damage = npc.brain.update(target)
             if damage is None:  # disengaged; not worth waking the player up for
                 continue
             text = f"{npc.name} hits you for {damage} damage."
-            if target.is_dead:  # handle_player_death already sent them home
+            if target.deaths != deaths:  # handle_player_death already sent them home
                 text += (
                     f" You black out, and come to in {self.starting_town.name}."
                     + death_toll_text(target)
@@ -923,8 +933,9 @@ class World:
         LOG.info(f"Player {player.name} has died")
         player.last_death_cost = int(player.currency * DEATH_TAX)
         player.currency -= player.last_death_cost
+        player.deaths += 1
         player.location = self.starting_town
-        player.hit_points = player.hit_points_max
+        player.revive()
         return player.inventory
 
 

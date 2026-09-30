@@ -165,6 +165,11 @@ class Actor(AbstractActor, ABC):
     def is_dead(self) -> bool:
         return self._is_dead
 
+    def revive(self):
+        """Back on your feet at full health. The hit_points setter ignores the dead, so this goes around it."""
+        self._is_dead = False
+        self._hit_points = self.hit_points_max
+
     def on_death(self):
         return []
 
@@ -327,6 +332,8 @@ class PlayerCharacter(Actor):
         self.currency: int = 1000
         # What the last death took, so whoever narrates it can say. Transient: not worth saving.
         self.last_death_cost: int = 0
+        # Deaths so far. A player is revived the moment they die, so a fight watches this to know it's over.
+        self.deaths: int = 0
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
         self.pending_event = None

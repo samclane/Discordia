@@ -49,6 +49,9 @@ class CombatEvent(Event):
     ) -> Iterator[GameSpace.PlayerActionResponse]:
         # Just mow the enemies down in order
         victory_response = GameSpace.PlayerActionResponse(source=player_character)
+        deaths = (
+            player_character.deaths
+        )  # death revives you in town, so watch the count, not is_dead
         for enemy in self.enemies:
             kill_response = GameSpace.PlayerActionResponse(source=player_character)
 
@@ -93,7 +96,7 @@ class CombatEvent(Event):
                 )
                 defense_response.is_successful = True
                 yield defense_response
-                if player_character.is_dead:
+                if player_character.deaths != deaths:
                     break
 
             if enemy.is_dead:
@@ -105,10 +108,10 @@ class CombatEvent(Event):
                 )
                 yield kill_response
             # A live enemy means the player died or can't fight; either way, stop.
-            elif player_character.is_dead or player_character.weapon is None:
+            elif player_character.deaths != deaths or player_character.weapon is None:
                 break
 
-        if not player_character.is_dead:
+        if player_character.deaths == deaths:
             victory_response.is_successful = True
             victory_response.text = (
                 f"{player_character.name} has successfully slain their foes."
@@ -197,6 +200,7 @@ class EncounterEvent(Event):
         odds = player_character.level / (player_character.level + npc_level)
         if random.random() >= odds:
             hurt = max(1, npc.hit_points_max // 5)
+            deaths = player_character.deaths
             player_character.take_damage(hurt)
             response.is_successful = False
             response.damage = hurt
@@ -204,6 +208,10 @@ class EncounterEvent(Event):
                 f"{npc.name} was ready for that. You take {hurt} damage, "
                 f"and they are gone by the time you are up."
             )
+            if player_character.deaths != deaths:
+                response.text += " You come to in the starting town." + (
+                    GameSpace.death_toll_text(player_character)
+                )
             return
         if not npc.currency:
             response.text = (

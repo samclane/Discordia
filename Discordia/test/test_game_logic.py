@@ -866,6 +866,30 @@ def test_dying_broke_costs_nothing_and_says_nothing(adapter):
     assert GameSpace.death_toll_text(player) == ""
 
 
+def test_you_come_back_from_death_alive_and_can_die_again(adapter):
+    """Dying used to leave you dead at 0 HP for good: every later fight was an instant, free loss."""
+    player = adapter.get_player(1)
+    player.currency = 400
+
+    player.take_damage(player.hit_points_max)
+    assert not player.is_dead
+    assert player.hit_points == player.hit_points_max
+
+    player.take_damage(player.hit_points_max)
+    assert player.deaths == 2
+    assert player.currency == 225  # taxed once per death, never below zero
+
+
+def test_raiders_leave_players_in_town_alone(adapter):
+    player = adapter.get_player(1)
+    town = adapter.world.starting_town
+    raider = Actors.Raider(adapter.world, 50, "Camper")
+    adapter.world.add_actor(raider, town)
+
+    adapter.world.tick()
+    assert player.hit_points == player.hit_points_max
+
+
 def test_the_map_holds_exactly_width_times_height_spaces(adapter):
     assert len(list(adapter.iter_spaces())) == adapter.width * adapter.height
     assert [(idx, p.name) for idx, p in adapter.iter_registered()] == [(1, "Tester")]
@@ -921,11 +945,24 @@ def test_ticking_spawns_npcs_and_moves_them_without_the_player(adapter):
 def test_a_tick_lets_an_npc_hit_a_player_sharing_its_space(adapter):
     world = adapter.world
     player = adapter.get_player(1)
+    player.location = world.wilds[0]  # towns are safe
     npc = Actors.Raider(world, 50, "Mugger")
     world.add_actor(npc, player.location)
 
     world.tick()
     assert player.hit_points < player.hit_points_max
+
+
+def test_a_tick_that_kills_says_so_and_sends_you_home(adapter):
+    world = adapter.world
+    player = adapter.get_player(1)
+    player.location = world.wilds[0]
+    player.hit_points = 1
+    world.add_actor(Actors.Raider(world, 50, "Mugger"), player.location)
+
+    [event] = [e for e in world.tick() if e.target is player]
+    assert "black out" in event.text
+    assert player.location == world.starting_town and not player.is_dead
 
 
 def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
