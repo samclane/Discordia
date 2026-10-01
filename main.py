@@ -4,6 +4,7 @@ import argparse
 
 import ConfigParser
 from Discordia.GameLogic import GameSpace
+from Discordia.Interface import Alerts
 from Discordia.Interface.Database import Database, DEFAULT_PATH
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
@@ -27,6 +28,7 @@ def main():
 
     if not ConfigParser.DISCORD_TOKEN:
         raise SystemExit("No Discord token: set DISCORD_TOKEN or fill in Token under [Discord] in config.ini")
+    alerts = Alerts.install(ConfigParser.ALERT_WEBHOOK_URL) if ConfigParser.ALERT_WEBHOOK_URL else None
 
     database = Database(args.database)
     adapter = database.load()
@@ -51,10 +53,15 @@ def main():
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
+    except Exception:
+        LOG.exception("Discordia crashed")  # through logging, so the crash that takes the bot down is alerted
+        raise
     finally:
         database.save(adapter)
         database.close()
         LOG.info("World saved.")
+        if alerts:
+            alerts.stop()  # flush anything still queued before the process goes
 
 
 if __name__ == '__main__':

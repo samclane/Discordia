@@ -18,6 +18,8 @@ config.read([Path("./default.ini"), Path("./config.ini")])
 
 DISCORD_TOKEN = environ.get('DISCORD_TOKEN') or config['Discord']['Token']
 DISCORD_PREFIX = config['Discord']['Prefix']
+# Optional: a channel webhook that gets warnings and errors. Env only, like the token it sits beside.
+ALERT_WEBHOOK_URL = environ.get('DISCORD_WEBHOOK_URL')
 DISCORD_MSG_TIMEOUT = int(config['Discord']['Timeout'])
 
 WORLD_NAME = config['World']['Name']

@@ -39,6 +39,10 @@ The save is `/opt/discordia/discordia.db`; copy it over first to keep an existin
 localhost only, so view it through a tunnel: `ssh -L 8080:localhost:8080 root@<linode-ip>`, then open
 http://localhost:8080. To update: `sudo -u discordia git -C /opt/discordia pull && systemctl restart discordia`.
 
+Alerts: make a webhook on a private channel (Channel settings > Integrations > Webhooks), then
+`echo "DISCORD_WEBHOOK_URL=<webhook-url>" >> /etc/discordia.env` and restart. Warnings, errors and crashes get
+posted there; the same text repeats at most once every 10 minutes.
+
 # Player Controls
 
 All player controls are Discord slash commands. Global commands can take up to an hour to appear the first time
