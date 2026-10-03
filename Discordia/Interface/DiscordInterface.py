@@ -208,6 +208,7 @@ class DiscordInterface(commands.Cog):
     async def tick(self):
         """Resolve everyone's orders, then let the world act. Same-tick orders resolve in random order."""
         orders, self._orders = self._orders, {}
+        self.world_adapter.world.stats.active_players.update(orders)
         for action, future in random.sample(list(orders.values()), len(orders)):
             if future.done():  # the command that asked for it went away
                 continue

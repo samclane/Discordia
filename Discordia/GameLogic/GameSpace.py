@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import random
 import sys
+import time
 from abc import ABC
 from dataclasses import dataclass, field
+from collections import Counter
 from itertools import product
 from pathlib import Path
-from typing import List, Tuple, Dict, Iterator, Type, Union
+from typing import List, Tuple, Dict, Iterator, Set, Type, Union
 
 import math
 import numpy as np
@@ -592,6 +594,17 @@ class PlayerActionResponse:
         return not self.is_successful
 
 
+@dataclass
+class Stats:
+    """What happened since the last digest (Interface.Alerts.digest). Not saved: a restart starts over."""
+
+    since: float = field(default_factory=time.time)
+    kills: int = 0
+    # Keyed by the danger level of the wilds you died in; 0 is anywhere that isn't wilds.
+    deaths_by_level: Counter = field(default_factory=Counter)
+    active_players: Set[Actors.PlayerCharacter] = field(default_factory=set)
+
+
 class World:
 
     def __init__(
@@ -614,6 +627,7 @@ class World:
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
+        self.stats: Stats = Stats()
         self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
@@ -934,6 +948,8 @@ class World:
         player.last_death_cost = int(player.currency * DEATH_TAX)
         player.currency -= player.last_death_cost
         player.deaths += 1
+        here = player.location
+        self.stats.deaths_by_level[here.level if isinstance(here, Wilds) else 0] += 1
         player.location = self.starting_town
         player.revive()
         return player.inventory

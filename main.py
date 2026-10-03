@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import threading
 import argparse
+from typing import Callable, cast
 
 import ConfigParser
 from Discordia.GameLogic import GameSpace
@@ -45,11 +47,21 @@ def main():
         threading.Thread(target=serve, args=(display, args.web_port), daemon=True).start()
     # The tick and the autosave run on the bot's event loop, in lockstep with the commands: no locking
     # needed, and a crash loses at most AUTOSAVE_SECONDS of play.
-    discord_interface = DiscordInterface(
-        adapter,
-        jobs=[(AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave")],
-        tick_seconds=TICK_SECONDS,
-    )
+    jobs: list[tuple[float, Callable[[], None], str]] = [
+        (AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave")
+    ]
+    webhook = ConfigParser.ALERT_WEBHOOK_URL
+    if webhook:
+        async def send_digest():
+            # Summed on the loop, beside the game; posted off it, so a slow Discord can't stall a tick.
+            text = Alerts.digest(adapter.world)
+            if text:
+                await asyncio.to_thread(Alerts.post, webhook, text)
+
+        # ponytail: the day restarts with the process. The shutdown digest below keeps a deploy from
+        # throwing a partial day away; a crash still does.
+        jobs.append((Alerts.DIGEST_SECONDS, cast(Callable[[], None], send_digest), "Daily digest"))
+    discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS)
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
@@ -60,6 +72,13 @@ def main():
         database.save(adapter)
         database.close()
         LOG.info("World saved.")
+        if webhook:
+            try:
+                text = Alerts.digest(adapter.world)
+                if text:
+                    Alerts.post(webhook, text)
+            except Exception:
+                LOG.exception("Shutdown digest failed")
         if alerts:
             alerts.stop()  # flush anything still queued before the process goes
 

@@ -1,16 +1,58 @@
-"""Warnings and errors, posted to a Discord channel through a webhook so a crash pings someone."""
+"""Warnings, errors and a daily digest, posted to a Discord channel through a webhook."""
 
 import json
 import logging
 import time
 import urllib.request
+from datetime import datetime, timezone
 from logging.handlers import QueueHandler, QueueListener
 from queue import SimpleQueue
-from typing import Dict
+from typing import Dict, Optional
+
+from Discordia.GameLogic.GameSpace import Stats, World
 
 # An error raised every tick would otherwise ping every 5 seconds; the same text pings once per this long.
 REPEAT_SECONDS = 600
 DISCORD_LIMIT = 2000  # characters per webhook message
+DIGEST_SECONDS = 24 * 60 * 60
+
+
+def post(url: str, content: str):
+    """One webhook message. Blocks for up to 10 seconds, so keep it off the bot's event loop."""
+    request = urllib.request.Request(
+        url,
+        data=json.dumps({"content": content}).encode(),
+        # Discord turns away urllib's default User-Agent.
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Discordia (https://github.com/samclane/Discordia)",
+        },
+    )
+    urllib.request.urlopen(request, timeout=10).close()
+
+
+def digest(world: World) -> Optional[str]:
+    """Sum up the world's stats and start them over. None if nobody did anything worth a message."""
+    stats, world.stats = world.stats, Stats()
+    deaths = stats.deaths_by_level
+    if not (stats.active_players or stats.kills or deaths):
+        return None
+    since = datetime.fromtimestamp(stats.since, timezone.utc)
+    lines = [
+        f"Since {since:%b %d %H:%M} UTC: {len(stats.active_players)} players active"
+        f" · {stats.kills} kills · {sum(deaths.values())} deaths"
+    ]
+    if deaths:
+        lines.append(
+            "Deaths by danger level: "
+            + " · ".join(f"L{level} {n}" for level, n in sorted(deaths.items()))
+        )
+    top = sorted(world.players, key=lambda p: p.experience, reverse=True)[:5]
+    if top:
+        lines.append(
+            "Top: " + " · ".join(f"{p.name} L{p.level} ${p.currency:,}" for p in top)
+        )
+    return "\n".join(lines)
 
 
 class WebhookHandler(logging.Handler):
@@ -33,17 +75,8 @@ class WebhookHandler(logging.Handler):
         # Keep what failed and where it ended up; the middle of a traceback can go.
         if len(text) > room:
             text = text[:300] + "\n...\n" + text[-(room - 305) :]
-        request = urllib.request.Request(
-            self.url,
-            data=json.dumps({"content": f"```\n{text}\n```"}).encode(),
-            # Discord turns away urllib's default User-Agent.
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "Discordia (https://github.com/samclane/Discordia)",
-            },
-        )
         try:
-            urllib.request.urlopen(request, timeout=10).close()
+            post(self.url, f"```\n{text}\n```")
         except Exception:
             # To stderr, i.e. journald; never back through logging.
             self.handleError(record)

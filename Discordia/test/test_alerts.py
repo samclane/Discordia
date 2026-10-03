@@ -4,7 +4,9 @@ from logging.handlers import QueueHandler
 
 import pytest
 
+from Discordia.GameLogic import GameSpace
 from Discordia.Interface import Alerts
+from Discordia.Interface.WorldAdapter import WorldAdapter
 
 
 @pytest.fixture
@@ -49,3 +51,24 @@ def test_a_huge_traceback_still_fits_in_one_message(alerts):
     [post] = posts
     assert len(post) <= Alerts.DISCORD_LIMIT
     assert "boom" in post and "ValueError: the end" in post
+
+
+def test_a_quiet_day_sends_no_digest():
+    world = GameSpace.World("Quiet", 8, 8, seed=1)
+    assert Alerts.digest(world) is None
+
+
+def test_the_digest_sums_up_the_day_and_starts_over():
+    world = GameSpace.World("Busy", 8, 8, seed=1)
+    adapter = WorldAdapter(world)
+    adapter.register_player(1, "Tester")
+    adapter.get_player(1).currency = 1240
+    world.stats.active_players.add(adapter.get_player(1))
+    world.stats.kills = 31
+    world.stats.deaths_by_level.update({2: 5, 1: 2})
+
+    text = Alerts.digest(world)
+    assert "1 players active · 31 kills · 7 deaths" in text
+    assert "Deaths by danger level: L1 2 · L2 5" in text
+    assert "Tester L1 $1,240" in text
+    assert Alerts.digest(world) is None  # counted once

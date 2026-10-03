@@ -432,6 +432,7 @@ class PlayerCharacter(Actor):
         self.currency += corpse.currency
         corpse.inventory = Inventory()
         corpse.currency = 0
+        self.parent_world.stats.kills += 1
 
         # A tougher corpse is worth more, and NPCs never learned to track their own level.
         experience = corpse.hit_points_max // 2

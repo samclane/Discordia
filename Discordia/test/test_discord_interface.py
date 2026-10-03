@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -139,7 +139,8 @@ PLAYER = cast(Actors.PlayerCharacter, "a player")  # orders only ever key on ide
 def ticking_interface(on_world_tick=lambda: []) -> DiscordInterface:
     """A cog whose world does nothing but record that it ticked and report its events."""
     adapter = SimpleNamespace(
-        world=SimpleNamespace(tick=on_world_tick), get_member_id=lambda character: 7
+        world=SimpleNamespace(tick=on_world_tick, stats=GameSpace.Stats()),
+        get_member_id=lambda character: 7,
     )
     return DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
 

@@ -395,11 +395,11 @@ def test_a_quiet_wilds_reports_that_nothing_happened():
     assert wilds.run_event(character) == []
 
 
-def test_combat_ends_with_the_enemies_dead_and_their_kit_looted():
+def test_combat_ends_with_the_enemies_dead_and_their_kit_looted(adapter):
     enemy = Actors.NPC(None, 1, "Mook")
     enemy.inventory.append(Armor.Helmet())
     event = Events.CombatEvent(1.0, "<test>", [enemy])
-    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character = adapter.get_player(1)
     character.equip(Weapons.Hammer())
 
     responses = list(event.run(character))
@@ -446,11 +446,11 @@ def test_a_world_too_small_to_roll_a_town_still_gets_one():
     assert world.starting_town in world.towns
 
 
-def test_killing_an_npc_pays_out_its_money_once():
+def test_killing_an_npc_pays_out_its_money_once(adapter):
     enemy = Actors.NPC(None, 1, "Mook")
     enemy.currency = 40
     event = Events.CombatEvent(1.0, "<test>", [enemy])
-    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character = adapter.get_player(1)
     character.equip(Weapons.Hammer())
     purse = character.currency
 
@@ -1180,3 +1180,18 @@ def test_every_generated_town_has_a_named_industry():
         for _ in range(200)
     }
     assert {"Eastern Military Base", "Western Military Base"} & industries
+
+
+def test_deaths_and_kills_are_counted_for_the_digest(adapter):
+    world = adapter.world
+    player = adapter.get_player(1)
+    wilds = world.wilds[0]
+    player.location = wilds
+    player.take_damage(player.hit_points_max)
+    assert world.stats.deaths_by_level == {wilds.level: 1}
+
+    mook = Actors.NPC(world, 1, "Mook")
+    world.add_actor(mook, player.location)
+    player.equip(Weapons.Hammer())
+    adapter.attack(player, None)
+    assert world.stats.kills == 1
