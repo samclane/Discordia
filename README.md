@@ -37,7 +37,9 @@ journalctl -u discordia -f
 
 The save is `/opt/discordia/discordia.db`; copy it over first to keep an existing world. The live map binds to
 localhost only, so view it through a tunnel: `ssh -L 8080:localhost:8080 root@<linode-ip>`, then open
-http://localhost:8080. To update: `sudo -u discordia git -C /opt/discordia pull && systemctl restart discordia`.
+http://localhost:8080. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
+add a `discordia` host to `~/.ssh/config` and run it bare). It refuses if HEAD isn't pushed, pulls, restarts, and
+fails if the service doesn't come back up.
 
 Alerts: make a webhook on a private channel (Channel settings > Integrations > Webhooks), then
 `echo "DISCORD_WEBHOOK_URL=<webhook-url>" >> /etc/discordia.env` and restart. Warnings, errors and crashes get
