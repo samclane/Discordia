@@ -29,14 +29,27 @@ let selected = null; // { actor: id } or { x, y }
 let follow = false;
 
 const view = { x: 0, y: 0, scale: 1 };
+// What's actually drawn: the view, nudged so every chunk edge lands on a whole device pixel. Anywhere
+// else, each chunk's anti-aliased edge lets the background through and the map shows a faint grid.
+// The view itself stays unrounded, or a slow pinch's small steps would round away to nothing.
+const shown = { ...view };
 
 // Names come from Discord, so nothing goes into innerHTML unescaped.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 function applyView() {
-  stage.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
-  stage.style.setProperty("--inv", 1 / view.scale);
+  const d = devicePixelRatio;
+  const span = world ? world.chunk * tile : tile; // a chunk, in map pixels
+  shown.scale = Math.max(1, Math.round(span * view.scale * d)) / (span * d);
+  // Chunks are placed relative to the spawn, which needn't sit on a chunk edge: snap the grid, not it.
+  const gx = world ? (origin.x % world.chunk) * tile * shown.scale : 0;
+  const gy = world ? (origin.y % world.chunk) * tile * shown.scale : 0;
+  shown.x = Math.round((view.x - gx) * d) / d + gx;
+  shown.y = Math.round((view.y - gy) * d) / d + gy;
+  stage.style.transform = `translate(${shown.x}px, ${shown.y}px) scale(${shown.scale})`;
+  stage.style.setProperty("--inv", 1 / shown.scale);
   document.body.classList.toggle("far", view.scale * tile < 14);
+  document.body.classList.toggle("tiny", view.scale * tile < 2);
   queueChunks();
 }
 
@@ -217,9 +230,9 @@ function zoomCenter(factor) {
 
 function tileAt(clientX, clientY) {
   const r = viewport.getBoundingClientRect();
-  const size = tile * view.scale;
-  const x = Math.floor((clientX - r.left - view.x) / size) + origin.x;
-  const y = Math.floor((clientY - r.top - view.y) / size) + origin.y;
+  const size = tile * shown.scale; // what's drawn, so the square under the pointer is the one you see
+  const x = Math.floor((clientX - r.left - shown.x) / size) + origin.x;
+  const y = Math.floor((clientY - r.top - shown.y) / size) + origin.y;
   return world && x >= 0 && y >= 0 && x < world.width && y < world.height ? { x, y } : null;
 }
 
@@ -326,13 +339,20 @@ function renderTowns() {
   const shown = towns.filter((t) => matches(t.name)).sort((a, b) => a.name.localeCompare(b.name));
   fill(
     $("towns"),
-    shown.map((t) =>
-      row(t.sprite, t.name, `Pop. ${t.population} · ${t.industry}`, "", selected?.x === t.x && selected?.y === t.y, () =>
-        selectTile(t.x, t.y, true)
-      )
-    ),
+    shown.map((t) => {
+      const b = row(t.sprite, t.name, `Pop. ${t.population} · ${t.industry}`, "", false, () => selectTile(t.x, t.y, true));
+      b.dataset.at = `${t.x},${t.y}`;
+      return b;
+    }),
     "No match."
   );
+  markSelectedTown();
+}
+
+// A click only moves the highlight. Rebuilding every row for it took a frame or two with a thousand towns.
+function markSelectedTown() {
+  const at = selected && !selected.actor ? `${selected.x},${selected.y}` : null;
+  for (const b of $("towns").children) b.classList.toggle("selected", b.dataset.at === at);
 }
 
 function selectActor(id, fly) {
@@ -340,7 +360,7 @@ function selectActor(id, fly) {
   follow = fly;
   pick.style.display = "none";
   renderActors();
-  renderTowns();
+  markSelectedTown();
   const a = actors.find((a) => a.id === id);
   if (fly && a) flyTo(a.x, a.y, Math.max(view.scale, 2));
 }
@@ -360,7 +380,7 @@ function selectTile(x, y, fly) {
   place(pick, x, y);
   if (fly) flyTo(x, y, Math.max(view.scale, 2));
   renderActors();
-  renderTowns();
+  markSelectedTown();
 }
 
 function clearSelection() {
@@ -368,7 +388,7 @@ function clearSelection() {
   follow = false;
   pick.style.display = "none";
   renderActors();
-  renderTowns();
+  markSelectedTown();
 }
 
 function describeActor(a) {

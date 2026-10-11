@@ -44,6 +44,9 @@
            transform-origin: 50% 100%; pointer-events: none; white-space: nowrap;
            font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
   body.far .actor.player .name { display: none; }
+  /* Under 2px a square every town's name lands on its neighbours'. Hover and the list still name them;
+     hiding the container, not each label, also spares restyling them all on every zoom frame. */
+  body.tiny #labels { display: none; }
 
   #cursor, #pick { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
                    pointer-events: none; display: none; }
