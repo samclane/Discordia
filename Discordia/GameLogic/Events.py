@@ -142,7 +142,7 @@ class EncounterEvent(Event):
         self.npc_involved: Actors.NPC = npc
 
     def run(self, player_character) -> Iterator[GameSpace.PlayerActionResponse]:
-        player_character.pending_event = self
+        setattr(player_character, "pending_event", self)
         yield GameSpace.PlayerActionResponse(
             is_successful=True, text=self.flavor_text, source=player_character
         )
@@ -244,7 +244,7 @@ class MerchantEvent(Event):
         self.store: GameSpace.Store = store
 
     def run(self, player_character):
-        player_character.pending_event = self
+        setattr(player_character, "pending_event", self)
         yield GameSpace.PlayerActionResponse(
             is_successful=True, text=self.flavor_text, source=player_character
         )
