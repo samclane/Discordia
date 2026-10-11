@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
+from Discordia.GameLogic.Actors import PlayerCharacter
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 
 LOG = logging.getLogger("Discordia.Interface.WebApp")
@@ -25,6 +26,7 @@ LOG = logging.getLogger("Discordia.Interface.WebApp")
 CLIENT_JS = Path(__file__).with_name("client.js")
 INDEX_HTML = Path(__file__).with_name("index.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
+
 
 def _sprite_url(sprite_path: str) -> str:
     """Map an on-disk sprite path to the URL the client fetches it from."""
@@ -62,24 +64,30 @@ def _world_json(renderer: WindowRenderer) -> bytes:
 
 def _actors_json(renderer: WindowRenderer) -> bytes:
     adapter = renderer.world_adapter
-    actors = [
-        {
-            # Identity has to survive a poll so the client can slide the sprite instead of respawning it,
-            # and generated names are not unique. The object address is, for as long as the actor lives.
-            "id": f"{kind}:{id(actor)}",
-            "kind": kind,
-            "name": actor.name,
-            "x": actor.location.x,
-            "y": actor.location.y,
-            "sprite": _sprite_url(actor.sprite_path_string),
-            "hp": actor.hit_points,
-            "hp_max": actor.hit_points_max,
-            **({"level": actor.level, "class": actor.player_class.name} if kind == "player" else {}),
-        }
-        for kind, actor in [("npc", n) for n in adapter.world.npcs]
-        + [("player", p) for p in adapter.iter_players()]
-        if actor.location is not None  # dead, or registered but not yet spawned
-    ]
+    # This runs on an HTTP thread while the bot loop mutates the world. list() snapshots each
+    # collection in one step, and location is read once so a death mid-poll can't leave it None.
+    # ponytail: no lock; a stale hp/position for one poll is fine. Lock if torn reads ever matter.
+    tagged = [("npc", n) for n in list(adapter.world.npcs)] + [("player", p) for p in list(adapter.iter_players())]
+    actors = []
+    for kind, actor in tagged:
+        loc = actor.location
+        if loc is None:  # dead, or registered but not yet spawned
+            continue
+        actors.append(
+            {
+                # Identity has to survive a poll so the client can slide the sprite instead of respawning it,
+                # and generated names are not unique. The object address is, for as long as the actor lives.
+                "id": f"{kind}:{id(actor)}",
+                "kind": kind,
+                "name": actor.name,
+                "x": loc.x,
+                "y": loc.y,
+                "sprite": _sprite_url(actor.sprite_path_string),
+                "hp": actor.hit_points,
+                "hp_max": actor.hit_points_max,
+                **({"level": actor.level, "class": actor.player_class.name} if isinstance(actor, PlayerCharacter) else {}),
+            }
+        )
     return json.dumps({"actors": actors}).encode()
 
 
