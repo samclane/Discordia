@@ -34,7 +34,7 @@ INDEX_HTML = Path(__file__).with_name("index.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 2
-CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|json)")
+CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
 
@@ -153,8 +153,9 @@ class _Handler(BaseHTTPRequestHandler):
             rows = self.renderer.world_adapter.world.loaded_chunk(cx, cy)
             if rows is None:
                 self.send_error(404)  # unexplored
-            elif ext == "png":
-                self._send(self.renderer.chunk_png(cx, cy) or b"", "image/png", etag=etag)
+            elif ext.endswith("png"):
+                png = self.renderer.chunk_png(cx, cy, mini=ext == "mini.png")
+                self._send(png or b"", "image/png", etag=etag)
             else:
                 self._send(_chunk_json(rows), "application/json", etag=etag)
         elif path == "/world.json":

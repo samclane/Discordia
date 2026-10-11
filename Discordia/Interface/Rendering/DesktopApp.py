@@ -36,6 +36,14 @@ GROUND = 117
 # Top-left tile of each terrain's block in the sheet. Every block has the same layout: a 3x3 of corners,
 # edges and middle at columns 0-2, and inside corners at columns 5-6 of the top two rows.
 BLOCKS = {"water": 170, "grass": 0, "mountain": 81}
+# Pixels a square in the zoomed-out overview: still reads as coast and towns, at a tenth of the bytes.
+MINI_TILE = 2
+
+
+def _png(image: Image.Image) -> bytes:
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 def _quarters(block: int):
@@ -165,24 +173,35 @@ class WindowRenderer:
                     self._paste(space.sprite_path_string, x, y, image)
         return image
 
-    def chunk_png(self, cx: int, cy: int) -> bytes | None:
-        """One chunk's terrain, towns and wilds as PNG, or None if nobody has been there yet.
+    def chunk_png(self, cx: int, cy: int, mini: bool = False) -> bytes | None:
+        """One chunk's terrain, towns and wilds as PNG, or None if nobody has been there yet. `mini` is
+        the overview a zoomed-out map uses, MINI_TILE pixels a square.
 
         Never generates the chunk: this is called from the web server's threads, and generation belongs
         to the game loop. A chunk never changes once generated, so neither does its picture.
         """
         if self.world_adapter.world.loaded_chunk(cx, cy) is None:
             return None
-        return self._chunk_png(cx, cy)
+        return self._chunk_mini_png(cx, cy) if mini else self._chunk_png(cx, cy)
 
-    @lru_cache(maxsize=256)  # ~50 KB each
-    def _chunk_png(self, cx: int, cy: int) -> bytes:
+    def _chunk_image(self, cx: int, cy: int) -> Image.Image:
         rows = self.world_adapter.world.loaded_chunk(cx, cy) or []
         size = GameSpace.CHUNK_SIZE
-        image = self._draw(chain.from_iterable(rows), cx * size, cy * size, size, size)
-        buffer = io.BytesIO()
-        image.save(buffer, "PNG")
-        return buffer.getvalue()
+        return self._draw(chain.from_iterable(rows), cx * size, cy * size, size, size)
+
+    # Zoomed in, a screenful is under 200 chunks, so these never thrash.
+    @lru_cache(maxsize=256)  # ~35 KB each
+    def _chunk_png(self, cx: int, cy: int) -> bytes:
+        return _png(self._chunk_image(cx, cy))
+
+    # A zoomed-out map shows every explored chunk at once: cache them all, or every page load redraws
+    # the lot (an LRU smaller than one view's worth never hits).
+    # ponytail: past ~4000 explored chunks a fit view thrashes this and puts that many <img>s on the page.
+    # Then: overview tiles of 8x8 chunks, built from these.
+    @lru_cache(maxsize=4096)  # ~3 KB each
+    def _chunk_mini_png(self, cx: int, cy: int) -> bytes:
+        size = GameSpace.CHUNK_SIZE * MINI_TILE
+        return _png(self._chunk_image(cx, cy).resize((size, size), Image.Resampling.BOX))
 
     def draw_region(self, x0: int, y0: int, x1: int, y1: int) -> Image.Image:
         """Squares [x0, x1) x [y0, y1), clipped to the map, with the actors standing on them.

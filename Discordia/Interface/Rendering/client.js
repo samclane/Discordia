@@ -37,12 +37,15 @@ function applyView() {
   stage.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
   stage.style.setProperty("--inv", 1 / view.scale);
   document.body.classList.toggle("far", view.scale * tile < 14);
-  if (!chunkFrame) chunkFrame = requestAnimationFrame(showChunks);
+  queueChunks();
 }
 
 // --- chunks ---------------------------------------------------------------
 
 let chunkFrame = 0;
+function queueChunks() {
+  if (!chunkFrame) chunkFrame = requestAnimationFrame(showChunks);
+}
 // Add the explored chunks in view (plus a ring of margin) and drop the rest, so panning across a big
 // world never holds more than a screenful of chunk images.
 function showChunks() {
@@ -64,16 +67,24 @@ function showChunks() {
       chunkEls.delete(key);
     }
   }
+  // Under 4 screen pixels a square, the 2-pixel overview is at most doubled, and a tenth of the bytes.
+  const ext = tile * view.scale < 4 ? "mini.png" : "png";
   for (const key of explored) {
-    if (chunkEls.has(key) || !inView(key)) continue;
+    if (!inView(key)) continue;
     const [cx, cy] = key.split(",").map(Number);
-    const el = new Image();
-    el.className = "chunk";
-    el.alt = "";
-    el.src = `/chunk/${cx}/${cy}.png`;
-    place(el, cx * world.chunk, cy * world.chunk);
-    chunkLayer.appendChild(el);
-    chunkEls.set(key, el);
+    let el = chunkEls.get(key);
+    if (!el) {
+      el = new Image();
+      el.className = "chunk";
+      el.alt = "";
+      el.style.width = el.style.height = world.chunk * tile + "px"; // the overview is smaller than its square
+      place(el, cx * world.chunk, cy * world.chunk);
+      chunkLayer.appendChild(el);
+      chunkEls.set(key, el);
+    }
+    // Crossing the zoom threshold swaps the picture; the old one stays up until the new one loads.
+    const src = `/chunk/${cx}/${cy}.${ext}`;
+    if (el.getAttribute("src") !== src) el.src = src;
   }
 }
 
@@ -127,7 +138,9 @@ async function pollExplored() {
       );
       renderTowns();
     }
-    if (explored.size !== before) showChunks();
+    // Next frame, not now: on the first poll the view isn't fitted yet, and drawing at its default zoom
+    // would fetch full-size chunks the fit is about to swap for overviews.
+    if (explored.size !== before) queueChunks();
   } catch (err) {
     // pollActors already shows the server as down
   }

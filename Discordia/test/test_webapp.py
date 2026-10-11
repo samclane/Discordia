@@ -5,6 +5,7 @@ and /sprites/ can't be walked out of.
 
 import gzip
 import http.client
+import io
 import json
 import threading
 import urllib.error
@@ -13,9 +14,10 @@ from http.server import ThreadingHTTPServer
 from functools import partial
 
 import pytest
+from PIL import Image
 
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _Handler
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
@@ -61,10 +63,26 @@ def test_explored_chunks_are_pngs(base_url):
     assert len(terrain) == 12 and len(terrain[0]) == GameSpace.CHUNK_SIZE  # clipped to the map
 
 
-def test_unexplored_chunks_404_rather_than_generate(base_url):
+def test_zoomed_out_map_gets_a_small_overview(base_url):
+    """A fit view shows every explored chunk: at full size that was 34 KB each, hundreds of them."""
+    explored = json.loads(get(base_url + "/explored.json")[2])
+    cx, cy = explored["chunks"][0]
+    full = get(base_url + f"/chunk/{cx}/{cy}.png")[2]
+    misses = WindowRenderer._chunk_mini_png.cache_info().misses
+    status, headers, mini = get(base_url + f"/chunk/{cx}/{cy}.mini.png")
+    assert status == 200 and headers["Content-Type"] == "image/png"
+    assert Image.open(io.BytesIO(mini)).size == (GameSpace.CHUNK_SIZE * MINI_TILE,) * 2
+    assert len(mini) * 5 < len(full)
+
+    get(base_url + f"/chunk/{cx}/{cy}.mini.png")  # the next visitor's is cached, not redrawn
+    assert WindowRenderer._chunk_mini_png.cache_info().misses == misses + 1
+
+
+@pytest.mark.parametrize("ext", ["png", "mini.png", "json"])
+def test_unexplored_chunks_404_rather_than_generate(base_url, ext):
     """Generation belongs to the game loop; a visitor panning the map mustn't build the world."""
     with pytest.raises(urllib.error.HTTPError) as excinfo:
-        get(base_url + "/chunk/5/0.png")  # the far end of the map, where the spawn search never reached
+        get(base_url + f"/chunk/5/0.{ext}")  # the far end of the map, where the spawn search never reached
     assert excinfo.value.code == 404
 
 
