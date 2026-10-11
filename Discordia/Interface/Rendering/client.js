@@ -74,7 +74,6 @@ function showChunks() {
     place(el, cx * world.chunk, cy * world.chunk);
     chunkLayer.appendChild(el);
     chunkEls.set(key, el);
-    if (!chunkData.has(key)) loadChunkData(key, cx, cy);
   }
 }
 
@@ -84,21 +83,32 @@ async function loadChunkData(key, cx, cy) {
     const data = await (await fetch(`/chunk/${cx}/${cy}.json`)).json();
     chunkData.set(key, data);
     for (const w of data.wilds) structures.set(`${w.x},${w.y}`, { kind: "Wilds", ...w });
+    // Whoever asked was shown a placeholder; fill it in.
+    renderInfo();
+    if (hover) showHover(hover);
   } catch (err) {
-    chunkData.delete(key); // try again next time it scrolls into view
+    chunkData.delete(key); // try again next time something asks
   }
 }
 
+// Only hover and the info panel need a chunk's description, so it's fetched when one of them asks: a
+// zoomed-out view would otherwise pull hundreds of them for nothing.
 function terrainAt(x, y) {
   const c = world.chunk;
-  const data = chunkData.get(`${Math.floor(x / c)},${Math.floor(y / c)}`);
-  return data ? data.terrain[y % c][x % c] : "unexplored";
+  const [cx, cy] = [Math.floor(x / c), Math.floor(y / c)];
+  const key = `${cx},${cy}`;
+  if (!explored.has(key)) return "unexplored";
+  if (!chunkData.has(key)) loadChunkData(key, cx, cy);
+  return chunkData.get(key)?.terrain[y % c][x % c] ?? "…";
 }
 
 // Explored ground only grows, as players walk into new chunks; check every so often.
 async function pollExplored() {
+  // A background tab draws nothing, so it fetches nothing. The first poll has to happen regardless.
+  if (document.hidden && explored.size) return setTimeout(pollExplored, 10000);
   try {
-    const data = await (await fetch("/explored.json", { cache: "no-store" })).json();
+    // no-cache, not no-store: revalidate against the ETag, which only changes when the map grows.
+    const data = await (await fetch("/explored.json", { cache: "no-cache" })).json();
     const before = explored.size;
     for (const [cx, cy] of data.chunks) explored.add(`${cx},${cy}`);
     if (data.towns.length !== towns.length) {
@@ -177,7 +187,8 @@ function flyTo(x, y, scale = view.scale) {
 
 function zoomAt(cx, cy, factor) {
   cancelAnimationFrame(anim);
-  const next = Math.min(8, Math.max(0.2, view.scale * factor));
+  // A fit can go below the 0.2 floor; zooming out from there mustn't jump back in.
+  const next = Math.min(8, Math.max(Math.min(0.2, view.scale), view.scale * factor));
   // Keep whatever is under the cursor under the cursor.
   const k = next / view.scale;
   view.x = cx - k * (cx - view.x);
@@ -205,6 +216,7 @@ const place = (el, x, y) =>
 // --- actors ---------------------------------------------------------------
 
 async function pollActors() {
+  if (document.hidden) return setTimeout(pollActors, 2000);
   try {
     actors = (await (await fetch("/actors.json", { cache: "no-store" })).json()).actors;
     $("status").className = "live";
@@ -408,14 +420,18 @@ viewport.addEventListener("pointerdown", (e) => {
   viewport.classList.add("dragging");
 });
 
+let hover = null; // the tile under the pointer
+function showHover(hit) {
+  const s = structures.get(`${hit.x},${hit.y}`);
+  $("hover").textContent = `(${hit.x}, ${hit.y}) ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
+}
+
 viewport.addEventListener("pointermove", (e) => {
-  const hit = tileAt(e.clientX, e.clientY);
-  cursor.style.display = hit ? "block" : "none";
-  if (hit) {
-    place(cursor, hit.x, hit.y);
-    const s = structures.get(`${hit.x},${hit.y}`);
-    $("hover").textContent = `(${hit.x}, ${hit.y}) ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
-  }
+  hover = tileAt(e.clientX, e.clientY);
+  cursor.style.display = hover ? "block" : "none";
+  if (hover) place(cursor, hover.x, hover.y);
+  // Not mid-drag: the map slides under a still pointer, and each chunk it crosses would be fetched.
+  if (hover && !drag) showHover(hover);
 
   const prev = pointers.get(e.pointerId);
   if (!prev || !drag) return;
@@ -449,6 +465,7 @@ function endPointer(e) {
 viewport.addEventListener("pointerup", endPointer);
 viewport.addEventListener("pointercancel", endPointer);
 viewport.addEventListener("pointerleave", () => {
+  hover = null;
   cursor.style.display = "none";
   $("hover").textContent = "";
 });

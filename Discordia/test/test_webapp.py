@@ -3,6 +3,8 @@ End-to-end checks for the web map server: every route answers, the static respon
 and /sprites/ can't be walked out of.
 """
 
+import gzip
+import http.client
 import json
 import threading
 import urllib.error
@@ -18,18 +20,22 @@ from Discordia.Interface.Rendering.WebApp import ART_VERSION, _Handler
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 
+def serve(adapter):
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_Handler, WindowRenderer(adapter)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
 @pytest.fixture(scope="module")
 def base_url():
     # Wide enough for chunks nobody has been to: the spawn is mid-map, so the far end stays unexplored.
     adapter = WorldAdapter(GameSpace.World("Testland", 200, 12, seed=7))
-    renderer = WindowRenderer(adapter)
     adapter.world.npcs.append(
         Actors.NPC(parent_world=adapter.world, name="Bandit", hp=10)
     )
     adapter.world.npcs[0].location = adapter.world.space_at(4, 3)
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_Handler, renderer))
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    server = serve(adapter)
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
 
@@ -85,6 +91,60 @@ def test_actors_json_carries_the_spawned_npc(base_url):
     assert (bandit["x"], bandit["y"], bandit["kind"]) == (4, 3, "npc")
     assert bandit["sprite"].startswith("/sprites/") and bandit["sprite"].endswith(".png")
     assert get(base_url + bandit["sprite"])[2].startswith(b"\x89PNG")
+
+
+def test_one_connection_serves_many_requests(base_url):
+    """A page load is hundreds of chunk requests; a connection each queued them six at a time."""
+    host, port = base_url.removeprefix("http://").split(":")
+    connection = http.client.HTTPConnection(host, int(port))
+    sockets = set()
+    for path in ["/world.json", "/explored.json", "/actors.json", "/client.js"]:
+        connection.request("GET", path)
+        response = connection.getresponse()
+        response.read()
+        assert response.status == 200 and response.version == 11
+        sockets.add(id(connection.sock))
+    assert len(sockets) == 1 and connection.sock is not None
+    connection.close()
+
+
+def test_text_is_gzipped_for_browsers_that_take_it(base_url):
+    explored = json.loads(get(base_url + "/explored.json")[2])
+    cx, cy = explored["chunks"][0]
+    url = base_url + f"/chunk/{cx}/{cy}.json"
+    plain = get(url)[2]
+    request = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
+    with urllib.request.urlopen(request) as response:
+        assert response.headers["Content-Encoding"] == "gzip"
+        packed = response.read()
+    assert gzip.decompress(packed) == plain
+    assert len(packed) * 4 < len(plain)  # terrain names repeat; the polled JSON is the same story
+
+    # Too small to bother, and never the PNGs: they're compressed already.
+    for small in ["/world.json", f"/chunk/{cx}/{cy}.png"]:
+        request = urllib.request.Request(base_url + small, headers={"Accept-Encoding": "gzip"})
+        with urllib.request.urlopen(request) as response:
+            assert "Content-Encoding" not in response.headers
+
+
+def test_explored_json_revalidates_until_the_map_grows():
+    """The client polls this every 10s; most polls should be an empty 304, not the whole town list."""
+    world = GameSpace.World("Growland", 200, 12, seed=7)
+    server = serve(WorldAdapter(world))
+    url = f"http://127.0.0.1:{server.server_port}/explored.json"
+    try:
+        etag = get(url)[1]["ETag"]
+        with pytest.raises(urllib.error.HTTPError) as excinfo:
+            urllib.request.urlopen(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        assert excinfo.value.code == 304
+
+        unexplored = next(cx for cx in range(7) if world.loaded_chunk(cx, 0) is None)
+        world.space_at(unexplored * GameSpace.CHUNK_SIZE, 0)  # someone walks somewhere new
+        status, headers, body = get(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        assert status == 200 and headers["ETag"] != etag
+        assert [unexplored, 0] in json.loads(body)["chunks"]
+    finally:
+        server.shutdown()
 
 
 @pytest.mark.parametrize(

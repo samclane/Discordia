@@ -13,6 +13,7 @@ generation stays on the game loop and a visitor panning about can't make the ser
 
 from __future__ import annotations
 
+import gzip
 import json
 import logging
 import re
@@ -34,6 +35,8 @@ SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 2
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|json)")
+# Text this short isn't worth the CPU, and can come out bigger than it went in.
+GZIP_MIN_BYTES = 1024
 
 
 def _sprite_url(sprite_path: str) -> str:
@@ -132,6 +135,9 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
 
 
 class _Handler(BaseHTTPRequestHandler):
+    # Keep-alive: a page load is hundreds of chunk requests, and the browser only opens six connections.
+    protocol_version = "HTTP/1.1"
+
     def __init__(self, renderer: WindowRenderer, *args, **kwargs):
         self.renderer = renderer
         super().__init__(*args, **kwargs)  # this actually serves the request, so set attrs first
@@ -154,7 +160,10 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/world.json":
             self._send(_world_json(self.renderer), "application/json", etag=etag)
         elif path == "/explored.json":
-            self._send(_explored_json(self.renderer), "application/json")
+            # Towns live in chunks, so the chunk count says whether anything changed since the last poll.
+            world = self.renderer.world_adapter.world
+            explored_etag = f'"{world.seed}-{len(world.loaded_chunks())}"'
+            self._send(_explored_json(self.renderer), "application/json", etag=explored_etag)
         elif path == "/actors.json":
             self._send(_actors_json(self.renderer), "application/json")
         elif path == "/client.js":
@@ -178,6 +187,11 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self.send_response(200)
         self.send_header("Content-Type", ctype)
+        if not ctype.startswith("image/"):
+            self.send_header("Vary", "Accept-Encoding")
+            if len(body) >= GZIP_MIN_BYTES and "gzip" in self.headers.get("Accept-Encoding", ""):
+                body = gzip.compress(body, compresslevel=5)
+                self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         if etag:
             self.send_header("ETag", etag)
