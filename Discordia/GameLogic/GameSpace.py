@@ -5,10 +5,10 @@ import random
 import sys
 import time
 from abc import ABC
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from collections import Counter
 from itertools import product
-from pathlib import Path
 from typing import List, Tuple, Dict, Iterator, Set, Type, Union
 
 import math
@@ -57,6 +57,22 @@ def bearing(origin: Space, target: Space) -> str:
 # The roughest the wilds get, at the far end of the map. A level-8 wilds is a rifle-and-a-few-levels
 # proposition; see danger_level for how distance from the spawn maps onto the range.
 WILDS_MAX_LEVEL = 8
+# Squares of distance from the spawn per wilds level, so WILDS_MAX_LEVEL starts about 220 squares out.
+# It used to be a share of the whole map, which on a big map made everywhere walkable level 1.
+DANGER_TILES_PER_LEVEL = 32
+
+# The map is generated CHUNK_SIZE squares on a side, as each chunk is first touched. The spawn search
+# gives up after this many rings of chunks around the middle and plants a town instead.
+CHUNK_SIZE = 32
+SPAWN_SEARCH_RINGS = 3
+
+# The order Terrain.neighbours reads a square's neighbours in, lowest bit first.
+NEIGHBOURS = [
+    DIRECTION_VECTORS[key] for key in ["nw", "n", "ne", "w", "e", "sw", "s", "se"]
+]
+
+# How many sprites a wilds square picks between (Sprites/Structures/wilds_N.png).
+WILDS_SPRITES = 8
 
 # Share of carried money left behind on death. A flat share is self-balancing: it stings a rich player
 # and barely touches a broke one, so dying never strands anybody at zero.
@@ -67,36 +83,30 @@ DEATH_TAX = 0.25
 WILDS_PER_RAIDER = 10
 
 
+@contextmanager
+def _seeded(*key):
+    """Run world generation on its own RNG, keyed so a chunk comes out the same whenever and in
+    whatever order it's generated, without disturbing the game's own random sequence.
+    """
+    state, np_state = random.getstate(), np.random.get_state()
+    random.seed(":".join(map(str, key)))
+    np.random.seed(random.randrange(2**32))
+    try:
+        yield
+    finally:
+        random.setstate(state)
+        np.random.set_state(np_state)
+
+
 def death_toll_text(player: Actors.PlayerCharacter) -> str:
     """What the last death cost, phrased for a player, or "" if they had nothing to lose."""
     return f" Death cost ${player.last_death_cost}." if player.last_death_cost else ""
 
 
-def bitmask_to_orientation(value: int) -> str:
-    if 0xFF & value == 0xFF or 0b01011010 & value == 0b01011010:
-        return "center"
-    if 0b01011000 & value == 0b01011000:
-        return "n"
-    if 0b01001010 & value == 0b01001010:
-        return "e"
-    if 0b00011010 & value == 0b00011010:
-        return "s"
-    if 0b01010010 & value == 0b01010010:
-        return "w"
-    if 0b01010000 & value == 0b01010000:
-        return "nw"
-    if 0b01001000 & value == 0b01001000:
-        return "ne"
-    if 0b00010010 & value == 0b00010010:
-        return "sw"
-    if 0b00001010 & value == 0b00001010:
-        return "se"
-    else:
-        return "center"
-
-
 class Terrain(ABC):
-    _orientation: str = "center"
+    # Which of the eight neighbours are the same terrain, as bits in NEIGHBOURS order. Set at generation;
+    # the renderer draws coastlines and kerbs from it.
+    neighbours: int = 0
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -114,25 +124,6 @@ class Terrain(ABC):
     @property
     def name(self) -> str:
         raise NotImplementedError
-
-    @property
-    def orientation(self) -> str:
-        return self._orientation
-
-    @orientation.setter
-    def orientation(self, value: str):
-        value = value.lower()
-        if value not in DIRECTION_VECTORS.keys():
-            raise ValueError("Invalid direction given: ", value)
-        self._orientation = value
-
-    @property
-    def sprite_path(self) -> Path:
-        return SPRITE_FOLDER / "Terrain" / f"{self.name}_{self.orientation}.png"
-
-    @property
-    def sprite_path_string(self) -> str:
-        return str(self.sprite_path)
 
     @property
     def cost(self) -> int:
@@ -156,7 +147,7 @@ class NullTerrain(Terrain):
 
     @property
     def name(self) -> str:
-        return "null_tile"  # Matches Sprites/Terrain/null_tile_*.png
+        return "null_tile"
 
     @property
     def cost(self) -> int:
@@ -235,14 +226,6 @@ class WaterTerrain(Terrain):
     @property
     def layer(self) -> int:
         return 0
-
-    @property
-    def orientation(self) -> str:
-        return "center"
-
-    @orientation.setter
-    def orientation(self, value):
-        pass
 
 
 class MountainTerrain(Terrain):
@@ -406,14 +389,6 @@ class Space(ABC):
     def __hash__(self):
         return hash(self.x) + (10 * hash(self.y)) + (100 * hash(self.terrain))
 
-    @property
-    def sprite_path(self):
-        return self.terrain.sprite_path
-
-    @property
-    def sprite_path_string(self):
-        return str(self.sprite_path)
-
     def distance(self, other) -> float:
         return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
@@ -484,6 +459,10 @@ class Town(Space):
     def sprite_path(self):
         return SPRITE_FOLDER / "Structures" / "town_default.png"
 
+    @property
+    def sprite_path_string(self):
+        return str(self.sprite_path)
+
 
 class BaseLevel:
 
@@ -537,7 +516,9 @@ class Wilds(Space):
     def __init__(self, x, y, name, terrain: Terrain = NullTerrain()):
         super().__init__(x, y, terrain)
         self.name: str = name
-        self.level: int = 0  # set by populate(); 0 means nothing happens here yet
+        self.level: int = (
+            0  # set by the World once it knows the spawn; 0 means nothing happens here
+        )
         self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
@@ -550,6 +531,10 @@ class Wilds(Space):
         assert self.null_event.probability >= 0
 
     def run_event(self, player) -> List[PlayerActionResponse]:
+        if len(self.events) == 1:
+            # Stocked on the first visit, not at generation: enemies and merchant stock are most of a
+            # chunk's memory, and most wilds on a big map never see a player.
+            self.populate(self.level)
         chosen_event = random.choices(
             self.events, weights=[event.probability for event in self.events]
         )[0]
@@ -576,7 +561,13 @@ class Wilds(Space):
 
     @property
     def sprite_path(self):
-        return SPRITE_FOLDER / "Structures" / "wilds_default.png"
+        # Picked by position, so a square looks the same every time it's drawn.
+        variant = (self.x * 31 + self.y * 17) % WILDS_SPRITES
+        return SPRITE_FOLDER / "Structures" / f"wilds_{variant}.png"
+
+    @property
+    def sprite_path_string(self):
+        return str(self.sprite_path)
 
 
 @dataclass
@@ -606,6 +597,13 @@ class Stats:
 
 
 class World:
+    """A width x height map, generated a chunk at a time as something first touches it.
+
+    Nothing about a chunk depends on when it was generated: terrain is noise sampled at its
+    coordinates, and towns and wilds roll on an RNG keyed by (seed, chunk). So the map can be as big
+    as you like, a save file stays just the seed, and only the ground somebody has walked on costs
+    memory.
+    """
 
     def __init__(
         self,
@@ -620,147 +618,166 @@ class World:
         self.width: int = width
         self.height: int = height
         self.gen_params: WorldGenerationParameters = generation_parameters
-        self.map: List[List[Space]] = [
-            [Space(x, y, NullTerrain()) for x in range(width)] for y in range(height)
-        ]
-        self.towns: List[Town] = []
+        # ponytail: chunks are never unloaded, so memory grows ~0.4 MB per chunk explored. Evict chunks
+        # nobody stands in if that ever adds up; they regenerate identically, minus store sales.
+        self._chunks: Dict[Tuple[int, int], List[List[Space]]] = {}
+        self.towns: List[Town] = []  # in loaded chunks only, like wilds
         self.wilds: List[Wilds] = []
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
-        self.starting_town: Town = Town.generate_town(0, 0, NullTerrain())
+        self.starting_town: Town = None  # type: ignore[assignment]  # chosen by _choose_spawn
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
         self.seed: int = random.randrange(2**32) if seed is None else seed
         random.seed(self.seed)
         np.random.seed(self.seed)
-        self.generate_map()
+        # Tuned on a 50-square map, where it gave islands about ten squares across. Fixed rather than
+        # scaled to the map, so a big world is more of the same, not the same few islands blown up.
+        self._noise_scale = self.gen_params.resolution_constant * 50
+        self._slices = (random.random(), random.random(), random.random())
+        self._choose_spawn()
 
-    def generate_map(self):
+    def _choose_spawn(self):
+        """Start in the town nearest the middle, searching outward a ring of chunks at a time."""
         LOG.info("Generating Map...")
-
-        # Get parameters
-        resolution = self.gen_params.resolution_constant * (
-            (self.width + self.height) / 2
-        )  # I pulled this out of my butt. Gives us decently scaled noise.
-        sand_slice = random.random()
-        mountain_slice = random.random()
-        grass_slice = random.random()
-        water_threshold = (
-            self.gen_params.water
-        )  # Higher factor -> more Spaces on the map
-        mountain_threshold = self.gen_params.mountains
-        grass_threshold = self.gen_params.grass
-
-        # First pass
-        for x in range(self.width):
-            for y in range(self.height):
-                # Land and water pass
-                self.map[y][x] = Space(
-                    x,
-                    y,
-                    (
-                        SandTerrain()
-                        if abs(pnoise3(x / resolution, y / resolution, sand_slice))
-                        > water_threshold
-                        else WaterTerrain()
-                    ),
-                )
-
-                # Mountains pass
-                if (
-                    abs(pnoise3(x / resolution, y / resolution, mountain_slice))
-                    > mountain_threshold
-                    and self.map[y][x].terrain.walkable
-                ):
-                    self.map[y][x] = Space(x, y, MountainTerrain())
-
-                # Grass pass
-                if (
-                    abs(pnoise3(x / resolution, y / resolution, grass_slice))
-                    > grass_threshold
-                ):
-                    self.map[y][x] = Space(x, y, GrassTerrain())
-
-                # Town and Wilds pass
-                if self.map[y][x].terrain.buildable:
-                    if random.random() <= self.gen_params.towns:
-                        # Just puts town in first valid spot. Not very interesting.
-                        self.add_town(
-                            Town.generate_town(x, y, terrain=self.map[y][x].terrain)
-                        )
-                    elif random.random() <= self.gen_params.wilds:
-                        # Bare for now: how dangerous it is depends on the starting town, which is
-                        # not picked until every town has been placed.
-                        self.add_wilds(
-                            Wilds(
-                                x,
-                                y,
-                                WildsNameGenerator.generate_name(),
-                                self.map[y][x].terrain,
-                            )
-                        )
-
-        # Second (orientation) pass
-        # https://gamedevelopment.tutsplus.com/tutorials/how-to-use-tile-bitmasking-to-auto-tile-your-level-layouts--cms-25673
-        for x in range(1, self.width - 1):
-            for y in range(1, self.height - 1):
-                space: Space = self.map[y][x]
-
-                # Bitmask
-                value = 0
-                for bit, neighbor in enumerate(
-                    [
-                        DIRECTION_VECTORS.get(key)
-                        for key in ["nw", "n", "ne", "w", "e", "sw", "s", "se"]
-                    ]
-                ):
-                    ix, iy = space + neighbor
-                    if self.map[iy][ix].terrain.layer == space.terrain.layer:
-                        value += pow(2, bit)
-
-                if value != 0:
-                    space.terrain.orientation = bitmask_to_orientation(value)
+        center = Space(self.width // 2, self.height // 2)
+        ccx, ccy = center.x // CHUNK_SIZE, center.y // CHUNK_SIZE
+        last_x, last_y = (self.width - 1) // CHUNK_SIZE, (self.height - 1) // CHUNK_SIZE
+        for ring in range(SPAWN_SEARCH_RINGS + 1):
+            for cx in range(max(ccx - ring, 0), min(ccx + ring, last_x) + 1):
+                for cy in range(max(ccy - ring, 0), min(ccy + ring, last_y) + 1):
+                    if max(abs(cx - ccx), abs(cy - ccy)) == ring:
+                        self._load_chunk(cx, cy)
+            if self.towns:
+                break
 
         if not self.towns:
-            # Towns are a per-tile dice roll, so a small or unlucky map can come up with none, and a world
-            # with nowhere to spawn is no world at all. Plant one rather than dying on the empty list.
+            # Towns are a per-square dice roll, so a small or unlucky map can come up with none, and a
+            # world with nowhere to spawn is no world at all. Plant one rather than dying on the empty list.
             buildable = [
                 space
-                for row in self.map
+                for rows in self._chunks.values()
+                for row in rows
                 for space in row
                 if self.is_space_buildable(space)
             ]
             if not buildable:
                 raise RuntimeError(f"World '{self.name}' generated no buildable land")
-            spot = random.choice(buildable)
-            self.add_town(Town.generate_town(spot.x, spot.y, terrain=spot.terrain))
+            spot = min(buildable, key=center.distance)
+            town = Town.generate_town(spot.x, spot.y, terrain=spot.terrain)
+            rows = self._chunks[spot.x // CHUNK_SIZE, spot.y // CHUNK_SIZE]
+            rows[spot.y % CHUNK_SIZE][spot.x % CHUNK_SIZE] = town
+            self.towns.append(town)
             LOG.info(f"No towns were rolled; placed one at ({spot.x}, {spot.y})")
 
-        self.starting_town = random.choice(self.towns)
+        self.starting_town = min(self.towns, key=center.distance)
 
-        # Only now is there a spawn to measure danger from. Before this ran here, every wilds took its
-        # level from the placeholder town at (0, 0), so a spawn anywhere but the corner was ringed by
-        # wilds far too rough for a starting character.
-        for wilds in self.wilds:
-            wilds.populate(self.danger_level(wilds))
+        # Only now is there a spawn to measure danger from: wilds loaded before this are still bare.
+        for cx, cy in list(self._chunks):
+            self._populate_chunk(cx, cy)
         LOG.info("Generation finished")
 
-    def danger_level(self, space: Space) -> int:
-        """How rough the wilds are at `space`: 1 next to the starting town, WILDS_MAX_LEVEL at the far end.
+    def _terrain_at(self, x: int, y: int) -> Terrain:
+        nx, ny = x / self._noise_scale, y / self._noise_scale
+        # ponytail: pnoise3 repeats every 256 noise units, so terrain tiles every ~2560 squares (towns
+        # and wilds don't, they're rolled per chunk). Shift the z slice per region if anyone notices.
+        terrain: Terrain = (
+            SandTerrain()
+            if abs(pnoise3(nx, ny, self._slices[0])) > self.gen_params.water
+            else WaterTerrain()
+        )
+        if (
+            abs(pnoise3(nx, ny, self._slices[1])) > self.gen_params.mountains
+            and terrain.walkable
+        ):
+            terrain = MountainTerrain()
+        if abs(pnoise3(nx, ny, self._slices[2])) > self.gen_params.grass:
+            terrain = GrassTerrain()
+        return terrain
 
-        Measured as a share of the furthest corner from the spawn, so the whole range fits whatever size
-        the map is and wherever the starting town happened to land. The roll adds a little local variety.
+    def _load_chunk(self, cx: int, cy: int) -> List[List[Space]]:
+        x0, y0 = cx * CHUNK_SIZE, cy * CHUNK_SIZE
+        xs = range(x0, min(x0 + CHUNK_SIZE, self.width))
+        ys = range(y0, min(y0 + CHUNK_SIZE, self.height))
+        # A square of margin: edges look at neighbours, and those can be in the next chunk over.
+        terrain = {
+            (x, y): self._terrain_at(x, y)
+            for x in range(xs.start - 1, xs.stop + 1)
+            for y in range(ys.start - 1, ys.stop + 1)
+        }
+
+        rows: List[List[Space]] = []
+        with _seeded(self.seed, cx, cy):
+            for y in ys:
+                row: List[Space] = []
+                for x in xs:
+                    here = terrain[x, y]
+                    here.neighbours = sum(
+                        1 << bit
+                        for bit, (dx, dy) in enumerate(NEIGHBOURS)
+                        if terrain[x + dx, y + dy].name == here.name
+                    )
+
+                    space: Space = Space(x, y, here)
+                    if here.buildable:
+                        if random.random() <= self.gen_params.towns:
+                            space = Town.generate_town(x, y, terrain=here)
+                            self.towns.append(space)
+                        elif random.random() <= self.gen_params.wilds:
+                            # Bare until the spawn is known: how rough it is depends on the distance.
+                            space = Wilds(
+                                x, y, WildsNameGenerator.generate_name(), here
+                            )
+                            self.wilds.append(space)
+                    row.append(space)
+                rows.append(row)
+        self._chunks[cx, cy] = (
+            rows  # published whole: the web map reads this from another thread
+        )
+        if self.starting_town is not None:
+            self._populate_chunk(cx, cy)
+        return rows
+
+    def _populate_chunk(self, cx: int, cy: int):
+        """Rate the chunk's wilds. They roll their events from that on the first visit (Wilds.run_event)."""
+        with _seeded(self.seed, cx, cy, "wilds"):
+            for row in self._chunks[cx, cy]:
+                for space in row:
+                    if isinstance(space, Wilds):
+                        space.level = self.danger_level(space)
+
+    def loaded_chunk(self, cx: int, cy: int) -> List[List[Space]] | None:
+        """A chunk's rows if something already generated it, else None. Never generates, so it's safe
+        off the game loop."""
+        return self._chunks.get((cx, cy))
+
+    def loaded_chunks(self) -> List[Tuple[int, int]]:
+        return list(self._chunks)
+
+    def load_around(self, space: Space):
+        """Generate the chunks around `space`, so anything asking what's nearby isn't limited to where
+        players happen to have been."""
+        for dx in (-CHUNK_SIZE, 0, CHUNK_SIZE):
+            for dy in (-CHUNK_SIZE, 0, CHUNK_SIZE):
+                x, y = space.x + dx, space.y + dy
+                if 0 <= x < self.width and 0 <= y < self.height:
+                    self.space_at(x, y)
+
+    def space_at(self, x: int, y: int) -> Space:
+        """The square at (x, y), generating its chunk on first touch."""
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            raise IndexError(f"({x}, {y}) is off the map")
+        cx, cy = x // CHUNK_SIZE, y // CHUNK_SIZE
+        rows = self._chunks.get((cx, cy)) or self._load_chunk(cx, cy)
+        return rows[y % CHUNK_SIZE][x % CHUNK_SIZE]
+
+    def danger_level(self, space: Space) -> int:
+        """How rough the wilds are at `space`: 1 next to the starting town, one more per
+        DANGER_TILES_PER_LEVEL squares out, up to WILDS_MAX_LEVEL. The roll adds a little local variety.
         """
-        corners = [
-            (0, 0),
-            (self.width - 1, 0),
-            (0, self.height - 1),
-            (self.width - 1, self.height - 1),
-        ]
-        furthest = max(self.starting_town.distance(corner) for corner in corners) or 1
-        share = self.starting_town.distance(space) / furthest
-        rolled = normal(1 + share * (WILDS_MAX_LEVEL - 1), integer=True, positive=True)
+        share = self.starting_town.distance(space) / DANGER_TILES_PER_LEVEL
+        rolled = normal(1 + share, integer=True, positive=True)
         return int(max(1, min(WILDS_MAX_LEVEL, rolled)))
 
     def is_space_valid(self, space: Space) -> bool:
@@ -772,7 +789,7 @@ class World:
 
     def is_coords_valid(self, x: int, y: int):
         if (0 <= x <= self.width - 1) and (0 <= y <= self.height - 1):
-            return self.map[y][x].terrain.walkable
+            return self.space_at(x, y).terrain.walkable
         return False
 
     def is_space_buildable(self, space: Space) -> bool:
@@ -792,22 +809,10 @@ class World:
         steps = product(fov, repeat=2)
         coords = (tuple(c + d for c, d in zip(space, delta)) for delta in steps)
         return [
-            self.map[j][i]
+            self.space_at(i, j)
             for i, j in coords
             if (0 <= i < self.width) and (0 <= j < self.height)
         ]
-
-    def add_town(self, town: Town, is_starting_town: bool = False):
-        self.towns.append(town)
-        town.terrain = self.map[town.y][town.x].terrain
-        self.map[town.y][town.x] = town
-        if is_starting_town:
-            self.starting_town = town
-
-    def add_wilds(self, wilds: Wilds):
-        self.wilds.append(wilds)
-        wilds.terrain = self.map[wilds.y][wilds.x].terrain
-        self.map[wilds.y][wilds.x] = wilds
 
     def add_actor(self, actor: Actors.Actor, space: Space | None = None):
         actor.parent_world = self
@@ -894,7 +899,7 @@ class World:
                     )
                     break
                 loc += direction
-                loc = self.map[loc.y][loc.x]
+                loc = self.space_at(loc.x, loc.y)
                 dmg = int(
                     weapon.calc_damage(int(player_character.location.distance(loc)))
                 )
@@ -1006,10 +1011,6 @@ class AStarPathfinder(AStar[Space]):
         self.world = world
         self.cost = cost
 
-    @property
-    def map(self):
-        return self.world.map
-
     def is_space_valid(self, space: Space):
         return self.world.is_space_valid(space)
 
@@ -1018,8 +1019,7 @@ class AStarPathfinder(AStar[Space]):
         for dir_vector in [DIRECTION_VECTORS[d] for d in directions]:
             potential_space = node + dir_vector
             if self.world.is_coords_valid(potential_space.x, potential_space.y):
-                map_space = self.map[potential_space.y][potential_space.x]
-                yield map_space
+                yield self.world.space_at(potential_space.x, potential_space.y)
 
     def distance_between(self, n1: Space, n2: Space) -> float:
         if self.cost:

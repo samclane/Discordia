@@ -180,6 +180,9 @@ class EncounterEvent(Event):
         """The one thing a stranger in the wilds is reliably good for: where the nearest town is."""
         here = player_character.location
         world = player_character.parent_world
+        if here is not None and hasattr(world, "load_around"):
+            # A closer town may be in a chunk nobody has walked into yet.
+            world.load_around(here)
         towns = [town for town in getattr(world, "towns", []) if town != here]
         if not towns or here is None:
             return "nothing you did not already know."

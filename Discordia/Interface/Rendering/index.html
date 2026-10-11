@@ -18,8 +18,8 @@
   #viewport { position: absolute; inset: 0; right: var(--side); cursor: grab; touch-action: none; }
   #viewport.dragging { cursor: grabbing; }
   #stage { position: absolute; transform-origin: 0 0; }
-  #bg, .actor img { image-rendering: pixelated; -webkit-user-drag: none; user-select: none; }
-  #bg { display: block; width: 100%; height: 100%; }
+  .chunk, .actor img { image-rendering: pixelated; -webkit-user-drag: none; user-select: none; }
+  .chunk { position: absolute; left: 0; top: 0; }
 
   /* Overlays live in map pixels; --inv undoes the zoom so text and bars stay screen-sized. */
   .actor { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
@@ -99,7 +99,7 @@
 
 <div id="viewport">
   <div id="stage">
-    <img id="bg" alt="World map">
+    <div id="chunks"></div>
     <div id="labels"></div>
     <div id="cursor"></div>
     <div id="pick"></div>

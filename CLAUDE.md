@@ -6,7 +6,7 @@ Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) tha
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 128 tests, ~10s, no token needed
+python -m pytest Discordia/test -q                     # 167 tests, ~3s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -14,7 +14,10 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 ## Layout
 
 - `Discordia/GameLogic/` pure game rules, no Discord imports.
-  - `GameSpace.py` Terrain, Space/Town/Wilds/Base, `World` (map gen, `tick()`, `pvp_attack`, death), `Store`, A* pathfinder.
+  - `GameSpace.py` Terrain, Space/Town/Wilds/Base, `World` (map gen, `tick()`, `attack`, death), `Store`, A* pathfinder.
+    The map is generated lazily in `CHUNK_SIZE` chunks, deterministic per (seed, chunk): reach squares through
+    `world.space_at(x, y)`, never a grid. `world.towns`/`wilds` hold loaded chunks only. Wilds roll their events on
+    first visit.
   - `Actors.py` Actor -> NPC/Raider and PlayerCharacter; PlayerClass (Wanderer/Soldier/Raider).
   - `Events.py` Wilds events: CombatEvent (real), EncounterEvent/MerchantEvent (stubs).
   - `Behavior.py` NPC finite state machine (Aggressive -> Fleeing).
@@ -24,7 +27,9 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - `WorldAdapter.py` the only thing Discord and renderers touch: discord member id <-> PlayerCharacter, move/attack/look.
   - `DiscordInterface.py` slash commands as a Cog. Commands queue an *order*; `tick()` runs them and `World.tick()` in lockstep on the bot loop (no locks). NPC hits are DM'd.
   - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path. NPCs and store stock are NOT saved.
-  - `Rendering/DesktopApp.py` Pillow renderer (baked background + actor layer); `WebApp.py` + `index.html`/`client.js` live map at `-W PORT` (no build step: plain JS, edit and reload).
+  - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
+    Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
+    `WebApp.py` + `index.html`/`client.js` live map at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.
 
 ## Conventions

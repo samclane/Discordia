@@ -1,6 +1,6 @@
 """
-Holds the rendering surface for the world map. Output device independent: WebApp.py serves it over HTTP,
-the Discord interface crops PNGs out of it.
+Draws the world map. Output device independent: WebApp.py serves it a chunk at a time over HTTP, the
+Discord interface asks for the few squares around a player.
 Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
 
 """
@@ -10,18 +10,66 @@ from __future__ import annotations
 import io
 import logging
 import threading
-import time
 from pathlib import Path
-from typing import Any, Callable
+from functools import lru_cache
+from itertools import chain
+from typing import Any, Callable, Iterable
 
 from PIL import Image
 
+from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 LOG = logging.getLogger("Discordia.Interface.DesktopApp")
 WINDOW_NAME = "Discordia"
-VIEW_FOLDER = Path("./Discordia/PlayerViews")  # both view types land here; cv2 used to fail silently on a missing dir
+# cv2 used to fail silently on a missing dir
+VIEW_FOLDER = Path("./Discordia/PlayerViews")
+
+# Kenney's RPG Urban pack (CC0), as a packed sheet of 16px tiles, 27 to a row.
+TILESHEET = SPRITE_FOLDER / "Terrain" / "kenney_rpg_urban.png"
+SHEET_COLUMNS = 27
+TILE = 16
+# Pavement goes down under every square; other terrain is laid on top of it, kerbed where it meets
+# something else.
+GROUND = 117
+# Top-left tile of each terrain's block in the sheet. Every block has the same layout: a 3x3 of corners,
+# edges and middle at columns 0-2, and inside corners at columns 5-6 of the top two rows.
+BLOCKS = {"water": 170, "grass": 0, "mountain": 81}
+
+
+def _quarters(block: int):
+    """Per quarter of a square: the neighbour bits it looks at, the sheet tiles it can come from, and
+    which 8px of them to take. A quarter only cares about the two sides and the corner it touches.
+    (vertical bit, horizontal bit, diagonal bit, outside corner, vertical edge, horizontal edge, inside
+    corner, box)
+    """
+    b, row = block, SHEET_COLUMNS
+    half = TILE // 2
+    return [
+        (1, 3, 0, b, b + row, b + 1, b + row + 6, (0, 0, half, half)),  # nw
+        (1, 4, 2, b + 2, b + row + 2, b + 1, b + row + 5, (half, 0, TILE, half)),  # ne
+        (
+            6,
+            3,
+            5,
+            b + 2 * row,
+            b + row,
+            b + 2 * row + 1,
+            b + 6,
+            (0, half, half, TILE),
+        ),  # sw
+        (
+            6,
+            4,
+            7,
+            b + 2 * row + 2,
+            b + row + 2,
+            b + 2 * row + 1,
+            b + 5,
+            (half, half, TILE, TILE),
+        ),  # se
+    ]
 
 
 class keydefaultdict(dict):
@@ -51,110 +99,114 @@ class WindowRenderer:
         self._sprite_cache = keydefaultdict(
             lambda path: Image.open(path).convert("RGBA")
         )
-        self._draw_lock = threading.Lock()  # web requests and Discord commands both trigger draws
+        # Web requests and Discord commands both trigger draws.
+        self._draw_lock = threading.Lock()
+        self._sheet = Image.open(TILESHEET).convert("RGBA")
+        self._terrain_cache = keydefaultdict(lambda key: self._terrain_tile(*key))
+        self._ground = self._sheet_tile(GROUND)
+        self.base_cell_width, self.base_cell_height = self._ground.size
 
-        water = self._sprite_cache[GameSpace.WaterTerrain().sprite_path_string]
-        self.base_cell_width, self.base_cell_height = water.size
-
-        # Terrain, towns and wilds are fixed at world generation, so bake them into the background once
-        # instead of re-blitting every tile on every frame; only actors move.
-        # Shoreline tiles have soft alpha edges, so they need water under them or they fringe black.
-        self._background = Image.new(
-            "RGB",
-            (
-                self.world_adapter.width * self.base_cell_width,
-                self.world_adapter.height * self.base_cell_height,
-            ),
+    def _sheet_tile(self, index: int) -> Image.Image:
+        row, col = divmod(index, SHEET_COLUMNS)
+        return self._sheet.crop(
+            (col * TILE, row * TILE, (col + 1) * TILE, (row + 1) * TILE)
         )
-        for y in range(self.world_adapter.height):
-            for x in range(self.world_adapter.width):
-                self._background.paste(
-                    water, (x * self.base_cell_width, y * self.base_cell_height), water
-                )
-        for y, row in enumerate(self.world_adapter.world.map):
-            for x, space in enumerate(row):
-                self._paste(space.terrain.sprite_path_string, x, y, self._background)
-        for town in self.world_adapter.world.towns:
-            self._paste(town.sprite_path_string, town.x, town.y, self._background)
-        for wilds in self.world_adapter.world.wilds:
-            self._paste(wilds.sprite_path_string, wilds.x, wilds.y, self._background)
-        self._background_png: bytes | None = None  # encoded on first request, then never again
-        self.rendered_canvas = self._background.copy()
 
-    def _paste(
-        self, sprite_path: str, x: int, y: int, target: Image.Image | None = None
-    ):
-        """Blit a tile-sized sprite at grid position (x, y), honouring its alpha."""
-        if target is None:
-            target = self.rendered_canvas
+    def _terrain_tile(self, name: str, neighbours: int) -> Image.Image | None:
+        """A terrain square shaped to its neighbours, from quarters of its block: a quarter with both
+        sides and the corner the same terrain is middle, both sides but not the corner an inside corner,
+        one side an edge, neither an outside corner. None for terrain drawn as bare ground.
+        """
+        if name not in BLOCKS:
+            return None
+        block = BLOCKS[name]
+        tile = Image.new("RGBA", (TILE, TILE))
+        for v, h, d, outside, v_edge, h_edge, inside, box in _quarters(block):
+            same_v, same_h = neighbours >> v & 1, neighbours >> h & 1
+            if same_v and same_h:
+                source = (
+                    inside if not neighbours >> d & 1 else block + SHEET_COLUMNS + 1
+                )
+            else:
+                source = v_edge if same_v else h_edge if same_h else outside
+            tile.paste(self._sheet_tile(source).crop(box), box[:2])
+        return tile
+
+    def _paste(self, sprite_path: str, x: int, y: int, target: Image.Image):
+        """Blit a tile-sized sprite at grid position (x, y) of target, honouring its alpha."""
         sprite = self._sprite_cache[sprite_path]
-        pos = (x * self.base_cell_width, y * self.base_cell_height)
-        target.paste(sprite, pos, sprite)
+        target.paste(
+            sprite, (x * self.base_cell_width, y * self.base_cell_height), sprite
+        )
 
-    def on_draw(self) -> Image.Image:
+    def _draw(
+        self,
+        spaces: Iterable[GameSpace.Space],
+        x0: int,
+        y0: int,
+        width: int,
+        height: int,
+    ) -> Image.Image:
+        """The squares given, drawn into a width x height tile image whose top left is (x0, y0)."""
+        image = Image.new(
+            "RGB", (width * self.base_cell_width, height * self.base_cell_height)
+        )
         with self._draw_lock:
-            # Start clean each frame: alpha sprites would otherwise pile up on the previous one.
-            self.rendered_canvas = self._background.copy()
-            for npc in self.world_adapter.world.npcs:
-                if npc.location is None:  # dead, not yet reaped by the next tick
-                    continue
-                self._paste(npc.sprite_path_string, npc.location.x, npc.location.y)
-            for player in self.world_adapter.iter_players():
-                self._paste(
-                    player.sprite_path_string, player.location.x, player.location.y
-                )
-            return self.rendered_canvas
+            for space in spaces:
+                x, y = space.x - x0, space.y - y0
+                pos = (x * self.base_cell_width, y * self.base_cell_height)
+                # Rounded corners are see-through, so there has to be ground under them.
+                image.paste(self._ground, pos)
+                terrain = space.terrain
+                tile = self._terrain_cache[terrain.name, terrain.neighbours]
+                if tile is not None:
+                    image.paste(tile, pos, tile)
+                if isinstance(space, (GameSpace.Town, GameSpace.Wilds)):
+                    self._paste(space.sprite_path_string, x, y, image)
+        return image
 
-    def background_png(self) -> bytes:
-        """The static layers only, encoded once. The web client draws actors over this itself."""
-        if self._background_png is None:
-            buffer = io.BytesIO()
-            self._background.save(buffer, "PNG")
-            self._background_png = buffer.getvalue()
-        return self._background_png
+    def chunk_png(self, cx: int, cy: int) -> bytes | None:
+        """One chunk's terrain, towns and wilds as PNG, or None if nobody has been there yet.
 
-    def render_png(self) -> bytes:
-        """The whole world as PNG bytes, freshly drawn."""
+        Never generates the chunk: this is called from the web server's threads, and generation belongs
+        to the game loop. A chunk never changes once generated, so neither does its picture.
+        """
+        if self.world_adapter.world.loaded_chunk(cx, cy) is None:
+            return None
+        return self._chunk_png(cx, cy)
+
+    @lru_cache(maxsize=256)  # ~50 KB each
+    def _chunk_png(self, cx: int, cy: int) -> bytes:
+        rows = self.world_adapter.world.loaded_chunk(cx, cy) or []
+        size = GameSpace.CHUNK_SIZE
+        image = self._draw(chain.from_iterable(rows), cx * size, cy * size, size, size)
         buffer = io.BytesIO()
-        self.on_draw().save(buffer, "PNG")
+        image.save(buffer, "PNG")
         return buffer.getvalue()
 
+    def draw_region(self, x0: int, y0: int, x1: int, y1: int) -> Image.Image:
+        """Squares [x0, x1) x [y0, y1), clipped to the map, with the actors standing on them.
+        Generates any chunk it touches, so call it from the game loop."""
+        world = self.world_adapter.world
+        x0, y0 = max(x0, 0), max(y0, 0)
+        x1, y1 = min(x1, world.width), min(y1, world.height)
+        image = self._draw(
+            (world.space_at(x, y) for y in range(y0, y1) for x in range(x0, x1)),
+            x0,
+            y0,
+            x1 - x0,
+            y1 - y0,
+        )
+        for actor in [*world.npcs, *self.world_adapter.iter_players()]:
+            loc = actor.location
+            if loc is not None and x0 <= loc.x < x1 and y0 <= loc.y < y1:
+                self._paste(actor.sprite_path_string, loc.x - x0, loc.y - y0, image)
+        return image
+
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
-        world = self.on_draw()
-
-        # Need to find top left coordinate
-        # Find tile first
-        top_left_tile: GameSpace.Space = character.location - (
-            character.fov,
-            character.fov,
-        )
-        assert top_left_tile.x >= 0 and top_left_tile.y >= 0, "Negative coordinates"
-
-        # Then convert game-coordinates to pixel (x, y, width, height)
-        x1 = min(max(top_left_tile.x, 0), self.world_adapter.width)
-        y1 = min(max(top_left_tile.y, 0), self.world_adapter.height)
-        width = height = (character.fov * 2) + 1
-        x2 = min(max(top_left_tile.x + width, 0), self.world_adapter.width)
-        y2 = min(max(top_left_tile.y + height, 0), self.world_adapter.height)
-
-        # Debugging
-        LOG.info(f"Getting PlayerView: {character.name} {x1} {y1} {x2} {y2}")
-
-        img = world.crop(
-            (
-                x1 * self.base_cell_width,
-                y1 * self.base_cell_height,
-                x2 * self.base_cell_width,
-                y2 * self.base_cell_height,
-            )
-        )
+        x, y, fov = character.location.x, character.location.y, character.fov
+        LOG.info(f"Getting PlayerView: {character.name} at ({x}, {y})")
+        img = self.draw_region(x - fov, y - fov, x + fov + 1, y + fov + 1)
         img_path = VIEW_FOLDER / f"{character.name}_screenshot.png"
         img.save(img_path)
-        return str(img_path)
-
-    def get_world_view(self, title: str | None = None) -> str:
-        if title is None:
-            title = str(int(time.time()))
-        img_path = VIEW_FOLDER / f"world_{title}.png"
-        self.on_draw().save(img_path)
         return str(img_path)

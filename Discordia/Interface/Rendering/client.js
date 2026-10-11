@@ -1,11 +1,14 @@
-// World map client. The server sends the static map as one PNG plus a JSON description of it;
-// actors arrive as a small JSON list every couple of seconds and are drawn as sprites on top.
-// No build step: this is loaded as a plain script.
+// World map client. The static map comes a chunk at a time, a PNG plus a JSON description of each,
+// fetched only for explored chunks in view; actors arrive as a small JSON list every couple of seconds
+// and are drawn as sprites on top. No build step: this is loaded as a plain script.
+//
+// Everything is placed relative to the spawn, not the map's corner: a big world's far edge is past the
+// pixel offsets a browser can lay out precisely.
 
 const $ = (id) => document.getElementById(id);
 const viewport = $("viewport");
 const stage = $("stage");
-const bg = $("bg");
+const chunkLayer = $("chunks");
 const actorLayer = $("actors");
 const pick = $("pick");
 const cursor = $("cursor");
@@ -13,8 +16,13 @@ const info = $("info");
 const search = $("search");
 
 let world = null;
+let origin = { x: 0, y: 0 }; // the spawn, in squares
 let tile = 16;
+let towns = [];
 const structures = new Map(); // "x,y" -> town/wilds record
+const explored = new Set(); // "cx,cy" of every chunk the server has generated
+const chunkEls = new Map(); // "cx,cy" -> <img> of a chunk in view
+const chunkData = new Map(); // "cx,cy" -> { terrain, wilds }, once fetched
 const actorEls = new Map(); // actor id -> element
 let actors = [];
 let selected = null; // { actor: id } or { x, y }
@@ -29,6 +37,91 @@ function applyView() {
   stage.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
   stage.style.setProperty("--inv", 1 / view.scale);
   document.body.classList.toggle("far", view.scale * tile < 14);
+  if (!chunkFrame) chunkFrame = requestAnimationFrame(showChunks);
+}
+
+// --- chunks ---------------------------------------------------------------
+
+let chunkFrame = 0;
+// Add the explored chunks in view (plus a ring of margin) and drop the rest, so panning across a big
+// world never holds more than a screenful of chunk images.
+function showChunks() {
+  chunkFrame = 0;
+  if (!world) return;
+  const r = viewport.getBoundingClientRect();
+  const span = world.chunk * tile * view.scale;
+  const cx0 = Math.floor(-view.x / span + origin.x / world.chunk) - 1;
+  const cy0 = Math.floor(-view.y / span + origin.y / world.chunk) - 1;
+  const cx1 = cx0 + Math.ceil(r.width / span) + 2;
+  const cy1 = cy0 + Math.ceil(r.height / span) + 2;
+  const inView = (key) => {
+    const [cx, cy] = key.split(",").map(Number);
+    return cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1;
+  };
+  for (const [key, el] of chunkEls) {
+    if (!inView(key)) {
+      el.remove();
+      chunkEls.delete(key);
+    }
+  }
+  for (const key of explored) {
+    if (chunkEls.has(key) || !inView(key)) continue;
+    const [cx, cy] = key.split(",").map(Number);
+    const el = new Image();
+    el.className = "chunk";
+    el.alt = "";
+    el.src = `/chunk/${cx}/${cy}.png`;
+    place(el, cx * world.chunk, cy * world.chunk);
+    chunkLayer.appendChild(el);
+    chunkEls.set(key, el);
+    if (!chunkData.has(key)) loadChunkData(key, cx, cy);
+  }
+}
+
+async function loadChunkData(key, cx, cy) {
+  chunkData.set(key, null); // in flight; don't ask twice
+  try {
+    const data = await (await fetch(`/chunk/${cx}/${cy}.json`)).json();
+    chunkData.set(key, data);
+    for (const w of data.wilds) structures.set(`${w.x},${w.y}`, { kind: "Wilds", ...w });
+  } catch (err) {
+    chunkData.delete(key); // try again next time it scrolls into view
+  }
+}
+
+function terrainAt(x, y) {
+  const c = world.chunk;
+  const data = chunkData.get(`${Math.floor(x / c)},${Math.floor(y / c)}`);
+  return data ? data.terrain[y % c][x % c] : "unexplored";
+}
+
+// Explored ground only grows, as players walk into new chunks; check every so often.
+async function pollExplored() {
+  try {
+    const data = await (await fetch("/explored.json", { cache: "no-store" })).json();
+    const before = explored.size;
+    for (const [cx, cy] of data.chunks) explored.add(`${cx},${cy}`);
+    if (data.towns.length !== towns.length) {
+      towns = data.towns;
+      for (const t of towns) structures.set(`${t.x},${t.y}`, { kind: "Town", ...t });
+      // Wilds are hundreds of tiles; labelling them buries the map. Hover and click still name them.
+      $("labels").replaceChildren(
+        ...towns.map((s) => {
+          const el = document.createElement("div");
+          el.className = "label";
+          el.textContent = s.name;
+          el.style.left = (s.x - origin.x + 0.5) * tile + "px";
+          el.style.top = (s.y - origin.y) * tile + "px";
+          return el;
+        })
+      );
+      renderTowns();
+    }
+    if (explored.size !== before) showChunks();
+  } catch (err) {
+    // pollActors already shows the server as down
+  }
+  setTimeout(pollExplored, 10000);
 }
 
 async function loadWorld() {
@@ -36,30 +129,28 @@ async function loadWorld() {
   tile = world.tile;
   document.title = world.name;
   $("world-name").textContent = world.name;
+  origin = world.spawn;
   document.documentElement.style.setProperty("--tile", tile + "px");
-  stage.style.width = world.width * tile + "px";
-  stage.style.height = world.height * tile + "px";
-  for (const t of world.towns) structures.set(`${t.x},${t.y}`, { kind: "Town", ...t });
-  for (const w of world.wilds) structures.set(`${w.x},${w.y}`, { kind: "Wilds", ...w });
-  // Wilds are hundreds of tiles; labelling them buries the map. Hover and click still name them.
-  for (const s of world.towns) {
-    const el = document.createElement("div");
-    el.className = "label";
-    el.textContent = s.name;
-    el.style.left = (s.x + 0.5) * tile + "px";
-    el.style.top = s.y * tile + "px";
-    $("labels").appendChild(el);
-  }
-  bg.src = "/background.png";
+  await pollExplored();
   fitToViewport();
-  renderTowns();
 }
 
+// Fit the explored part of the map: the whole of a big world is mostly nothing yet.
 function fitToViewport() {
   const r = viewport.getBoundingClientRect();
-  view.scale = Math.min(r.width / (world.width * tile), r.height / (world.height * tile));
-  view.x = (r.width - world.width * tile * view.scale) / 2;
-  view.y = (r.height - world.height * tile * view.scale) / 2;
+  const keys = [...explored].map((k) => k.split(",").map(Number));
+  if (!keys.length) return flyTo(origin.x, origin.y, 1);
+  const c = world.chunk;
+  const xs = keys.map(([cx]) => cx);
+  const ys = keys.map(([, cy]) => cy);
+  const x0 = Math.min(...xs) * c;
+  const x1 = (Math.max(...xs) + 1) * c;
+  const y0 = Math.min(...ys) * c;
+  const y1 = (Math.max(...ys) + 1) * c;
+  cancelAnimationFrame(anim);
+  view.scale = Math.min(8, r.width / ((x1 - x0) * tile), r.height / ((y1 - y0) * tile));
+  view.x = (r.width - (x1 - x0) * tile * view.scale) / 2 - (x0 - origin.x) * tile * view.scale;
+  view.y = (r.height - (y1 - y0) * tile * view.scale) / 2 - (y0 - origin.y) * tile * view.scale;
   applyView();
 }
 
@@ -69,8 +160,8 @@ function flyTo(x, y, scale = view.scale) {
   const from = { ...view };
   const to = {
     scale,
-    x: r.width / 2 - (x + 0.5) * tile * scale,
-    y: r.height / 2 - (y + 0.5) * tile * scale,
+    x: r.width / 2 - (x - origin.x + 0.5) * tile * scale,
+    y: r.height / 2 - (y - origin.y + 0.5) * tile * scale,
   };
   const start = performance.now();
   cancelAnimationFrame(anim);
@@ -103,12 +194,13 @@ function zoomCenter(factor) {
 function tileAt(clientX, clientY) {
   const r = viewport.getBoundingClientRect();
   const size = tile * view.scale;
-  const x = Math.floor((clientX - r.left - view.x) / size);
-  const y = Math.floor((clientY - r.top - view.y) / size);
+  const x = Math.floor((clientX - r.left - view.x) / size) + origin.x;
+  const y = Math.floor((clientY - r.top - view.y) / size) + origin.y;
   return world && x >= 0 && y >= 0 && x < world.width && y < world.height ? { x, y } : null;
 }
 
-const place = (el, x, y) => (el.style.transform = `translate(${x * tile}px, ${y * tile}px)`);
+const place = (el, x, y) =>
+  (el.style.transform = `translate(${(x - origin.x) * tile}px, ${(y - origin.y) * tile}px)`);
 
 // --- actors ---------------------------------------------------------------
 
@@ -162,7 +254,7 @@ function renderActors() {
   if (followed && follow) flyTo(followed.x, followed.y);
   const npcs = actors.filter((a) => a.kind === "npc").length;
   $("meta").textContent =
-    `Seed ${world.seed} · ${world.width}×${world.height} · ` +
+    `Seed ${world.seed} · ${world.width.toLocaleString()}² · ${explored.size} chunks explored · ` +
     `${actors.length - npcs} player${actors.length - npcs === 1 ? "" : "s"} · ${npcs} NPC${npcs === 1 ? "" : "s"}`;
   renderPlayers();
   renderInfo();
@@ -206,10 +298,10 @@ function renderPlayers() {
 }
 
 function renderTowns() {
-  const towns = world.towns.filter((t) => matches(t.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const shown = towns.filter((t) => matches(t.name)).sort((a, b) => a.name.localeCompare(b.name));
   fill(
     $("towns"),
-    towns.map((t) =>
+    shown.map((t) =>
       row(t.sprite, t.name, `Pop. ${t.population} · ${t.industry}`, "", selected?.x === t.x && selected?.y === t.y, () =>
         selectTile(t.x, t.y, true)
       )
@@ -288,7 +380,7 @@ function renderInfo() {
         : `<b>${esc(here.name)}</b> <span class="dim">&mdash; wilds</span>`
     );
   }
-  lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(world.terrain[y][x])}</span>`);
+  lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(terrainAt(x, y))}</span>`);
   info.innerHTML = lines.join("<br>");
 }
 
@@ -322,7 +414,7 @@ viewport.addEventListener("pointermove", (e) => {
   if (hit) {
     place(cursor, hit.x, hit.y);
     const s = structures.get(`${hit.x},${hit.y}`);
-    $("hover").textContent = `(${hit.x}, ${hit.y}) ${world.terrain[hit.y][hit.x]}${s ? " · " + s.name : ""}`;
+    $("hover").textContent = `(${hit.x}, ${hit.y}) ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
   }
 
   const prev = pointers.get(e.pointerId);

@@ -1,7 +1,6 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
 from __future__ import annotations
 
-from itertools import chain
 from typing import Dict, Tuple, List, Iterator
 
 from Discordia.GameLogic import Actors, Events
@@ -130,10 +129,10 @@ class WorldAdapter:
         )
 
     def is_town(self, location: Space) -> bool:
-        return isinstance(self.world.map[location.y][location.x], Town)
+        return isinstance(self.world.space_at(location.x, location.y), Town)
 
     def is_wilds(self, location: Space) -> bool:
-        return isinstance(self.world.map[location.y][location.x], Wilds)
+        return isinstance(self.world.space_at(location.x, location.y), Wilds)
 
     def move_player(
         self, character: Actors.PlayerCharacter, direction: Tuple[int, int]
@@ -190,8 +189,10 @@ class WorldAdapter:
         return merchant.store
 
     def iter_spaces(self) -> Iterator[Space]:
-        for space in list(chain.from_iterable(self.world.map)):
-            yield space
+        """Every square generated so far. The rest of the map doesn't exist until something walks there."""
+        for cx, cy in self.world.loaded_chunks():
+            for row in self.world.loaded_chunk(cx, cy) or []:
+                yield from row
 
     def iter_players(self) -> Iterator[Actors.PlayerCharacter]:
         for player in self._discord_player_map.values():

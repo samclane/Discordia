@@ -3,21 +3,26 @@ Serves the live world map over HTTP. Replaces the old desktop preview window: sa
 different output device.
 
 The map is split into the half that never changes and the half that does. The static half (terrain,
-towns, wilds) goes out once as /background.png and is cached forever; only the actors are polled, as
-a few hundred bytes of JSON. The browser draws them on top, which keeps the server out of the
-per-frame PNG encode entirely.
+towns, wilds) goes out a chunk at a time, as a PNG and a JSON description, and is cached forever; the
+browser only asks for the chunks in view. Only the actors are polled, as a few hundred bytes of JSON,
+and drawn on top, which keeps the server out of the per-frame PNG encode entirely.
+
+Only explored chunks are served: a chunk nobody has walked into 404s rather than being generated, so
+generation stays on the game loop and a visitor panning about can't make the server build the world.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
+from Discordia.GameLogic import GameSpace
 from Discordia.GameLogic.Actors import PlayerCharacter
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 
@@ -26,6 +31,9 @@ LOG = logging.getLogger("Discordia.Interface.WebApp")
 CLIENT_JS = Path(__file__).with_name("client.js")
 INDEX_HTML = Path(__file__).with_name("index.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
+# Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
+ART_VERSION = 2
+CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|json)")
 
 
 def _sprite_url(sprite_path: str) -> str:
@@ -51,13 +59,45 @@ def _world_json(renderer: WindowRenderer) -> bytes:
             "width": world.width,
             "height": world.height,
             "tile": renderer.base_cell_width,
-            "terrain": [[space.terrain.name for space in row] for row in world.map],
-            "towns": [
-                {"x": t.x, "y": t.y, "name": t.name, "population": t.population,
-                 "industry": t.industry.name, "sprite": _sprite_url(t.sprite_path_string)}
-                for t in world.towns
+            "chunk": GameSpace.CHUNK_SIZE,
+            "spawn": {"x": world.starting_town.x, "y": world.starting_town.y},
+        }
+    ).encode()
+
+
+def _town_json(town: GameSpace.Town) -> dict:
+    return {
+        "x": town.x,
+        "y": town.y,
+        "name": town.name,
+        "population": town.population,
+        "industry": town.industry.name,
+        "sprite": _sprite_url(town.sprite_path_string),
+    }
+
+
+def _explored_json(renderer: WindowRenderer) -> bytes:
+    """Which chunks exist so far, and the towns in them. Grows as players explore."""
+    world = renderer.world_adapter.world
+    return json.dumps(
+        {
+            "chunks": world.loaded_chunks(),
+            "towns": [_town_json(t) for t in list(world.towns)],  # list(): the game loop appends
+        }
+    ).encode()
+
+
+def _chunk_json(rows: list) -> bytes:
+    """What the client needs to say what's under the cursor: terrain names, and which squares are wilds."""
+    return json.dumps(
+        {
+            "terrain": [[space.terrain.name for space in row] for row in rows],
+            "wilds": [
+                {"x": space.x, "y": space.y, "name": space.name}
+                for row in rows
+                for space in row
+                if isinstance(space, GameSpace.Wilds)
             ],
-            "wilds": [{"x": w.x, "y": w.y, "name": w.name} for w in world.wilds],
         }
     ).encode()
 
@@ -98,13 +138,23 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        # A regenerated world reuses these URLs, so tag the static responses with its seed.
-        etag = f'"{self.renderer.world_adapter.world.seed}"'
+        # A regenerated world or new art reuses these URLs, so tag the static responses with both.
+        etag = f'"{self.renderer.world_adapter.world.seed}-{ART_VERSION}"'
 
-        if path == "/background.png":
-            self._send(self.renderer.background_png(), "image/png", etag=etag)
+        chunk = CHUNK_ROUTE.fullmatch(path)
+        if chunk:
+            cx, cy, ext = int(chunk[1]), int(chunk[2]), chunk[3]
+            rows = self.renderer.world_adapter.world.loaded_chunk(cx, cy)
+            if rows is None:
+                self.send_error(404)  # unexplored
+            elif ext == "png":
+                self._send(self.renderer.chunk_png(cx, cy) or b"", "image/png", etag=etag)
+            else:
+                self._send(_chunk_json(rows), "application/json", etag=etag)
         elif path == "/world.json":
             self._send(_world_json(self.renderer), "application/json", etag=etag)
+        elif path == "/explored.json":
+            self._send(_explored_json(self.renderer), "application/json")
         elif path == "/actors.json":
             self._send(_actors_json(self.renderer), "application/json")
         elif path == "/client.js":
@@ -115,9 +165,6 @@ class _Handler(BaseHTTPRequestHandler):
                 self.send_error(404)
             else:
                 self._send(body, "image/png", etag=etag)
-        elif path.startswith("/world.png"):
-            # The whole map composited server-side. Nothing needs it any more; handy for a screenshot.
-            self._send(self.renderer.render_png(), "image/png")
         elif path == "/":
             self._send(INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
         else:

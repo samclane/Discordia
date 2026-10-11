@@ -150,7 +150,7 @@ class Database:
         character.hit_points_max = row["hit_points_max"]
         character.hit_points = row["hit_points"]
         character.currency = row["currency"]
-        character.location = adapter.world.map[row["y"]][row["x"]]
+        character.location = adapter.world.space_at(row["x"], row["y"])
 
         for item_row in self.connection.execute(
             "SELECT * FROM item WHERE discord_id = ?", (discord_id,)

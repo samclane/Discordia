@@ -5,6 +5,8 @@ equipment, stores, events, and the adapter's error contract.
 test_all.py already drives a full 100x100 world; these stay small and fast on purpose.
 """
 
+import random
+
 import pytest
 
 from Discordia.GameLogic import (
@@ -27,7 +29,6 @@ from Discordia.GameLogic.GameSpace import (
     Town,
     WaterTerrain,
     Wilds,
-    bitmask_to_orientation,
 )
 from Discordia.GameLogic.Items import (
     ChestArmorAbstract,
@@ -54,6 +55,11 @@ WORLD_SEED = 0
 def adapter() -> WorldAdapter:
     """A small world with one registered player. Fresh per test: the tests below move and maim him."""
     world = GameSpace.World("Test World", WORLD_SIZE, WORLD_SIZE, seed=WORLD_SEED)
+    for x in range(
+        0, WORLD_SIZE, GameSpace.CHUNK_SIZE
+    ):  # generate all of it, not just round the spawn
+        for y in range(0, WORLD_SIZE, GameSpace.CHUNK_SIZE):
+            world.space_at(x, y)
     adapter = WorldAdapter(world)
     adapter.register_player(1, "Tester")
     return adapter
@@ -190,34 +196,27 @@ def test_distance_is_euclidean():
     assert Space(0, 0).distance((3, 4)) == 5
 
 
-@pytest.mark.parametrize(
-    "bits, expected",
-    [
-        (0xFF, "center"),
-        (0b01011010, "center"),
-        (0b01011000, "n"),
-        (0b01001010, "e"),
-        (0b00011010, "s"),
-        (0b01010010, "w"),
-        (0, "center"),
-    ],
-)
-def test_bitmask_picks_the_tile_orientation(bits, expected):
-    assert bitmask_to_orientation(bits) == expected
+def test_terrain_knows_which_neighbours_match_it(adapter):
+    """The renderer kerbs a park or a canal from these bits, so they have to agree with the map."""
+    world = adapter.world
+    for space in [
+        world.space_at(x, y) for x in range(5, 35, 7) for y in range(5, 35, 7)
+    ]:
+        expected = sum(
+            1 << bit
+            for bit, (dx, dy) in enumerate(GameSpace.NEIGHBOURS)
+            if world.space_at(space.x + dx, space.y + dy).terrain.name
+            == space.terrain.name
+        )
+        assert space.terrain.neighbours == expected
 
 
-def test_orientation_must_be_a_known_direction():
-    terrain = GrassTerrain()
-    terrain.orientation = "NE"  # case-insensitive
-    assert terrain.orientation == "ne"
-    with pytest.raises(ValueError):
-        terrain.orientation = "up"
-
-
-def test_water_ignores_orientation_because_it_has_one_tile():
-    water = WaterTerrain()
-    water.orientation = "n"
-    assert water.orientation == "center"
+def test_wilds_pick_a_sprite_by_position():
+    """Mixed sprites so the wilds aren't one tree stamped everywhere, but steady between redraws."""
+    paths = {Wilds(x, 0, "Somewhere").sprite_path for x in range(50)}
+    assert len(paths) == GameSpace.WILDS_SPRITES
+    assert all(path.is_file() for path in paths)
+    assert Wilds(3, 4, "A").sprite_path == Wilds(3, 4, "B").sprite_path
 
 
 def test_terrain_cost_ranks_the_going_underfoot():
@@ -231,12 +230,6 @@ def test_terrain_cost_ranks_the_going_underfoot():
     assert NullTerrain().cost > max(costs)
     assert not NullTerrain().walkable
     assert not WaterTerrain().buildable and not MountainTerrain().buildable
-
-
-def test_sprite_path_follows_name_and_orientation():
-    terrain = SandTerrain()
-    terrain.orientation = "se"
-    assert terrain.sprite_path.name == "sand_se.png"
 
 
 # --- Equipment ------------------------------------------------------------------------------------
@@ -444,6 +437,53 @@ def test_a_world_too_small_to_roll_a_town_still_gets_one():
     world = GameSpace.World("Pebble", 8, 8, seed=7)
     assert world.towns
     assert world.starting_town in world.towns
+
+
+def _describe(world, cx, cy):
+    rows = world.loaded_chunk(cx, cy)
+    return [
+        (type(s).__name__, s.name, s.terrain.name, s.terrain.neighbours)
+        for row in rows
+        for s in row
+    ]
+
+
+def test_a_chunk_comes_out_the_same_whatever_order_it_is_explored_in():
+    """A save is only the seed, so a chunk must regenerate identically however players wandered into it."""
+    one = GameSpace.World("Twin", 200, 200, seed=3)
+    two = GameSpace.World("Twin", 200, 200, seed=3)
+    one.space_at(0, 0)
+    one.space_at(199, 199)
+    two.space_at(199, 199)
+    two.space_at(0, 0)
+    for cx, cy in [(0, 0), (6, 6)]:
+        assert _describe(one, cx, cy) == _describe(two, cx, cy)
+
+
+def test_a_minecraft_sized_world_only_generates_where_somebody_goes():
+    world = GameSpace.World("Vast", 30_000_000, 30_000_000, seed=1)
+    assert len(world.loaded_chunks()) <= (2 * GameSpace.SPAWN_SEARCH_RINGS + 1) ** 2
+    # Measured from the spawn, not as a share of the map: a share would make all of this level 1.
+    far = Space(
+        world.starting_town.x + 10 * GameSpace.DANGER_TILES_PER_LEVEL,
+        world.starting_town.y,
+    )
+    assert world.danger_level(far) == GameSpace.WILDS_MAX_LEVEL
+
+    player = Actors.PlayerCharacter(parent_world=world, name="Explorer")
+    world.add_actor(player)
+    before = len(world.loaded_chunks())
+    for _ in range(GameSpace.CHUNK_SIZE + 1):
+        player.attempt_move(DIRECTION_VECTORS["e"])
+    assert len(world.loaded_chunks()) > before
+
+
+def test_generating_a_chunk_leaves_the_game_dice_alone():
+    """Otherwise who explores first would change every fight after it."""
+    world = GameSpace.World("Dice", 1000, 1000, seed=5)
+    state = random.getstate()
+    world.space_at(999, 999)
+    assert random.getstate() == state
 
 
 def test_killing_an_npc_pays_out_its_money_once(adapter):
@@ -739,7 +779,7 @@ def test_new_players_start_in_the_starting_town(adapter):
 def test_walking_into_impassable_terrain_raises(adapter):
     player = adapter.get_player(1)
     north = player.location + DIRECTION_VECTORS["n"]
-    adapter.world.map[north.y][north.x].terrain = NullTerrain()
+    adapter.world.space_at(north.x, north.y).terrain = NullTerrain()
     with pytest.raises(InvalidSpaceException):
         adapter.move_player(player, DIRECTION_VECTORS["n"])
     assert player.location == adapter.world.starting_town  # didn't budge
@@ -839,7 +879,7 @@ def test_an_empty_gun_cannot_shoot(adapter):
 
 def test_dying_sends_you_back_to_the_starting_town(adapter):
     player = adapter.get_player(1)
-    elsewhere = adapter.world.map[0][0]
+    elsewhere = adapter.world.space_at(0, 0)
     player.location = elsewhere
 
     player.take_damage(player.hit_points_max)
@@ -900,7 +940,7 @@ def test_a_player_sees_their_own_neighbourhood(adapter):
     nearby = adapter.get_nearby_players(player)
     assert player in nearby
 
-    edge = adapter.world.get_adjacent_spaces(adapter.world.map[0][0], sq_range=2)
+    edge = adapter.world.get_adjacent_spaces(adapter.world.space_at(0, 0), sq_range=2)
     assert all(
         0 <= space.x < adapter.width and 0 <= space.y < adapter.height for space in edge
     )

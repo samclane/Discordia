@@ -45,9 +45,15 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## Rendering
 
+- [ ] Terrain names still say `sand`/`mountain` (`/look`, web map hover) though they're drawn as paving and rooftops.
+- [ ] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
 - [ ] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
-- [ ] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
+- [x] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
+
+- [ ] Chunks are never unloaded (~0.4 MB each, ponytail note in `World.__init__`). Evict chunks with nobody in
+  them once a long-running server's memory says so; store sales in them would need saving first.
+- [ ] Terrain repeats every ~2560 squares (`pnoise3` period, ponytail note in `World._terrain_at`).
 
 ## Cleanup
 
@@ -68,6 +74,18 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-11 Urban tiles: terrain is drawn from Kenney's RPG Urban pack, each square built from four 8px quarters
+  picked by its eight neighbours (`Terrain.neighbours`, replacing the 9-way `orientation`), so parks, canals and
+  rooftops get proper kerbs, inside corners, strips and islands. Ground is paving; wilds pick one of eight props by
+  position; towns are a shopfront. `WebApp.ART_VERSION` is in the ETag so browsers drop cached old art.
+
+- 2026-10-11 Minecraft-sized worlds: the map is generated a 32-square chunk at a time where something walks,
+  each chunk keyed on (seed, chunk) so it regenerates identically in any order and leaves the game RNG alone.
+  Spawn is the town nearest the middle; wilds danger is a level per 32 squares from it instead of a share of the
+  map; wilds roll events on first visit (2 MB a chunk down to 0.4). The web map serves explored chunks only
+  (`/chunk/x/y.png|json`, `/explored.json`), and the client places everything relative to the spawn so 60M
+  squares stay inside what a browser can lay out. `default.ini` is now 60,000,000 a side.
 
 - 2026-09-20 `MerchantEvent` is real: a trader on the road carries up to `MAX_STOCK` items from
   `Store.generate_store()` at `MARKUP`, browsed and bought with the new `/trade`. `pending_encounter`

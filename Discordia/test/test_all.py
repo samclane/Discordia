@@ -67,8 +67,6 @@ class TestGeneral(unittest.TestCase):
         for idx in range(self.NUM_USERS):
             self.adapter.register_player(idx, player_name=f"User{idx}")
 
-        self.display.on_draw()
-
     def _move_randomly(self) -> Iterator[List[PlayerActionResponse]]:
         """
         All users move one step in a random direction, if they can
@@ -110,7 +108,6 @@ class TestGeneral(unittest.TestCase):
         for _ in range(3):
             for _ in self._move_randomly():
                 pass
-        self.display.on_draw()
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             self.adapter.get_player_screenshot(player)
@@ -130,15 +127,13 @@ class TestGeneral(unittest.TestCase):
 
     def test_npc_is_rendered(self):
         """NPCs must show up on the map: they attack players, so players need to see them coming."""
-        space = self.world.map[10][10]
-        before = self.display.on_draw().copy()
+        space = self.world.space_at(10, 10)
+        before = self.display.draw_region(10, 10, 11, 11)
         self.world.add_actor(Actors.Raider.generate(1), space)
-        after = self.display.on_draw()
+        after = self.display.draw_region(10, 10, 11, 11)
 
-        cw, ch = self.display.base_cell_width, self.display.base_cell_height
-        box = (space.x * cw, space.y * ch, (space.x + 1) * cw, (space.y + 1) * ch)
-        before_pixels = before.crop(box).tobytes()
-        after_pixels = after.crop(box).tobytes()
+        before_pixels = before.tobytes()
+        after_pixels = after.tobytes()
         self.assertNotEqual(
             before_pixels,
             after_pixels,
@@ -241,7 +236,10 @@ class TestGeneral(unittest.TestCase):
 
         self.assertEqual(adapter.world.seed, self.world.seed)
         self.assertEqual(
-            [str(space.terrain) for space in adapter.iter_spaces()],
+            [
+                str(adapter.world.space_at(*space).terrain)
+                for space in self.adapter.iter_spaces()
+            ],
             [str(space.terrain) for space in self.adapter.iter_spaces()],
         )
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
@@ -294,8 +292,11 @@ class TestGeneral(unittest.TestCase):
         database.close()
 
     def test_astar_pathfinding(self):
-        self.display.on_draw()
-        self.display.get_world_view(title="astar_before")
+        for x in range(
+            0, self.WORLD_WIDTH, GameSpace.CHUNK_SIZE
+        ):  # all of it, for more towns
+            for y in range(0, self.WORLD_HEIGHT, GameSpace.CHUNK_SIZE):
+                self.world.space_at(x, y)
         start = self.world.starting_town
         found_path = None
         end_index = 1
@@ -308,11 +309,9 @@ class TestGeneral(unittest.TestCase):
         if not found_path:
             self.fail("no path found")
         for space in found_path:
-            self.world.map[space.y][space.x].terrain = GameSpace.NullTerrain()
+            self.world.space_at(space.x, space.y).terrain = GameSpace.NullTerrain()
         if end_index > 1:
             LOG.info(f"end_index: {end_index}")
-        self.display.on_draw()
-        self.display.get_world_view(title="astar_after")
 
     def test_function_closest(self):
         start = self.world.starting_town
@@ -331,7 +330,6 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(body_codes, sort)
 
     def test_different_classes(self):
-        self.display.on_draw()
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
             new_class: PlayerClass = random.choice(PlayerClass.__subclasses__())()
@@ -340,8 +338,6 @@ class TestGeneral(unittest.TestCase):
         for _ in range(50):
             for _ in self._move_randomly():
                 pass
-        self.display.on_draw()
-        self.display.get_world_view("classes")
 
     def test_jezail_buff(self):
         user: PlayerCharacter = next(self.adapter.iter_players())
@@ -354,5 +350,3 @@ class TestGeneral(unittest.TestCase):
 
     def tearDown(self) -> None:
         LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")
-        # self.display.on_draw()
-        # self.display.get_world_view()

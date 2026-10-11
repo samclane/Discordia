@@ -138,7 +138,7 @@ class Actor(AbstractActor, ABC):
         new_coords = self.location + shift
         if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
             return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
-        self.location = self.parent_world.map[new_coords.y][new_coords.x]
+        self.location = self.parent_world.space_at(new_coords.x, new_coords.y)
         if isinstance(self.location, GameSpace.Wilds) and isinstance(
             self, PlayerCharacter
         ):
