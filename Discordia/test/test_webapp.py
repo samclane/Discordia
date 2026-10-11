@@ -165,6 +165,27 @@ def test_explored_json_revalidates_until_the_map_grows():
         server.shutdown()
 
 
+def test_actors_json_revalidates_until_someone_moves():
+    """The client polls every 2s and the world ticks every 5s: polls between ticks should be an empty 304."""
+    world = GameSpace.World("Stillland", 64, 12, seed=7)
+    world.npcs.append(Actors.NPC(parent_world=world, name="Bandit", hp=10))
+    world.npcs[0].location = world.space_at(4, 3)
+    server = serve(WorldAdapter(world))
+    url = f"http://127.0.0.1:{server.server_port}/actors.json"
+    try:
+        etag = get(url)[1]["ETag"]
+        with pytest.raises(urllib.error.HTTPError) as excinfo:
+            urllib.request.urlopen(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        assert excinfo.value.code == 304
+
+        world.npcs[0].location = world.space_at(5, 3)
+        status, headers, body = get(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        assert status == 200 and headers["ETag"] != etag
+        assert json.loads(body)["actors"][0]["x"] == 5
+    finally:
+        server.shutdown()
+
+
 @pytest.mark.parametrize(
     "path",
     [

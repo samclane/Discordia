@@ -6,7 +6,7 @@ Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) tha
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 173 tests, ~3s, no token needed
+python -m pytest Discordia/test -q                     # 186 tests, ~10s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -37,7 +37,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - Game rules go in GameLogic; the Cog only parses input and formats `PlayerActionResponse.text`.
 - New items/weapons/armor: add a JSON stat block in `data/`, subclass the matching `FromData` class. Restorable classes must live in a module listed in `Database._ALLOWED_MODULES`.
 - Anything on a saved character (new field, new equipment slot) needs a `Database` save/load change and a round-trip test in `test_game_logic.py`.
-- Tests: pytest, plain functions, no Discord token. Discord commands are tested with fake interactions in `test_discord_interface.py`; copy an existing one.
+- Tests: pytest, plain functions, no Discord token. Discord commands are tested with fake interactions in `test_discord_interface.py`; copy an existing one. The web map page is tested in headless Chrome/Edge over DevTools in `test_webclient.py` (skipped without a browser): `page.js(...)` runs script in it.
 - `# ponytail:` comments mark deliberate shortcuts and their upgrade path. Read them before "fixing" one.
 - Black formatting. Small diffs, no speculative abstractions.
 

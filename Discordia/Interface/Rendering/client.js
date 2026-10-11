@@ -244,7 +244,8 @@ const place = (el, x, y) =>
 async function pollActors() {
   if (document.hidden) return setTimeout(pollActors, 2000);
   try {
-    actors = (await (await fetch("/actors.json", { cache: "no-store" })).json()).actors;
+    // no-cache: revalidate. Between ticks the server answers 304 and the browser hands back the last list.
+    actors = (await (await fetch("/actors.json", { cache: "no-cache" })).json()).actors;
     $("status").className = "live";
     $("status").title = "Live";
     renderActors();

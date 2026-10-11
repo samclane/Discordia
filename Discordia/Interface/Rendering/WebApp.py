@@ -17,6 +17,7 @@ import gzip
 import json
 import logging
 import re
+import zlib
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -166,7 +167,9 @@ class _Handler(BaseHTTPRequestHandler):
             explored_etag = f'"{world.seed}-{len(world.loaded_chunks())}"'
             self._send(_explored_json(self.renderer), "application/json", etag=explored_etag)
         elif path == "/actors.json":
-            self._send(_actors_json(self.renderer), "application/json")
+            # Actors only move on a tick, and the client polls faster than that: most polls can be a 304.
+            body = _actors_json(self.renderer)
+            self._send(body, "application/json", etag=f'"{zlib.crc32(body):x}"')
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -196,9 +199,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if etag:
             self.send_header("ETag", etag)
-            self.send_header("Cache-Control", "no-cache")  # cache it, but revalidate against the seed
+            self.send_header("Cache-Control", "no-cache")  # cache it, but revalidate every time
         else:
-            self.send_header("Cache-Control", "no-store")  # actors move every tick
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
