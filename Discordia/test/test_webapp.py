@@ -61,6 +61,7 @@ def test_world_json_describes_the_generated_map(base_url):
     assert world["width"] == world["height"] == 12
     assert len(world["terrain"]) == 12 and len(world["terrain"][0]) == 12
     assert all("x" in town and "name" in town for town in world["towns"])
+    assert all(town["sprite"].startswith("/sprites/") for town in world["towns"])
 
 
 def test_actors_json_carries_the_spawned_npc(base_url):

@@ -24,7 +24,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - `WorldAdapter.py` the only thing Discord and renderers touch: discord member id <-> PlayerCharacter, move/attack/look.
   - `DiscordInterface.py` slash commands as a Cog. Commands queue an *order*; `tick()` runs them and `World.tick()` in lockstep on the bot loop (no locks). NPC hits are DM'd.
   - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path. NPCs and store stock are NOT saved.
-  - `Rendering/DesktopApp.py` Pillow renderer (baked background + actor layer); `WebApp.py` + `client.js` live map at `-W PORT`.
+  - `Rendering/DesktopApp.py` Pillow renderer (baked background + actor layer); `WebApp.py` + `index.html`/`client.js` live map at `-W PORT` (no build step: plain JS, edit and reload).
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.
 
 ## Conventions

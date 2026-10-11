@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discordia</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #16181ecc; --line: #2a2d36; --text: #dfe2ea; --dim: #8a90a0;
+    --accent: #e8b44a; --player: #6cc4ff; --npc: #ff6b6b; --hp: #5ad17a; --hp-low: #e05a4a;
+    --side: 280px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+               font: 13px/1.45 system-ui, sans-serif; overflow: hidden; }
+  button, input { font: inherit; color: inherit; }
+
+  #viewport { position: absolute; inset: 0; right: var(--side); cursor: grab; touch-action: none; }
+  #viewport.dragging { cursor: grabbing; }
+  #stage { position: absolute; transform-origin: 0 0; }
+  #bg, .actor img { image-rendering: pixelated; -webkit-user-drag: none; user-select: none; }
+  #bg { display: block; width: 100%; height: 100%; }
+
+  /* Overlays live in map pixels; --inv undoes the zoom so text and bars stay screen-sized. */
+  .actor { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+           transition: transform .45s linear; pointer-events: none; }
+  .actor img { width: 100%; height: 100%; display: block; }
+  .tag { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%) scale(var(--inv));
+         transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; gap: 2px;
+         padding-bottom: 2px; white-space: nowrap; }
+  .tag .name { font-size: 11px; font-weight: 600; padding: 0 4px; border-radius: 3px;
+               background: #000a; color: var(--player); }
+  .actor.npc .name { display: none; }
+  .bar { width: 26px; height: 4px; background: #000b; border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--hp); }
+  .bar.low i { background: var(--hp-low); }
+  .actor.full .bar { display: none; }
+  .actor.selected .name { background: var(--accent); color: #000; }
+  .actor.selected .bar { display: block; }
+  .actor.selected { z-index: 1; }
+  .actor.selected img { outline: calc(2px * var(--inv)) solid var(--accent); }
+
+  .label { position: absolute; transform: translate(-50%, -100%) scale(var(--inv));
+           transform-origin: 50% 100%; pointer-events: none; white-space: nowrap;
+           font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+  body.far .actor.player .name { display: none; }
+
+  #cursor, #pick { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
+                   pointer-events: none; display: none; }
+  #cursor { outline: calc(1px * var(--inv)) solid #fff8; }
+  #pick { outline: calc(2px * var(--inv)) solid var(--accent); }
+
+  /* --- sidebar --- */
+  #side { position: absolute; top: 0; right: 0; bottom: 0; width: var(--side); display: flex;
+          flex-direction: column; background: #121318; border-left: 1px solid var(--line); }
+  #side header { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
+  #side h1 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  #status { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
+  #status.live { background: var(--hp); }
+  #status.down { background: var(--hp-low); }
+  #meta { color: var(--dim); font-size: 12px; }
+  #search { width: 100%; margin-top: 8px; padding: 6px 8px; background: #0b0c10;
+            border: 1px solid var(--line); border-radius: 5px; outline: none; }
+  #search:focus { border-color: var(--accent); }
+  #lists { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+  #lists h2 { margin: 12px 14px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+              color: var(--dim); font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 14px; border: 0;
+         background: none; text-align: left; cursor: pointer; }
+  .row:hover, .row:focus-visible { background: #ffffff0d; outline: none; }
+  .row.selected { background: #e8b44a22; box-shadow: inset 2px 0 var(--accent); }
+  .row img { width: 20px; height: 20px; image-rendering: pixelated; flex: none; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .sub { color: var(--dim); font-size: 11px; }
+  .row .bar { width: 44px; flex: none; }
+  .empty { margin: 2px 14px; color: var(--dim); font-style: italic; }
+
+  #info { border-top: 1px solid var(--line); padding: 10px 14px; min-height: 64px; }
+  #info b { color: #fff; }
+  #info .dim { color: var(--dim); }
+
+  #tools { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; }
+  #tools button, #toggle { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
+                           background: var(--panel); cursor: pointer; font-size: 16px; line-height: 1; }
+  #tools button:hover, #toggle:hover { border-color: var(--accent); }
+  #hover { position: absolute; left: 12px; bottom: 12px; padding: 3px 8px; border-radius: 4px;
+           background: var(--panel); color: var(--dim); font-size: 12px; pointer-events: none; }
+  #hover:empty { display: none; }
+  #toggle { display: none; position: absolute; right: 12px; top: 12px; }
+
+  @media (max-width: 700px) {
+    :root { --side: 0px; }
+    #side { width: min(300px, 85vw); transform: translateX(100%); transition: transform .2s; z-index: 2; }
+    body.open #side { transform: none; }
+    #toggle { display: block; z-index: 3; }
+  }
+</style>
+
+<div id="viewport">
+  <div id="stage">
+    <img id="bg" alt="World map">
+    <div id="labels"></div>
+    <div id="cursor"></div>
+    <div id="pick"></div>
+    <div id="actors"></div>
+  </div>
+</div>
+<div id="tools">
+  <button id="zoom-in" title="Zoom in (+)">+</button>
+  <button id="zoom-out" title="Zoom out (-)">&minus;</button>
+  <button id="fit" title="Fit map (F)">&#x2922;</button>
+</div>
+<div id="hover"></div>
+<button id="toggle" title="Players and towns">&#9776;</button>
+
+<aside id="side">
+  <header>
+    <h1><span id="status" title="Connecting"></span><span id="world-name">Discordia</span></h1>
+    <div id="meta"></div>
+    <input id="search" type="search" placeholder="Find a player or town" autocomplete="off">
+  </header>
+  <div id="lists">
+    <h2>Players</h2><div id="players"></div>
+    <h2>Towns</h2><div id="towns"></div>
+  </div>
+  <div id="info"><span class="dim">Drag to pan, scroll or pinch to zoom. Click a tile or a name.</span></div>
+</aside>
+
+<script src="/client.js"></script>
+</html>

@@ -23,27 +23,8 @@ from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 LOG = logging.getLogger("Discordia.Interface.WebApp")
 
 CLIENT_JS = Path(__file__).with_name("client.js")
+INDEX_HTML = Path(__file__).with_name("index.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
-
-PAGE = b"""<!doctype html><meta charset="utf-8"><title>Discordia</title>
-<style>
-  html, body { margin: 0; height: 100%; background: #111; color: #ddd;
-               font: 13px/1.5 system-ui, sans-serif; overflow: hidden; }
-  #viewport { position: absolute; inset: 0; cursor: grab; touch-action: none; }
-  #viewport:active { cursor: grabbing; }
-  #stage { position: absolute; transform-origin: 0 0; }
-  #bg, .actor { image-rendering: pixelated; -webkit-user-drag: none; user-select: none; }
-  #bg { display: block; width: 100%; height: 100%; }
-  .actor { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
-           transition: transform .4s linear; }
-  #info { position: absolute; left: 12px; bottom: 12px; max-width: 22em; padding: 8px 12px;
-          background: #000c; border: 1px solid #333; border-radius: 6px; pointer-events: none; }
-</style>
-<div id="viewport"><div id="stage"><img id="bg" alt="World map"><div id="actors"></div></div></div>
-<div id="info">Drag to pan, scroll to zoom, click a tile.</div>
-<script src="/client.js"></script>
-"""
-
 
 def _sprite_url(sprite_path: str) -> str:
     """Map an on-disk sprite path to the URL the client fetches it from."""
@@ -71,7 +52,7 @@ def _world_json(renderer: WindowRenderer) -> bytes:
             "terrain": [[space.terrain.name for space in row] for row in world.map],
             "towns": [
                 {"x": t.x, "y": t.y, "name": t.name, "population": t.population,
-                 "industry": t.industry.name}
+                 "industry": t.industry.name, "sprite": _sprite_url(t.sprite_path_string)}
                 for t in world.towns
             ],
             "wilds": [{"x": w.x, "y": w.y, "name": w.name} for w in world.wilds],
@@ -93,6 +74,7 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
             "sprite": _sprite_url(actor.sprite_path_string),
             "hp": actor.hit_points,
             "hp_max": actor.hit_points_max,
+            **({"level": actor.level, "class": actor.player_class.name} if kind == "player" else {}),
         }
         for kind, actor in [("npc", n) for n in adapter.world.npcs]
         + [("player", p) for p in adapter.iter_players()]
@@ -129,7 +111,7 @@ class _Handler(BaseHTTPRequestHandler):
             # The whole map composited server-side. Nothing needs it any more; handy for a screenshot.
             self._send(self.renderer.render_png(), "image/png")
         elif path == "/":
-            self._send(PAGE, "text/html; charset=utf-8")
+            self._send(INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
         else:
             self.send_error(404)
 
