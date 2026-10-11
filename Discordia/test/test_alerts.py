@@ -21,7 +21,8 @@ def alerts(monkeypatch):
     )
     listener = Alerts.install("https://discord.invalid/webhook")
     yield posts, listener
-    listener.stop()
+    if listener._thread:  # the test may have stopped it already, and 3.12 crashes on a second stop()
+        listener.stop()
     root = logging.getLogger()
     root.handlers = [h for h in root.handlers if not isinstance(h, QueueHandler)]
 
