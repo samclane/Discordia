@@ -43,7 +43,6 @@ from Discordia.Interface.WorldAdapter import (
     NoMerchantException,
     NoWeaponEquippedException,
     NotRegisteredException,
-    RangedAttackException,
     WorldAdapter,
 )
 
@@ -792,10 +791,52 @@ def test_attacking_bare_handed_raises(adapter):
         adapter.attack(player, None)
 
 
-def test_aiming_a_melee_weapon_at_a_distant_square_raises(adapter):
+def _beside(world, steps=1):
+    """An open square with open ground `steps` north of it, neither of them a town."""
+    return next(
+        here
+        for here in (world.space_at(x, y) for y in range(steps, world.height) for x in range(world.width))
+        if all(
+            world.is_space_valid(s) and not isinstance(s, GameSpace.Town)
+            for s in (here, world.space_at(here.x, here.y - steps))
+        )
+    )
+
+
+def test_a_melee_swing_reaches_the_square_beside_you(adapter):
+    """/attack always takes a direction, and with a melee weapon that used to be refused outright."""
     player = adapter.get_player(1)
-    with pytest.raises(RangedAttackException):
+    player.equip(Weapons.Hammer())
+    player.location = _beside(adapter.world)
+    mook = Actors.NPC(None, 100, "Mook")
+    adapter.world.add_actor(mook, adapter.world.space_at(player.location.x, player.location.y - 1))
+
+    response = adapter.attack(player, DIRECTION_VECTORS["n"])
+    assert response.target is mook
+    assert mook.hit_points == mook.hit_points_max - response.damage > 0  # full weight, no falloff
+
+
+def test_a_melee_swing_does_not_reach_two_squares(adapter):
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    player.location = _beside(adapter.world, steps=2)
+    mook = Actors.NPC(None, 100, "Mook")
+    adapter.world.add_actor(mook, adapter.world.space_at(player.location.x, player.location.y - 2))
+
+    with pytest.raises(CombatException, match="within reach"):
         adapter.attack(player, DIRECTION_VECTORS["n"])
+    assert mook.hit_points == mook.hit_points_max
+
+
+def test_a_melee_swing_hits_your_own_square_first(adapter):
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    player.location = _beside(adapter.world)
+    here, there = Actors.NPC(None, 100, "Here"), Actors.NPC(None, 100, "There")
+    adapter.world.add_actor(here, player.location)
+    adapter.world.add_actor(there, adapter.world.space_at(player.location.x, player.location.y - 1))
+
+    assert adapter.attack(player, DIRECTION_VECTORS["n"]).target is here
 
 
 def test_attacking_an_empty_square_raises(adapter):
@@ -1055,6 +1096,91 @@ def test_raiders_top_out_at_a_couple_a_chunk():
         world.tick()
     chunks = len(world.loaded_chunks())
     assert 0 < len(world.npcs) <= 3 * chunks
+
+
+def _open_ground(world, width, height=1):
+    """The top-left of a width x height block of walkable squares, none of them a town."""
+    return next(
+        world.space_at(x, y)
+        for y in range(world.height - height)
+        for x in range(world.width - width)
+        if all(
+            world.is_space_valid(s) and not isinstance(s, GameSpace.Town)
+            for s in (world.space_at(x + i, y + j) for i in range(width) for j in range(height))
+        )
+    )
+
+
+@pytest.fixture
+def lone_raider(monkeypatch):
+    """No tick spawns: the raider a test places is the only one about."""
+    monkeypatch.setattr(GameSpace, "WILDS_PER_RAIDER", 10**9)
+
+
+def test_a_raider_that_spots_you_closes_in_and_warns_you_once(adapter, lone_raider):
+    world = adapter.world
+    player = adapter.get_player(1)
+    sight = GameSpace.NPC_SIGHT
+    corner = _open_ground(world, sight + 1)
+    player.location = corner
+    npc = Actors.Raider(world, 50, "Stalker")
+    world.add_actor(npc, world.space_at(corner.x + sight, corner.y))
+
+    [warning] = [e for e in world.tick() if e.target is player]
+    assert warning.text == f"Stalker has spotted you, {sight} squares to the east."
+    news = []
+    for gap in range(sight - 1, -1, -1):  # a square a tick, and no second warning
+        assert npc.location.x - player.location.x == gap
+        news = [e.text for e in world.tick() if e.target is player]
+        assert not any("spotted" in text for text in news)
+    assert news == ["Stalker hits you for 2 damage."]  # caught you standing still
+
+
+def test_a_raider_does_not_see_past_its_sight(adapter, lone_raider):
+    world = adapter.world
+    player = adapter.get_player(1)
+    corner = _open_ground(world, GameSpace.NPC_SIGHT + 2)
+    player.location = corner
+    npc = Actors.Raider(world, 50, "Shortsighted")
+    world.add_actor(npc, world.space_at(corner.x + GameSpace.NPC_SIGHT + 1, corner.y))
+
+    assert [e for e in world.tick() if e.target is player] == []
+    assert npc.quarry is None
+
+
+def test_raiders_leave_you_alone_in_town(adapter, lone_raider):
+    world = adapter.world
+    player = adapter.get_player(1)
+    town = player.location = world.starting_town
+    beside = next(
+        s
+        for s in world.get_adjacent_spaces(town, GameSpace.NPC_SIGHT)
+        if world.is_space_valid(s) and not isinstance(s, GameSpace.Town)
+    )
+    npc = Actors.Raider(world, 50, "Loiterer")
+    world.add_actor(npc, beside)
+
+    assert [e for e in world.tick() if e.target is player] == []
+    assert npc.quarry is None
+
+
+def test_a_wounded_raider_runs_from_you(adapter, lone_raider):
+    """It used to stand there and take it. Now its kit is something you chase down."""
+    world = adapter.world
+    player = adapter.get_player(1)
+    corner = _open_ground(world, 5, 5)
+    player.location = world.space_at(corner.x + 2, corner.y + 2)  # open ground two squares every way
+    npc = Actors.Raider(world, 50, "Coward")
+    world.add_actor(npc, player.location)  # face to face
+    npc.brain.change_state(Behavior.Fleeing())
+    hit_points = player.hit_points
+
+    gaps = []
+    for _ in range(2):
+        assert [e for e in world.tick() if e.target is player] == []  # no hits, no warnings
+        gaps.append(npc.location.distance(player.location))
+    assert 0 < gaps[0] < gaps[1]
+    assert player.hit_points == hit_points
 
 
 def test_npcs_never_walk_into_unmade_ground():

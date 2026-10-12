@@ -189,6 +189,23 @@ class NPC(Actor):
         self.base_attack = 1
         self.currency: int = 0  # what the killer pockets, alongside the inventory
         self.brain = Behavior.FiniteStateMachine(self, Behavior.Aggressive())
+        self.quarry: PlayerCharacter | None = None  # who it last warned it's hunting
+
+    def step(self, space: GameSpace.Space, toward: bool = True):
+        """One square closer to `space`, or further from it. Stays put if no step helps."""
+        # ponytail: greedy, so a coastline between it and you stops it cold. A* would go round, but the
+        # pathfinder generates chunks as it searches: guard it to loaded chunks first.
+        here = self.location
+
+        def gap(d):
+            return (here.x + d[0] - space.x) ** 2 + (here.y + d[1] - space.y) ** 2
+
+        now = gap((0, 0))
+        steps = [d for d in GameSpace.DIRECTION_VECTORS.values() if (gap(d) < now if toward else gap(d) > now)]
+        random.shuffle(steps)  # equally good steps in any order, so it doesn't always favour one side
+        for shift in sorted(steps, key=gap, reverse=not toward):
+            if not self.attempt_move(shift)[0].failed:
+                return
 
     def on_death(self) -> Inventory:
         self.location = None  # type: ignore[assignment]  # despawns the NPC

@@ -347,3 +347,61 @@ def test_expired_interaction_does_not_abort_the_command():
     asyncio.run(_send(interaction, "you move north"))
 
     assert response.attempts == 2  # both were tried, neither was allowed to propagate
+
+
+class Replies:
+    """An interaction's reply routes, recording what the command said back."""
+
+    def __init__(self):
+        self.deferred = False
+        self.sent = []
+
+    def is_done(self):
+        return self.deferred
+
+    async def defer(self):
+        self.deferred = True
+
+    async def send_message(self, content, **kwargs):
+        self.sent.append(content)
+
+    async def send(self, content, **kwargs):  # the followup, once deferred
+        self.sent.append(content)
+
+
+def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():
+    """/attack always takes a direction, and every melee /attack used to be refused: 'You need a ranged
+    weapon to attack at a distance.' A raider beside you was one you could see and never hit."""
+    adapter = WorldAdapter(GameSpace.World("Arena", 40, 40, seed=0))
+    world = adapter.world
+    adapter.register_player(1, "Fighter")
+    player = adapter.get_player(1)
+    player.location = next(
+        s
+        for s in adapter.iter_spaces()
+        if s.y > 0
+        and not isinstance(s, GameSpace.Town)
+        and world.is_space_valid(s)
+        and world.is_space_valid(world.space_at(s.x, s.y - 1))
+    )
+    raider = Actors.Raider(world, 50, "Neighbour")
+    world.add_actor(raider, world.space_at(player.location.x, player.location.y - 1))
+
+    interface = loaded_cog(adapter)
+    stub_user(interface, [])
+    replies = Replies()
+    interaction = SimpleNamespace(command="attack", user=SimpleNamespace(id=1), response=replies, followup=replies)
+
+    async def scenario():
+        swing = asyncio.create_task(
+            command_named(interface, "attack").callback(
+                interface, interaction, app_commands.Choice(name="north", value="n")  # type: ignore[arg-type]
+            )
+        )
+        await asyncio.sleep(0)  # the command queues its order
+        await interface.tick()
+        await swing
+
+    asyncio.run(scenario())
+    assert raider.hit_points < raider.hit_points_max
+    assert "to Neighbour" in replies.sent[0]

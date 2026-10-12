@@ -21,9 +21,9 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 
 ## NPCs and world
 
-- [ ] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
+- [x] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
 - [ ] Non-Raider NPC types (animals from `BodyType`, merchants, guards in towns) with their own sprites.
-- [ ] NPCs use A* (`AStarPathfinder`) to chase players in FOV instead of random walks.
+- [x] NPCs chase players in sight instead of random walks (greedy steps, not A*: see `NPC.step`).
 - [ ] Town population: named NPCs that stay in town, give flavor text on `/town status`.
 - [ ] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
 
@@ -74,6 +74,14 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-12 Raiders hunt: one that sees a player outside a town (`NPC_SIGHT`, 6 squares) steps toward them each
+  tick, and the first time it picks someone they're DM'd where it is, while there's room to run (a raider is no
+  faster than you). Wounded raiders (`Behavior.Fleeing`) step away instead of standing still. Only NPCs within
+  `NPC_AWAKE_RADIUS` (a chunk) of a player act, NPCs never step into unloaded chunks (a live server had gone 9 to
+  366 chunks in an hour from raiders alone), and the cap is one raider per 40 wilds squares, about 2 a chunk.
+  Melee reaches the square beside you: `/attack` always takes a direction, and every melee attack used to be
+  refused with "You need a ranged weapon", so a raider next to you could be seen and never hit.
 
 - 2026-10-11 Urban tiles: terrain is drawn from Kenney's RPG Urban pack, each square built from four 8px quarters
   picked by its eight neighbours (`Terrain.neighbours`, replacing the 9-way `orientation`), so parks, canals and

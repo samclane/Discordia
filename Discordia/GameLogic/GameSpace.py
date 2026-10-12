@@ -88,6 +88,10 @@ WILDS_PER_RAIDER = 40
 # raiders still wander in from just out of sight.
 NPC_AWAKE_RADIUS = CHUNK_SIZE
 
+# How far a raider spots a player from, in squares either way. Further than /look's 2, so the first a
+# player knows of one is its warning, while there's still room to run.
+NPC_SIGHT = 6
+
 
 @contextmanager
 def _seeded(*key):
@@ -859,6 +863,7 @@ class World:
         self, player_character: Actors.PlayerCharacter, direction: Direction = (0, 0)
     ) -> PlayerActionResponse:
         """Swing or shoot at whatever is standing in the way: another player or an NPC, whichever is there."""
+        direction = direction or (0, 0)  # None: just this square
         response = PlayerActionResponse(
             text="No targets found in that direction", source=player_character
         )
@@ -895,8 +900,11 @@ class World:
                     )
                 break
             else:
-                if not isinstance(weapon, Weapons.RangedWeapon):
-                    response.text = "Nothing in range of your melee weapon."
+                # A melee weapon reaches your square and the one next to it: a raider beside you is one
+                # you can hit, not one you have to land on the same square as in the same tick.
+                melee = not isinstance(weapon, Weapons.RangedWeapon)
+                if melee and loc != player_character.location:
+                    response.text = "Nothing within reach of your melee weapon."
                     break
                 if direction == (0, 0):
                     response.text = (
@@ -906,9 +914,10 @@ class World:
                     break
                 loc += direction
                 loc = self.space_at(loc.x, loc.y)
-                dmg = int(
-                    weapon.calc_damage(int(player_character.location.distance(loc)))
-                )
+                if not melee:  # a bullet loses punch with distance; a swing at arm's length doesn't
+                    dmg = int(
+                        weapon.calc_damage(int(player_character.location.distance(loc)))
+                    )
         return response
 
     def near_a_player(self, space: Space | None) -> bool:
@@ -919,6 +928,17 @@ class World:
             and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= NPC_AWAKE_RADIUS
             for p in self.players
         )
+
+    def prey_in_sight(self, space: Space) -> Actors.PlayerCharacter | None:
+        """The nearest player within NPC_SIGHT of `space` who isn't safe in a town."""
+        in_sight = [
+            p
+            for p in self.players
+            if p.location is not None
+            and not isinstance(p.location, Town)
+            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= NPC_SIGHT
+        ]
+        return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
@@ -940,12 +960,17 @@ class World:
                 if p.location == npc.location and not isinstance(p.location, Town)
             ]
             if not targets:
-                npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
+                prey = self.prey_in_sight(npc.location)
+                if prey is None:
+                    npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
+                elif warning := npc.brain.see(prey):
+                    events.append(PlayerActionResponse(is_successful=True, target=prey, source=npc, text=warning))
                 continue
             target = random.choice(targets)
             deaths = target.deaths
             damage = npc.brain.update(target)
-            if damage is None:  # disengaged; not worth waking the player up for
+            if damage is None:  # disengaged: it backs off, which isn't worth waking the player up for
+                npc.brain.see(target)
                 continue
             text = f"{npc.name} hits you for {damage} damage."
             if target.deaths != deaths:  # handle_player_death already sent them home

@@ -6,7 +6,7 @@ Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) tha
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 190 tests, ~10s, no token needed
+python -m pytest Discordia/test -q                     # 197 tests, ~10s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.

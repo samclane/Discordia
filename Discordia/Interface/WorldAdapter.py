@@ -13,7 +13,6 @@ from Discordia.GameLogic.GameSpace import (
     Direction,
     PlayerActionResponse,
 )
-from Discordia.GameLogic.Weapons import RangedWeapon
 
 
 class NullWorldException(Exception):
@@ -43,10 +42,6 @@ class ItemRequirementException(Exception):
 
 
 class NoWeaponEquippedException(ItemRequirementException):
-    pass
-
-
-class RangedAttackException(Exception):
     pass
 
 
@@ -166,8 +161,6 @@ class WorldAdapter:
     ) -> PlayerActionResponse:
         if not character.has_weapon_equipped:
             raise NoWeaponEquippedException
-        if direction and not isinstance(character.weapon, RangedWeapon):
-            raise RangedAttackException
         response: PlayerActionResponse = self.world.attack(character, direction)
         if not response.is_successful:
             raise CombatException(response.text)

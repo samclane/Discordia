@@ -23,7 +23,6 @@ from Discordia.Interface.WorldAdapter import (
     NotSpawnedException,
     InvalidSpaceException,
     NoWeaponEquippedException,
-    RangedAttackException,
     CombatException,
     NoEncounterException,
     NoMerchantException,
@@ -266,8 +265,6 @@ class DiscordInterface(commands.Cog):
             msg = "Your character hasn't spawned into the world yet."
         elif isinstance(error, NoWeaponEquippedException):
             msg = "You have no weapon equipped. Try `/inventory equip`."
-        elif isinstance(error, RangedAttackException):
-            msg = "You need a ranged weapon to attack at a distance."
         elif isinstance(error, InvalidSpaceException):
             msg = str(error) or "You can't go that way."
         elif isinstance(error, CombatException):
@@ -383,7 +380,7 @@ class DiscordInterface(commands.Cog):
     async def attack(
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
-        """Attack, resolved on the next tick; give a direction for a ranged attack"""
+        """Attack, resolved on the next tick: your square first, then that way (melee reaches one square)"""
         await _defer(interaction)
         character = self._player(interaction)
         response = await self.order(
