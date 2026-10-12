@@ -79,8 +79,9 @@ WILDS_SPRITES = 8
 DEATH_TAX = 0.25
 
 # Roaming raiders are capped at one per this many wilds squares. At one per square every step off the
-# road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes.
-WILDS_PER_RAIDER = 10
+# road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes. At one
+# per 10 (about 9 a chunk) a player woke dozens at once; one per 40 is about 2 a chunk.
+WILDS_PER_RAIDER = 40
 
 # NPCs only act within this many squares of a player. Everywhere else holds still until somebody comes
 # near, which keeps a tick cheap however many raiders are out there. A chunk, not the player's view, so

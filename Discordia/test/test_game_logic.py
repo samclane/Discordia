@@ -1045,6 +1045,18 @@ def test_only_npcs_near_a_player_take_a_turn(beyond, moves):
     assert (len(seen) > 1) is moves
 
 
+def test_raiders_top_out_at_a_couple_a_chunk():
+    """A player wakes everything within a chunk of them; at 9 raiders a chunk that was dozens at once."""
+    world = GameSpace.World("Crowdland", 128, 128, seed=WORLD_SEED)
+    for x in range(0, world.width, GameSpace.CHUNK_SIZE):
+        for y in range(0, world.height, GameSpace.CHUNK_SIZE):
+            world.space_at(x, y)
+    for _ in range(300):  # one spawns a tick until the cap; well past it at the old density
+        world.tick()
+    chunks = len(world.loaded_chunks())
+    assert 0 < len(world.npcs) <= 3 * chunks
+
+
 def test_npcs_never_walk_into_unmade_ground():
     """Only players explore: a raider at the edge of the known map stays on it, so the map stays small."""
     world = GameSpace.World("Edgeland", 256, 256, seed=WORLD_SEED)
