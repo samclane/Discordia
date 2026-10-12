@@ -82,6 +82,11 @@ DEATH_TAX = 0.25
 # road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes.
 WILDS_PER_RAIDER = 10
 
+# NPCs only act within this many squares of a player. Everywhere else holds still until somebody comes
+# near, which keeps a tick cheap however many raiders are out there. A chunk, not the player's view, so
+# raiders still wander in from just out of sight.
+NPC_AWAKE_RADIUS = CHUNK_SIZE
+
 
 @contextmanager
 def _seeded(*key):
@@ -905,6 +910,15 @@ class World:
                 )
         return response
 
+    def near_a_player(self, space: Space | None) -> bool:
+        """Whether `space` is within NPC_AWAKE_RADIUS squares of some player, either way."""
+        # ponytail: every NPC against every player, each tick. Bucket players by chunk if that grows.
+        return space is not None and any(
+            p.location is not None
+            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= NPC_AWAKE_RADIUS
+            for p in self.players
+        )
+
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
 
@@ -916,6 +930,8 @@ class World:
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
         for npc in self.npcs:
+            if not self.near_a_player(npc.location):
+                continue  # the world holds still where nobody is
             # Towns are safe ground: somewhere to respawn, rest and shop without a raider on you.
             targets = [
                 p

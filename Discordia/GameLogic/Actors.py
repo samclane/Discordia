@@ -194,6 +194,17 @@ class NPC(Actor):
         self.location = None  # type: ignore[assignment]  # despawns the NPC
         return self.inventory
 
+    def attempt_move(
+        self, shift: Tuple[int, int]
+    ) -> List[GameSpace.PlayerActionResponse]:
+        # Only players explore. An NPC wandering into unmade ground would build map nobody visits, and
+        # every chunk it made would stay in memory and on the web map for good.
+        there = self.location + shift
+        size = GameSpace.CHUNK_SIZE
+        if self.parent_world.loaded_chunk(there.x // size, there.y // size) is None:
+            return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
+        return super().attempt_move(shift)
+
     @classmethod
     def generate(cls, level) -> NPC:
         generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator

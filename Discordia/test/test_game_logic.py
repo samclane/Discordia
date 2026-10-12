@@ -955,6 +955,7 @@ def test_screenshots_degrade_gracefully_without_a_renderer(adapter):
 
 
 def test_ticking_spawns_npcs_and_moves_them_without_the_player(adapter):
+    """Without the player's input, that is: they only move where a player is near enough to see it."""
     world = adapter.world
     assert not world.npcs
 
@@ -974,6 +975,7 @@ def test_ticking_spawns_npcs_and_moves_them_without_the_player(adapter):
         )
     )
     start = npc.location
+    adapter.get_player(1).location = world.space_at(start.x + 1, start.y)  # watching, not playing
     seen = {start}
     for _ in range(50):
         world.tick()
@@ -1013,6 +1015,63 @@ def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
 
     world.tick()
     assert npc not in world.npcs
+
+
+@pytest.mark.parametrize("beyond, moves", [(0, True), (1, False)], ids=["in range", "just out of range"])
+def test_only_npcs_near_a_player_take_a_turn(beyond, moves):
+    """Within a chunk of a player, raiders wander. Further out, the world holds still until somebody comes."""
+    world = GameSpace.World("Wakeland", 128, 128, seed=WORLD_SEED)
+    for x in range(0, world.width, GameSpace.CHUNK_SIZE):
+        for y in range(0, world.height, GameSpace.CHUNK_SIZE):
+            world.space_at(x, y)
+    reach = GameSpace.NPC_AWAKE_RADIUS + beyond
+    # Walkable all round, so holding still means it wasn't simulated, not that it was boxed in
+    start = next(
+        world.space_at(x, y)
+        for y in range(1, world.height - 1)
+        for x in range(1, world.width - reach)
+        if all(world.is_space_valid(n) for n in world.get_adjacent_spaces(world.space_at(x, y)))
+    )
+    npc = Actors.Raider(world, 50, "Lurker")
+    world.add_actor(npc, start)
+    player = Actors.PlayerCharacter(parent_world=world, name="Watcher")
+    world.add_actor(player)
+    player.location = world.space_at(start.x + reach, start.y)
+
+    seen = {npc.location}
+    for _ in range(50):
+        world.tick()
+        seen.add(npc.location)
+    assert (len(seen) > 1) is moves
+
+
+def test_npcs_never_walk_into_unmade_ground():
+    """Only players explore: a raider at the edge of the known map stays on it, so the map stays small."""
+    world = GameSpace.World("Edgeland", 256, 256, seed=WORLD_SEED)
+    size = GameSpace.CHUNK_SIZE
+    cx, cy = next(
+        (cx, cy)
+        for cx, cy in world.loaded_chunks()
+        if (cx + 1) * size < world.width and world.loaded_chunk(cx + 1, cy) is None
+    )
+    edge = next(
+        space
+        for space in (world.space_at((cx + 1) * size - 1, y) for y in range(cy * size, (cy + 1) * size))
+        if space.terrain.walkable
+    )
+    npc = Actors.Raider(world, 50, "Scout")
+    world.add_actor(npc, edge)
+    chunks = len(world.loaded_chunks())
+
+    assert npc.attempt_move((1, 0))[0].failed
+    assert npc.location is edge and world.loaded_chunk(cx + 1, cy) is None
+
+    watcher = Actors.PlayerCharacter(parent_world=world, name="Watcher")
+    world.add_actor(watcher)
+    watcher.location = world.space_at(edge.x - 1, edge.y)  # beside it, so it's awake
+    for _ in range(200):
+        world.tick()
+    assert len(world.loaded_chunks()) == chunks
 
 
 # --- Names: the word lists are data, so the loader is what needs guarding ------------------------

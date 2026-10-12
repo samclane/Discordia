@@ -6,7 +6,7 @@ Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) tha
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 186 tests, ~10s, no token needed
+python -m pytest Discordia/test -q                     # 189 tests, ~10s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -17,7 +17,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - `GameSpace.py` Terrain, Space/Town/Wilds/Base, `World` (map gen, `tick()`, `attack`, death), `Store`, A* pathfinder.
     The map is generated lazily in `CHUNK_SIZE` chunks, deterministic per (seed, chunk): reach squares through
     `world.space_at(x, y)`, never a grid. `world.towns`/`wilds` hold loaded chunks only. Wilds roll their events on
-    first visit.
+    first visit. NPCs only act within `NPC_AWAKE_RADIUS` (a chunk) of a player and never step into
+    an unloaded chunk: only players explore.
   - `Actors.py` Actor -> NPC/Raider and PlayerCharacter; PlayerClass (Wanderer/Soldier/Raider).
   - `Events.py` Wilds events: CombatEvent (real), EncounterEvent/MerchantEvent (stubs).
   - `Behavior.py` NPC finite state machine (Aggressive -> Fleeing).
