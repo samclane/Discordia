@@ -6,7 +6,7 @@ Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) tha
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 212 tests, ~15s, no token needed
+python -m pytest Discordia/test -q                     # 215 tests, ~15s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -30,7 +30,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path. NPCs and store stock are NOT saved.
   - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
     Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
-    `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, filled in by `_Handler._page` at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.
+    `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Handler._page` at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.
   - `WebLogins.py` web map login: `/weblogin` replies (ephemeral) with a one-time link, the link trades for a session cookie, the map and its data need it (`/`, `/login`, `/sprites/` are public), and `/me.json` serves that player's sheet. No passwords; only SHA-256 digests kept, in memory (a restart logs people out). Prod: nginx + certbot in front, `[Web] PublicUrl` in config.ini.
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.
 

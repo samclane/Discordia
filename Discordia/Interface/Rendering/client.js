@@ -331,7 +331,8 @@ function renderMe() {
   details.innerHTML =
     `${me.hp}/${me.hp_max} hp · ${me.xp_to_next} XP to level ${me.level + 1}` +
     (me.location ? "" : " · not on the map") +
-    `<br>Equipped: ${esc(me.equipment.join(", ") || "nothing")}<br>Carrying: ${esc(me.inventory.join(", ") || "nothing")}`;
+    `<br>Equipped: ${esc(me.equipment.join(", ") || "nothing")}<br>Carrying: ${esc(me.inventory.join(", ") || "nothing")}` +
+    `<br><a href="/me">Character sheet</a>`;
   $("you").replaceChildren(
     row(me.sprite, me.name, `Lv ${me.level} ${me.class} · $${me.currency.toLocaleString()}`, hpBar(me),
         selected?.actor === me.id, () => selectActor(me.id, true)),

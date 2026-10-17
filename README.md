@@ -60,8 +60,8 @@ the bot syncs them.
 * `/look`
     * Get your grid location, and a picture of your surroundings, as far as your `FOV` can see.
 * `/weblogin`
-    * Get a private, one-time link (10 minutes) that logs you in to the web map, which is for players only. The map
-      then follows your character and shows your sheet. No password: Discord already knows who you are.
+    * Get a private, one-time link (10 minutes) that logs you in to the website. The map then follows your
+      character, and `/me` is your character sheet. No password: Discord already knows who you are.
 * `/equipment`
     * Prints your "character sheet" in chat: name, level and experience to the next one, money, health, and equipment.
 * `/move` [`direction`]

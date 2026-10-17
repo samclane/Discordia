@@ -30,8 +30,9 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace
-from Discordia.GameLogic.Actors import PlayerCharacter, Soldier, WandererClass
-from Discordia.GameLogic.Items import EquipmentSet
+from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, PlayerCharacter, Soldier, WandererClass
+from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
+from Discordia.GameLogic.Weapons import Weapon
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WebLogins import SESSION_SECONDS
 from Discordia.Interface.WorldAdapter import NotRegisteredException
@@ -42,6 +43,7 @@ CLIENT_JS = Path(__file__).with_name("client.js")
 INDEX_HTML = Path(__file__).with_name("index.html")
 SITE_HTML = Path(__file__).with_name("site.html")  # header and footer around every page but the map
 HOME_HTML = Path(__file__).with_name("home.html")
+ME_HTML = Path(__file__).with_name("me.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 2
@@ -85,7 +87,7 @@ JOIN_OUT = """<p class="intro">A live view of the whole world: every explored ch
       <li><span>Open the link in it. It works once, within 10 minutes.</span></li>
     </ol>"""
 JOIN_IN = """<p class="intro">You're logged in as <b>{{NAME}}</b>. The map opens on your character and follows it.</p>
-    <a class="btn" href="/map">Open the map</a>"""
+    <div class="cta"><a class="btn" href="/map">Open the map</a><a class="btn ghost" href="/me">Your character</a></div>"""
 JOIN_NO_CHARACTER = """<p class="intro">You're logged in, but have no character to show. Make one with
       <code>/register</code> in Discord, and the map will follow it.</p>
     <a class="btn" href="/map">Open the map</a>"""
@@ -190,6 +192,78 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
     return json.dumps({"actors": actors}).encode()
 
 
+SLOT_LABELS = {"head": "Head", "chest": "Chest", "legs": "Legs", "feet": "Feet", "main_hand": "Main hand",
+               "off_hand": "Off hand"}
+
+
+def _item_row(label: str, item) -> str:
+    if isinstance(item, Weapon):
+        stat = f"{item.damage:g} dmg"
+    elif isinstance(item, ArmorAbstract):
+        stat = f"{item._armor_count:g} armor"  # the rating: armor_count rolls coverage, a hit's worth
+    else:
+        stat = ""
+    return (
+        f'<li><span class="slot">{html.escape(label)}</span><span class="name">{html.escape(item.name)}</span>'
+        f'<span class="stat-tag">{stat}</span></li>'
+    )
+
+
+def _sheet(character: PlayerCharacter) -> dict:
+    """me.html's placeholders, for one character. Read off the HTTP thread, like _me_json."""
+    loc = character.location
+    if loc is None:
+        where = "not on the map right now"
+    elif isinstance(loc, GameSpace.Town):
+        where = f"in {loc.name} ({loc.x}, {loc.y})"
+    elif isinstance(loc, GameSpace.Wilds):
+        where = f"in the wilds of {loc.name} ({loc.x}, {loc.y})"
+    else:
+        where = f"on the road at ({loc.x}, {loc.y})"
+    equipment = "".join(
+        _item_row(SLOT_LABELS[slot], item)
+        if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+        else f'<li class="empty-slot"><span class="slot">{SLOT_LABELS[slot]}</span><span class="name">nothing</span></li>'
+        for slot in EquipmentSet.SLOTS
+        for item in [getattr(character.equipment_set, slot)]
+    )
+    inventory = "".join(_item_row(f"#{i}", item) for i, item in enumerate(list(character.inventory)))
+    pending = character.pending_event
+    alert = (
+        f'<p class="alert"><b>Someone is waiting on you.</b> {html.escape(pending.flavor_text)}</p>' if pending else ""
+    )
+    if not character.deaths:
+        death_note = "None yet. Keep it that way."
+    elif character.last_death_cost:
+        death_note = f"The last one cost ${character.last_death_cost:,}."
+    else:
+        death_note = "You had nothing on you to lose last time."
+    hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0
+    return {
+        "SPRITE": _sprite_url(character.sprite_path_string),
+        "NAME": character.name,
+        "CLASS": character.player_class.name,
+        "LEVEL": character.level,
+        "NEXT_LEVEL": character.level + 1,
+        "WHERE": where,
+        "ALERT": Markup(alert),
+        "HP": f"{character.hit_points:g}",
+        "HP_MAX": character.hit_points_max,
+        "HP_PCT": hp_pct,
+        "HP_LOW": " low" if hp_pct <= 30 else "",
+        "XP_PCT": 100 * (character.experience % EXPERIENCE_PER_LEVEL) // EXPERIENCE_PER_LEVEL,
+        "XP_TO_NEXT": character.experience_to_next_level,
+        "CURRENCY": f"{character.currency:,}",
+        "DEATHS": character.deaths,
+        "DEATH_NOTE": death_note,
+        "EQUIPMENT": Markup(equipment),
+        "INVENTORY": Markup(
+            inventory
+            or '<li class="empty-slot"><span class="name">Nothing yet. Stores sell, and raiders drop.</span></li>'
+        ),
+    }
+
+
 def _me_json(character: PlayerCharacter) -> bytes:
     """The logged-in player's own character: what /equipment says, for the web."""
     loc = character.location
@@ -228,7 +302,7 @@ class _Handler(BaseHTTPRequestHandler):
         # The site is public; the map and everything it fetches are for players. Sprites are the game's
         # public art, and the site wears some.
         if path not in ("/", "/login") and not path.startswith("/sprites/") and self._member_id() is None:
-            if path == "/map":
+            if path in ("/map", "/me"):  # pages send you to how to get in; data just refuses
                 self._redirect("/#join")
             else:
                 self.send_error(401)
@@ -278,13 +352,31 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(body, "image/png", etag=etag)
         elif path == "/map":
             self._send(INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
+        elif path == "/me":
+            character = self._character()
+            if character is None:  # logged in, but nothing to show: the home page says how to make one
+                self._redirect("/#join")
+            else:
+                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character))
+                self._send(page, "text/html; charset=utf-8")
         elif path == "/":
             self._send(self._home(), "text/html; charset=utf-8")
         else:
             self.send_error(404)
 
     def do_POST(self):
-        if urlsplit(self.path).path != "/login":
+        path = urlsplit(self.path).path
+        if path == "/logout":
+            session = self._session()
+            if session:
+                self.renderer.world_adapter.web_logins.end(session)
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Set-Cookie", "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if path != "/login":
             self.send_error(404)
             return
         length = self.headers.get("Content-Length", "")
@@ -319,6 +411,8 @@ class _Handler(BaseHTTPRequestHandler):
             name, join = "", JOIN_OUT if member_id is None else JOIN_NO_CHARACTER
         if member_id is None:
             cta = '<a class="btn" href="#join">Join in</a>'
+        elif name:
+            cta = '<a class="btn" href="/map">Open the map</a><a class="btn ghost" href="/me">Your character</a>'
         else:
             cta = '<a class="btn" href="/map">Open the map</a>'
         return self._page(
@@ -334,22 +428,41 @@ class _Handler(BaseHTTPRequestHandler):
     def _page(self, title: str, body: str, **values) -> bytes:
         """site.html around `body`, with its {{PLACEHOLDERS}} filled in. Markup goes in as it is, first; the rest
         is escaped and goes in after, so a name from Discord can't smuggle in a tag or a placeholder."""
+        character = self._character()
         if self._member_id() is None:
             account = '<a class="btn ghost" href="/#join">Log in</a>'
-        else:
+        elif character is None:
             account = '<a class="btn" href="/map">Open the map</a>'
+        else:
+            account = (
+                f'<div class="account"><a class="me-link" href="/me" title="Your character">'
+                f'<img class="px" src="{_sprite_url(character.sprite_path_string)}" alt="">'
+                f"<span>{html.escape(character.name)}</span></a>"
+                '<a class="btn" href="/map">Open the map</a></div>'
+            )
         page = SITE_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
         values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.renderer.world_adapter.world.name, **values}
         for key, value in sorted(values.items(), key=lambda kv: not isinstance(kv[1], Markup)):
             page = page.replace("{{%s}}" % key, value if isinstance(value, Markup) else html.escape(str(value)))
         return page.encode()
 
-    def _member_id(self) -> int | None:
+    def _session(self) -> str | None:
         try:
             morsel = SimpleCookie(self.headers.get("Cookie", "")).get("session")
         except CookieError:
             return None
-        return self.renderer.world_adapter.web_logins.member_id(morsel.value) if morsel else None
+        return morsel.value if morsel else None
+
+    def _member_id(self) -> int | None:
+        session = self._session()
+        return self.renderer.world_adapter.web_logins.member_id(session) if session else None
+
+    def _character(self) -> PlayerCharacter | None:
+        """The logged-in player's character, or None if logged out or without one."""
+        try:
+            return self.renderer.world_adapter.get_player(self._member_id())
+        except NotRegisteredException:
+            return None
 
     def _send(self, body: bytes, ctype: str, etag: str | None = None, status: int = 200):
         if etag and self.headers.get("If-None-Match") == etag:

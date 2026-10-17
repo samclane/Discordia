@@ -1,0 +1,57 @@
+<section class="sheet">
+  <div class="wrap">
+    <div class="who-card">
+      <img class="px avatar" src="{{SPRITE}}" alt="">
+      <div class="who-text">
+        <p class="eyebrow">Your character</p>
+        <h1>{{NAME}}</h1>
+        <p class="where">Level {{LEVEL}} {{CLASS}} · {{WHERE}}</p>
+      </div>
+      <div class="who-actions">
+        <a class="btn" href="/map">Find me on the map</a>
+        <form method="post" action="/logout"><button class="btn ghost">Log out</button></form>
+      </div>
+    </div>
+
+    {{ALERT}}
+
+    <div class="stats">
+      <div class="card stat">
+        <h3>Health</h3>
+        <p class="big">{{HP}}<span> / {{HP_MAX}}</span></p>
+        <div class="meter{{HP_LOW}}" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="{{HP_MAX}}"
+             aria-valuenow="{{HP}}"><i style="width: {{HP_PCT}}%"></i></div>
+        <p class="note">An inn in any town (<code>/town inn</code>) fills it back up.</p>
+      </div>
+      <div class="card stat">
+        <h3>Level</h3>
+        <p class="big">{{LEVEL}}</p>
+        <div class="meter xp" role="meter" aria-label="Experience to the next level" aria-valuemin="0"
+             aria-valuemax="100" aria-valuenow="{{XP_PCT}}"><i style="width: {{XP_PCT}}%"></i></div>
+        <p class="note">{{XP_TO_NEXT}} XP to level {{NEXT_LEVEL}}. Each level adds hit points.</p>
+      </div>
+      <div class="card stat">
+        <h3>Money</h3>
+        <p class="big">${{CURRENCY}}</p>
+        <p class="note">A death leaves a quarter of what you carry behind.</p>
+      </div>
+      <div class="card stat">
+        <h3>Deaths</h3>
+        <p class="big">{{DEATHS}}</p>
+        <p class="note">{{DEATH_NOTE}}</p>
+      </div>
+    </div>
+
+    <div class="kit">
+      <div class="card">
+        <h3>Equipped</h3>
+        <ul class="items">{{EQUIPMENT}}</ul>
+      </div>
+      <div class="card">
+        <h3>Carrying</h3>
+        <ul class="items">{{INVENTORY}}</ul>
+        <p class="note">Equip one with <code>/inventory equip</code> and its number.</p>
+      </div>
+    </div>
+  </div>
+</section>

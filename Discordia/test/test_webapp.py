@@ -7,7 +7,9 @@ import gzip
 import http.client
 import io
 import json
+import html
 import re
+from types import SimpleNamespace
 import threading
 import urllib.error
 import urllib.request
@@ -336,4 +338,58 @@ def test_the_home_page_knows_who_you_are_and_escapes_it():
         assert 'href="/map">Open the map' in page
         assert "have no character" in public_home(base, COOKIE)  # member 0 never registered
     finally:
+        server.shutdown()
+
+
+def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
+    from Discordia.GameLogic import Armor, Weapons
+
+    adapter = WorldAdapter(GameSpace.World("Sheetland", 40, 40, seed=7))
+    adapter.register_player(3, "Ada & co")
+    character = adapter.get_player(3)
+    character.equip(Armor.SSh68())
+    character.inventory.append(Weapons.FNMinimi())
+    character.pending_event = SimpleNamespace(flavor_text="A <stranger> blocks the road.")
+    server = serve(adapter)
+    base = f"http://127.0.0.1:{server.server_port}"
+    cookie = f"session={LOGINS.redeem(LOGINS.new_link_token(3))}"
+    try:
+        page = public_home(base, cookie)  # the header knows you on every page
+        assert 'class="me-link"' in page and "Ada &amp; co" in page
+
+        with urllib.request.build_opener().open(urllib.request.Request(base + "/me", headers={"Cookie": cookie})) as r:
+            sheet = r.read().decode()
+        assert "<h1>Ada &amp; co</h1>" in sheet and "Level 1 Wanderer" in sheet
+        helmet = Armor.SSh68()
+        assert html.escape(helmet.name) in sheet  # in its slot, at its rating: armor_count is a roll
+        assert f"{helmet._armor_count:g} armor" in sheet
+        assert '<span class="slot">#0</span>' in sheet, "inventory is numbered for /inventory equip"
+        assert "A &lt;stranger&gt; blocks the road." in sheet
+        assert "{{" not in sheet, "a placeholder went unfilled"
+    finally:
+        server.shutdown()
+
+
+def test_the_sheet_is_for_logged_in_players():
+    conn = http.client.HTTPConnection("127.0.0.1", serve(WorldAdapter(GameSpace.World("Shut", 40, 40, seed=7))).server_port)
+    conn.request("GET", "/me")
+    response = conn.getresponse()
+    response.read()
+    assert response.status == 303 and response.headers["Location"] == "/#join"
+
+
+def test_logging_out_ends_the_session_for_good():
+    adapter = WorldAdapter(GameSpace.World("Exitland", 40, 40, seed=7))
+    server = serve(adapter)
+    session = LOGINS.redeem(LOGINS.new_link_token(9))
+    conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+    try:
+        conn.request("POST", "/logout", headers={"Cookie": f"session={session}", "Content-Length": "0"})
+        response = conn.getresponse()
+        response.read()
+        assert response.status == 303 and response.headers["Location"] == "/"
+        assert "Max-Age=0" in response.headers["Set-Cookie"]
+        assert LOGINS.member_id(session) is None, "a copy of the old cookie must not still work"
+    finally:
+        conn.close()
         server.shutdown()

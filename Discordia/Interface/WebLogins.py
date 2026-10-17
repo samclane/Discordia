@@ -54,6 +54,10 @@ class WebLogins:
         self._sessions[_digest(session)] = (member_id, now + SESSION_SECONDS)
         return session
 
+    def end(self, session: str):
+        """Log out: the session stops working here, whatever the browser keeps."""
+        self._sessions.pop(_digest(session), None)
+
     def member_id(self, session: str) -> Optional[int]:
         member_id, expires = self._sessions.get(_digest(session), (None, 0.0))
         return member_id if expires >= self._clock() else None
