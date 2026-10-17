@@ -39,30 +39,35 @@ LOG = logging.getLogger("Discordia.Interface.WebApp")
 
 CLIENT_JS = Path(__file__).with_name("client.js")
 INDEX_HTML = Path(__file__).with_name("index.html")
+LOGIN_HTML = Path(__file__).with_name("login.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 2
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
-# no-referrer: the login page has the token in its URL, and it mustn't follow a click anywhere else.
-PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer"><title>Discordia</title>
-<style>body{background:#0e0f13;color:#dfe2ea;font:15px system-ui,sans-serif;display:grid;place-items:center;
-height:100vh;margin:0;padding:0 16px;text-align:center}button{font:inherit;padding:8px 18px;border:0;
-border-radius:6px;background:#e8b44a;cursor:pointer}</style>
-BODY
-"""
+# What login.html says: how to get in, the button a link opens, and what a spent link gets.
+GATE_BODY = """<h1>Welcome to {{WORLD}}</h1>
+  <p class="sub">The live map is for players. Discord gets you in: no password.</p>
+  <ol>
+    <li><span>In Discord, make a character with <code>/register</code> if you haven't.</span></li>
+    <li><span>Run <code>/weblogin</code>. Only you see the reply.</span></li>
+    <li><span>Open the link in it. It works once, within 10 minutes.</span></li>
+  </ol>"""
 # A button, not a redeem-on-GET: link previews and scanners fetch URLs, and would spend the one use.
-LOGIN_PAGE = PAGE.replace(
-    "BODY",
-    '<form method="post" action="/login"><input type="hidden" name="t" value="TOKEN">'
-    "<button>Log in to the map</button></form>",
-)
-GATE_PAGE = PAGE.replace("BODY", "<p>This map is for Discordia players. Run <b>/weblogin</b> in Discord for a link.</p>")
-SPENT_PAGE = PAGE.replace(
-    "BODY", "<p>That link has expired or was already used. Run <b>/weblogin</b> in Discord for a new one.</p>"
-)
+LOGIN_BODY = """<h1>Ready, traveller?</h1>
+  <p class="sub">You're one step from the map of {{WORLD}}.</p>
+  <form method="post" action="/login">
+    <input type="hidden" name="t" value="{{TOKEN}}">
+    <button autofocus>Enter the map</button>
+  </form>
+  <p class="fine">This link works once. Keep it to yourself.</p>"""
+SPENT_BODY = """<h1>That link has run out</h1>
+  <p class="sub">Login links work once, within 10 minutes of asking for them.</p>
+  <ol>
+    <li><span>Run <code>/weblogin</code> in Discord again.</span></li>
+    <li><span>Open the new link.</span></li>
+  </ol>"""
 
 
 def _sprite_url(sprite_path: str) -> str:
@@ -160,6 +165,12 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
     return json.dumps({"actors": actors}).encode()
 
 
+def _login_page(renderer: WindowRenderer, body: str, token: str = "") -> bytes:
+    page = LOGIN_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
+    page = page.replace("{{WORLD}}", html.escape(renderer.world_adapter.world.name))
+    return page.replace("{{TOKEN}}", html.escape(token)).encode()
+
+
 def _me_json(character: PlayerCharacter) -> bytes:
     """The logged-in player's own character: what /equipment says, for the web."""
     loc = character.location
@@ -195,9 +206,10 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path != "/login" and self._member_id() is None:
+        # Sprites are the game's public art, and the login page wears some.
+        if path != "/login" and not path.startswith("/sprites/") and self._member_id() is None:
             if path == "/":
-                self._send(GATE_PAGE.encode(), "text/html; charset=utf-8", status=401)
+                self._send(_login_page(self.renderer, GATE_BODY), "text/html; charset=utf-8", status=401)
             else:
                 self.send_error(401)
             return
@@ -235,7 +247,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(body, "application/json")
         elif path == "/login":
             token = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
-            self._send(LOGIN_PAGE.replace("TOKEN", html.escape(token)).encode(), "text/html; charset=utf-8")
+            self._send(_login_page(self.renderer, LOGIN_BODY, token), "text/html; charset=utf-8")
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -260,7 +272,7 @@ class _Handler(BaseHTTPRequestHandler):
         form = parse_qs(self.rfile.read(int(length)).decode(errors="replace"))
         session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
         if session is None:
-            self._send(SPENT_PAGE.encode(), "text/html; charset=utf-8", status=403)
+            self._send(_login_page(self.renderer, SPENT_BODY), "text/html; charset=utf-8", status=403)
             return
         self.send_response(303)
         self.send_header("Location", "/")

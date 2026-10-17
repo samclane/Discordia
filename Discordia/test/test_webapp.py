@@ -7,6 +7,7 @@ import gzip
 import http.client
 import io
 import json
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -300,3 +301,15 @@ def test_without_a_session_the_map_is_closed(base_url, path):
         refused.value.close()
         if path == "/":
             assert b"/weblogin" in body
+
+
+def test_the_closed_door_names_the_world_and_shows_its_art(base_url):
+    """The login page wears the class sprites, so those stay open; nothing else does."""
+    with pytest.raises(urllib.error.HTTPError) as refused:
+        urllib.request.build_opener().open(base_url + "/")
+    page = refused.value.read().decode()
+    refused.value.close()
+    assert "Welcome to Testland" in page
+    for sprite in re.findall(r'src="(/sprites/[^"]+)"', page):
+        with urllib.request.build_opener().open(base_url + sprite) as response:
+            assert response.read().startswith(b"\x89PNG")
