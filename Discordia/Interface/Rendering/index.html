@@ -60,6 +60,8 @@
           flex-direction: column; background: #121318; border-left: 1px solid var(--line); }
   #side header { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
   #side h1 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  #home { margin-left: auto; color: var(--dim); font-size: 12px; font-weight: 400; text-decoration: none; }
+  #home:hover { color: var(--accent); }
   #status { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
   #status.live { background: var(--hp); }
   #status.down { background: var(--hp-low); }
@@ -122,7 +124,8 @@
 
 <aside id="side">
   <header>
-    <h1><span id="status" title="Connecting"></span><span id="world-name">Discordia</span></h1>
+    <h1><span id="status" title="Connecting"></span><span id="world-name">Discordia</span>
+      <a id="home" href="/" title="Discordia home">Home</a></h1>
     <div id="meta"></div>
     <input id="search" type="search" placeholder="Find a player or town" autocomplete="off">
   </header>

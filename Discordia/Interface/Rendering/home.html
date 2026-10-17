@@ -1,0 +1,109 @@
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">A MUD you play in Discord</p>
+    <h1>{{WORLD}}</h1>
+    <p class="lede">
+      A persistent world of towns and wilds that you explore, trade and fight in, one slash command at a time.
+      It keeps ticking every few seconds, whether you're looking or not.
+    </p>
+    <div class="cta">{{CTA}}<a class="btn ghost" href="#how">How to play</a></div>
+  </div>
+  <div class="scene" aria-hidden="true">
+    <img class="px far" src="/sprites/Structures/wilds_0.png" alt="">
+    <img class="px far" src="/sprites/Structures/wilds_5.png" alt="">
+    <img class="px" src="/sprites/Structures/town_default.png" alt="">
+    <img class="px walk" src="/sprites/Actors/wanderer_class.png" alt="">
+    <img class="px walk" src="/sprites/Actors/soldier_class.png" alt="">
+    <img class="px" src="/sprites/Structures/wilds_2.png" alt="">
+    <img class="px walk" src="/sprites/Actors/raider_class.png" alt="">
+    <img class="px far" src="/sprites/Structures/wilds_3.png" alt="">
+    <img class="px far" src="/sprites/Structures/wilds_7.png" alt="">
+  </div>
+</section>
+
+<section class="band" id="how">
+  <div class="wrap">
+    <h2>How to play</h2>
+    <p class="intro">
+      Everything happens through slash commands, in any server the bot is in. Moves and attacks are orders:
+      they wait for the next tick and resolve all at once, so a second order before then just changes your mind.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>Getting around</h3>
+        <dl>
+          <div><dt><code>/register</code></dt><dd>Make your character. Start here.</dd></div>
+          <div><dt><code>/look</code></dt><dd>Where you are and who's near, with a picture.</dd></div>
+          <div><dt><code>/move</code></dt><dd>One square, any of eight directions.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Fighting</h3>
+        <dl>
+          <div><dt><code>/attack</code></dt><dd>Your square first, then the one beside you that way.</dd></div>
+          <div><dt><code>/choose</code></dt><dd>Talk, rob or ignore whoever stops you on the road.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Gear</h3>
+        <dl>
+          <div><dt><code>/equipment</code></dt><dd>Your character sheet: level, money, health, kit.</dd></div>
+          <div><dt><code>/inventory</code></dt><dd><code>list</code>, <code>equip</code> and <code>unequip</code> what you carry.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Towns</h3>
+        <dl>
+          <div><dt><code>/town inn</code></dt><dd>Rest back to full health.</dd></div>
+          <div><dt><code>/town recruit</code></dt><dd>Take the class the town's industry trains.</dd></div>
+          <div><dt><code>/town store</code></dt><dd><code>list</code>, <code>buy</code> and <code>sell</code> at the local shop.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>On the road</h3>
+        <dl>
+          <div><dt><code>/trade</code></dt><dd><code>list</code> and <code>buy</code> from a trader you meet in the wilds.</dd></div>
+          <div><dt>Raiders</dt><dd>They spot you from a few squares off, and the bot DMs you a warning. That's your chance to run.</dd></div>
+          <div><dt>Dying</dt><dd>Sends you back to town with a quarter of your money left behind.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>On the web</h3>
+        <dl>
+          <div><dt><code>/weblogin</code></dt><dd>A one-time link to the live map, where you can watch the whole world move.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="classes">
+  <div class="wrap">
+    <h2>Classes</h2>
+    <p class="intro">Everyone starts out wandering. Towns train their own: find the right one and <code>/town recruit</code>.</p>
+    <div class="grid">
+      <div class="card class">
+        <img class="px" src="/sprites/Actors/wanderer_class.png" alt="">
+        <div><h3>Wanderer <span class="tag">{{WANDERER_HP}} HP</span></h3>
+          <p>Where every character begins. No allegiance, nothing special, everything ahead.</p></div>
+      </div>
+      <div class="card class">
+        <img class="px" src="/sprites/Actors/soldier_class.png" alt="">
+        <div><h3>Soldier <span class="tag">{{SOLDIER_HP}} HP</span></h3>
+          <p>Enlist at an Eastern or Western Military Base. Tougher, and a step up from wandering.</p></div>
+      </div>
+      <div class="card class">
+        <img class="px" src="/sprites/Actors/raider_class.png" alt="">
+        <div><h3>Raiders <span class="tag">enemies</span></h3>
+          <p>Not a class you can take. They're what's waiting in the wilds, and they get rougher the farther you go.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="join">
+  <div class="wrap">
+    <h2>The map</h2>
+    {{JOIN}}
+  </div>
+</section>

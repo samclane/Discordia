@@ -41,8 +41,8 @@ http://localhost:8080.
 
 To put the map on the internet: an nginx `server` block for your domain with `proxy_pass http://127.0.0.1:8080;`,
 `certbot --nginx -d <domain>` for HTTPS (the login cookie is HTTPS-only), and `PublicUrl = https://<domain>` under
-`[Web]` in `/opt/discordia/config.ini`. The map lets in only players with a `/weblogin` session, so the proxy needs no
-password of its own. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
+`[Web]` in `/opt/discordia/config.ini`. The home page at `/` is public; the map at `/map` lets in only players with a
+`/weblogin` session, so the proxy needs no password of its own. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
 add a `discordia` host to `~/.ssh/config` and run it bare). It refuses if HEAD isn't pushed, pulls, restarts, and
 fails if the service doesn't come back up.
 

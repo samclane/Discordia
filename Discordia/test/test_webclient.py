@@ -151,7 +151,7 @@ def page(browser, base_url, request):
     browser.send("Emulation.setDeviceMetricsOverride", width=WIDTH, height=HEIGHT, deviceScaleFactor=dpr, mobile=False)
     browser.send("Network.clearBrowserCache")  # each test sees a first visit
     browser.send("Network.setCookie", name="session", value=SESSION, url=base_url)  # past the gate
-    browser.send("Page.navigate", url=base_url + "/")
+    browser.send("Page.navigate", url=base_url + "/map")
     assert browser.wait_for(
         "typeof chunkEls !== 'undefined' && chunkEls.size > 0 && [...chunkEls.values()].every((i) => i.complete)"
     )
@@ -297,7 +297,14 @@ def test_a_weblogin_link_opens_the_map_on_your_own_character(page, adapter, base
         page.send("Page.navigate", url=f"{base_url}/login?t={adapter.web_logins.new_link_token(99)}")
         assert page.wait_for("document.querySelector('form button')")
         page.js("document.querySelector('form button').click()")
-        # Back on the map, logged in: the Secure cookie took over plain-HTTP localhost.
+        for _ in range(50):  # script run mid-navigation fails outright, rather than waiting for the next page
+            try:
+                if page.js("location.pathname === '/map' && document.readyState === 'complete'"):
+                    break
+            except RuntimeError:
+                pass
+            time.sleep(0.1)
+        # On the map, logged in: the Secure cookie took over plain-HTTP localhost.
         assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Browser'")
         assert page.wait_for("selected?.actor === me.id && follow")
         assert "Browser" in page.js("document.getElementById('you').textContent")
@@ -314,6 +321,7 @@ def test_a_session_with_no_character_says_how_to_make_one(page):
 
 def test_without_a_session_the_page_says_how_to_get_one(page, base_url):
     page.send("Network.clearBrowserCookies")
-    page.send("Page.navigate", url=base_url + "/")
+    page.send("Page.navigate", url=base_url + "/map")
+    assert page.wait_for("location.pathname === '/' && location.hash === '#join'")
     assert page.wait_for("document.body?.textContent.includes('/weblogin')")
     assert page.js("typeof chunkEls") == "undefined", "the map itself never loaded"

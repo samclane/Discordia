@@ -10,7 +10,8 @@ and drawn on top, which keeps the server out of the per-frame PNG encode entirel
 Only explored chunks are served: a chunk nobody has walked into 404s rather than being generated, so
 generation stays on the game loop and a visitor panning about can't make the server build the world.
 
-Players only: every route but /login wants the session cookie a /weblogin link gives (see WebLogins).
+The home page (/) is public. The map (/map) and everything it fetches want the session cookie that a
+/weblogin link gives (see WebLogins).
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace
-from Discordia.GameLogic.Actors import PlayerCharacter
+from Discordia.GameLogic.Actors import PlayerCharacter, Soldier, WandererClass
 from Discordia.GameLogic.Items import EquipmentSet
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WebLogins import SESSION_SECONDS
@@ -39,35 +40,59 @@ LOG = logging.getLogger("Discordia.Interface.WebApp")
 
 CLIENT_JS = Path(__file__).with_name("client.js")
 INDEX_HTML = Path(__file__).with_name("index.html")
-LOGIN_HTML = Path(__file__).with_name("login.html")
+SITE_HTML = Path(__file__).with_name("site.html")  # header and footer around every page but the map
+HOME_HTML = Path(__file__).with_name("home.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 2
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
-# What login.html says: how to get in, the button a link opens, and what a spent link gets.
-GATE_BODY = """<h1>Welcome to {{WORLD}}</h1>
-  <p class="sub">The live map is for players. Discord gets you in: no password.</p>
-  <ol>
-    <li><span>In Discord, make a character with <code>/register</code> if you haven't.</span></li>
-    <li><span>Run <code>/weblogin</code>. Only you see the reply.</span></li>
-    <li><span>Open the link in it. It works once, within 10 minutes.</span></li>
-  </ol>"""
+# The party on top of the one-card pages.
+PARTY = """<div class="party" aria-hidden="true">
+      <img class="px far" src="/sprites/Structures/wilds_0.png" alt="">
+      <img class="px" src="/sprites/Actors/wanderer_class.png" alt="">
+      <img class="px" src="/sprites/Actors/soldier_class.png" alt="">
+      <img class="px" src="/sprites/Actors/raider_class.png" alt="">
+      <img class="px far" src="/sprites/Structures/wilds_3.png" alt="">
+    </div>"""
 # A button, not a redeem-on-GET: link previews and scanners fetch URLs, and would spend the one use.
-LOGIN_BODY = """<h1>Ready, traveller?</h1>
-  <p class="sub">You're one step from the map of {{WORLD}}.</p>
-  <form method="post" action="/login">
-    <input type="hidden" name="t" value="{{TOKEN}}">
-    <button autofocus>Enter the map</button>
-  </form>
-  <p class="fine">This link works once. Keep it to yourself.</p>"""
-SPENT_BODY = """<h1>That link has run out</h1>
-  <p class="sub">Login links work once, within 10 minutes of asking for them.</p>
-  <ol>
-    <li><span>Run <code>/weblogin</code> in Discord again.</span></li>
-    <li><span>Open the new link.</span></li>
-  </ol>"""
+LOGIN_BODY = f"""<section class="solo"><div class="card">
+    {PARTY}
+    <h1>Ready, traveller?</h1>
+    <p class="sub">You're one step from the map of {{{{WORLD}}}}.</p>
+    <form method="post" action="/login">
+      <input type="hidden" name="t" value="{{{{TOKEN}}}}">
+      <button class="btn" autofocus>Enter the map</button>
+    </form>
+    <p class="fine">This link works once. Keep it to yourself.</p>
+  </div></section>"""
+SPENT_BODY = f"""<section class="solo"><div class="card">
+    {PARTY}
+    <h1>That link has run out</h1>
+    <p class="sub">Login links work once, within 10 minutes of asking for them.</p>
+    <ol class="steps">
+      <li><span>Run <code>/weblogin</code> in Discord again.</span></li>
+      <li><span>Open the new link.</span></li>
+    </ol>
+  </div></section>"""
+# The home page's last section: logged out, logged in, and logged in with no character.
+JOIN_OUT = """<p class="intro">A live view of the whole world: every explored chunk and town, every player and raider as
+      they move. It's for players, and Discord gets you in: no password.</p>
+    <ol class="steps">
+      <li><span>In Discord, make a character with <code>/register</code> if you haven't.</span></li>
+      <li><span>Run <code>/weblogin</code>. Only you see the reply.</span></li>
+      <li><span>Open the link in it. It works once, within 10 minutes.</span></li>
+    </ol>"""
+JOIN_IN = """<p class="intro">You're logged in as <b>{{NAME}}</b>. The map opens on your character and follows it.</p>
+    <a class="btn" href="/map">Open the map</a>"""
+JOIN_NO_CHARACTER = """<p class="intro">You're logged in, but have no character to show. Make one with
+      <code>/register</code> in Discord, and the map will follow it.</p>
+    <a class="btn" href="/map">Open the map</a>"""
+
+
+class Markup(str):
+    """HTML for _Handler._page to put in a page as it is."""
 
 
 def _sprite_url(sprite_path: str) -> str:
@@ -165,12 +190,6 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
     return json.dumps({"actors": actors}).encode()
 
 
-def _login_page(renderer: WindowRenderer, body: str, token: str = "") -> bytes:
-    page = LOGIN_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
-    page = page.replace("{{WORLD}}", html.escape(renderer.world_adapter.world.name))
-    return page.replace("{{TOKEN}}", html.escape(token)).encode()
-
-
 def _me_json(character: PlayerCharacter) -> bytes:
     """The logged-in player's own character: what /equipment says, for the web."""
     loc = character.location
@@ -206,10 +225,11 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        # Sprites are the game's public art, and the login page wears some.
-        if path != "/login" and not path.startswith("/sprites/") and self._member_id() is None:
-            if path == "/":
-                self._send(_login_page(self.renderer, GATE_BODY), "text/html; charset=utf-8", status=401)
+        # The site is public; the map and everything it fetches are for players. Sprites are the game's
+        # public art, and the site wears some.
+        if path not in ("/", "/login") and not path.startswith("/sprites/") and self._member_id() is None:
+            if path == "/map":
+                self._redirect("/#join")
             else:
                 self.send_error(401)
             return
@@ -247,7 +267,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(body, "application/json")
         elif path == "/login":
             token = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
-            self._send(_login_page(self.renderer, LOGIN_BODY, token), "text/html; charset=utf-8")
+            self._send(self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token), "text/html; charset=utf-8")
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -256,8 +276,10 @@ class _Handler(BaseHTTPRequestHandler):
                 self.send_error(404)
             else:
                 self._send(body, "image/png", etag=etag)
-        elif path == "/":
+        elif path == "/map":
             self._send(INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
+        elif path == "/":
+            self._send(self._home(), "text/html; charset=utf-8")
         else:
             self.send_error(404)
 
@@ -272,16 +294,55 @@ class _Handler(BaseHTTPRequestHandler):
         form = parse_qs(self.rfile.read(int(length)).decode(errors="replace"))
         session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
         if session is None:
-            self._send(_login_page(self.renderer, SPENT_BODY), "text/html; charset=utf-8", status=403)
+            self._send(self._page("Link expired · Discordia", SPENT_BODY), "text/html; charset=utf-8", status=403)
             return
         self.send_response(303)
-        self.send_header("Location", "/")
+        self.send_header("Location", "/map")
         # Secure: browsers still let localhost set it over plain HTTP, so a local run logs in too.
         self.send_header(
             "Set-Cookie", f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _redirect(self, location: str):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _home(self) -> bytes:
+        member_id = self._member_id()
+        try:
+            name, join = self.renderer.world_adapter.get_player(member_id).name, JOIN_IN
+        except NotRegisteredException:  # logged out, or logged in with no character
+            name, join = "", JOIN_OUT if member_id is None else JOIN_NO_CHARACTER
+        if member_id is None:
+            cta = '<a class="btn" href="#join">Join in</a>'
+        else:
+            cta = '<a class="btn" href="/map">Open the map</a>'
+        return self._page(
+            f"{self.renderer.world_adapter.world.name} · Discordia",
+            HOME_HTML.read_text(encoding="utf-8"),
+            CTA=Markup(cta),
+            JOIN=Markup(join),
+            NAME=name,
+            WANDERER_HP=WandererClass().hit_points_max_base,
+            SOLDIER_HP=Soldier().hit_points_max_base,
+        )
+
+    def _page(self, title: str, body: str, **values) -> bytes:
+        """site.html around `body`, with its {{PLACEHOLDERS}} filled in. Markup goes in as it is, first; the rest
+        is escaped and goes in after, so a name from Discord can't smuggle in a tag or a placeholder."""
+        if self._member_id() is None:
+            account = '<a class="btn ghost" href="/#join">Log in</a>'
+        else:
+            account = '<a class="btn" href="/map">Open the map</a>'
+        page = SITE_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
+        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.renderer.world_adapter.world.name, **values}
+        for key, value in sorted(values.items(), key=lambda kv: not isinstance(kv[1], Markup)):
+            page = page.replace("{{%s}}" % key, value if isinstance(value, Markup) else html.escape(str(value)))
+        return page.encode()
 
     def _member_id(self) -> int | None:
         try:

@@ -67,7 +67,7 @@ def get(url):
 
 
 def test_page_and_client_are_served(base_url):
-    assert b"<div id=\"viewport\">" in get(base_url + "/")[2]
+    assert b"<div id=\"viewport\">" in get(base_url + "/map")[2]
     assert b"pollActors" in get(base_url + "/client.js")[2]
 
 
@@ -252,7 +252,7 @@ def test_a_weblogin_link_logs_in_once_and_shows_your_character():
             return response
 
         response = post(token)
-        assert response.status == 303 and response.headers["Location"] == "/"
+        assert response.status == 303 and response.headers["Location"] == "/map"
         cookie = response.headers["Set-Cookie"]
         assert "HttpOnly" in cookie and "Secure" in cookie and "SameSite=Lax" in cookie
         session = cookie.split(";")[0]
@@ -290,26 +290,50 @@ def test_weblogins_keep_only_digests_and_let_links_lapse():
     assert logins.member_id(session) is None
 
 
-@pytest.mark.parametrize("path", ["/", "/world.json", "/actors.json", "/chunk/0/0.png", "/client.js"])
+@pytest.mark.parametrize("path", ["/world.json", "/actors.json", "/chunk/0/0.png", "/client.js", "/me.json"])
 def test_without_a_session_the_map_is_closed(base_url, path):
-    """The map is for players: no cookie, or a forged one, gets nothing but how to get in."""
+    """The map is for players: no cookie, or a forged one, gets nothing of it."""
     for cookie in ({}, {"Cookie": "session=forged"}):
         with pytest.raises(urllib.error.HTTPError) as refused:
             urllib.request.build_opener().open(urllib.request.Request(base_url + path, headers=cookie))
         assert refused.value.code == 401
-        body = refused.value.read()
         refused.value.close()
-        if path == "/":
-            assert b"/weblogin" in body
 
 
-def test_the_closed_door_names_the_world_and_shows_its_art(base_url):
-    """The login page wears the class sprites, so those stay open; nothing else does."""
-    with pytest.raises(urllib.error.HTTPError) as refused:
-        urllib.request.build_opener().open(base_url + "/")
-    page = refused.value.read().decode()
-    refused.value.close()
-    assert "Welcome to Testland" in page
-    for sprite in re.findall(r'src="(/sprites/[^"]+)"', page):
+def test_without_a_session_the_map_sends_you_to_how_to_join(base_url):
+    conn = http.client.HTTPConnection(*base_url.removeprefix("http://").split(":"))
+    conn.request("GET", "/map")
+    response = conn.getresponse()
+    response.read()
+    conn.close()
+    assert response.status == 303 and response.headers["Location"] == "/#join"
+
+
+def public_home(base_url, cookie=None) -> str:
+    request = urllib.request.Request(base_url + "/", headers={"Cookie": cookie} if cookie else {})
+    with urllib.request.build_opener().open(request) as response:
+        assert response.status == 200
+        return response.read().decode()
+
+
+def test_the_home_page_is_public_and_its_art_loads(base_url):
+    page = public_home(base_url)
+    assert "<h1>Testland</h1>" in page and "/weblogin" in page and 'href="/#join">Log in' in page
+    assert "{{" not in page, "a placeholder went unfilled"
+    for sprite in set(re.findall(r'src="(/sprites/[^"]+)"', page)):
         with urllib.request.build_opener().open(base_url + sprite) as response:
             assert response.read().startswith(b"\x89PNG")
+
+
+def test_the_home_page_knows_who_you_are_and_escapes_it():
+    adapter = WorldAdapter(GameSpace.World("Homeland", 40, 40, seed=7))
+    adapter.register_player(7, 'Bo"b {{TOKEN}} & co')
+    server = serve(adapter)
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        page = public_home(base, f"session={LOGINS.redeem(LOGINS.new_link_token(7))}")
+        assert "logged in as <b>Bo&quot;b {{TOKEN}} &amp; co</b>" in page
+        assert 'href="/map">Open the map' in page
+        assert "have no character" in public_home(base, COOKIE)  # member 0 never registered
+    finally:
+        server.shutdown()
