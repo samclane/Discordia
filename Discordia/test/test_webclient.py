@@ -347,3 +347,13 @@ def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
         adapter.place_order = None
         page.send("Network.clearBrowserCookies")
         adapter._discord_player_map.pop(97)
+
+
+def test_pressing_on_a_tile_never_starts_the_browsers_image_drag(page):
+    """Firefox ignores -webkit-user-drag: a press on a chunk <img> began a native drag, which cancelled the
+    pointer, so drag-to-pan did nothing there. Chrome can't reproduce that, but it can check the cancel."""
+    cancelled = page.js(
+        "(() => { const e = new DragEvent('dragstart', { bubbles: true, cancelable: true });"
+        " chunkEls.values().next().value.dispatchEvent(e); return e.defaultPrevented; })()"
+    )
+    assert cancelled

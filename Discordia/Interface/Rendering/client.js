@@ -489,6 +489,11 @@ search.addEventListener("keydown", (e) => {
 const pointers = new Map(); // pointerId -> {x, y}
 let drag = null;
 
+// The map is made of <img>s, and pressing on one starts the browser's own image drag, which cancels the
+// pointer and with it the pan. CSS (-webkit-user-drag) only stops that in Chrome and Safari; this stops it
+// in Firefox too.
+viewport.addEventListener("dragstart", (e) => e.preventDefault());
+
 viewport.addEventListener("pointerdown", (e) => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   drag = { moved: pointers.size > 1 ? Infinity : 0 }; // a pinch is never a click
