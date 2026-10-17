@@ -35,6 +35,7 @@ EXPECTED = {
     "town store list",
     "town store buy",
     "town store sell",
+    "weblogin",
 }
 
 
@@ -405,3 +406,33 @@ def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():
     asyncio.run(scenario())
     assert raider.hit_points < raider.hit_points_max
     assert "to Neighbour" in replies.sent[0]
+
+
+def weblogin(web_url):
+    adapter = WorldAdapter(GameSpace.World("Linkland", 40, 40, seed=0))
+    adapter.register_player(1, "Surfer")
+    interface = DiscordInterface(world_adapter=adapter, web_url=web_url)
+    asyncio.run(interface.bot.add_cog(interface))
+    sent = []
+
+    async def send_message(content, **kwargs):
+        sent.append((content, kwargs))
+
+    response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
+    interaction = SimpleNamespace(command="weblogin", user=SimpleNamespace(id=1), response=response)
+    asyncio.run(command_named(interface, "weblogin").callback(interface, interaction))  # type: ignore[arg-type]
+    return adapter, sent
+
+
+def test_weblogin_privately_sends_a_link_that_logs_you_in():
+    adapter, [(content, kwargs)] = weblogin("https://map.example/")
+    assert kwargs["ephemeral"]
+    link = content.splitlines()[-1]
+    assert link.startswith("<https://map.example/login?t=") and link.endswith(">")  # <>: no preview fetch
+    session = adapter.web_logins.redeem(link[len("<https://map.example/login?t=") : -1])
+    assert adapter.web_logins.member_id(session) == 1
+
+
+def test_weblogin_says_so_when_there_is_no_web_map():
+    _, [(content, _)] = weblogin(None)
+    assert "isn't running" in content

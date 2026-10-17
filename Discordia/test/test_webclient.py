@@ -22,7 +22,7 @@ import pytest
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.Rendering.WebApp import _Handler
 from Discordia.Interface.WorldAdapter import WorldAdapter
-from Discordia.test.test_webapp import serve
+from Discordia.test.test_webapp import SESSION, serve
 
 BROWSERS = [
     "google-chrome",
@@ -103,13 +103,18 @@ class Page:
 
 
 @pytest.fixture(scope="module")
-def base_url():
+def adapter():
     world = GameSpace.World("Webland", 256, 256, seed=7)
     size = GameSpace.CHUNK_SIZE
     for y in range(0, world.height, size):  # explore all of it, so a fit view is wide and far out
         for x in range(0, world.width, size):
             world.space_at(x, y)
-    server = serve(WorldAdapter(world))
+    return WorldAdapter(world)
+
+
+@pytest.fixture(scope="module")
+def base_url(adapter):
+    server = serve(adapter)
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
 
@@ -145,6 +150,7 @@ def page(browser, base_url, request):
     dpr = getattr(request, "param", 1)
     browser.send("Emulation.setDeviceMetricsOverride", width=WIDTH, height=HEIGHT, deviceScaleFactor=dpr, mobile=False)
     browser.send("Network.clearBrowserCache")  # each test sees a first visit
+    browser.send("Network.setCookie", name="session", value=SESSION, url=base_url)  # past the gate
     browser.send("Page.navigate", url=base_url + "/")
     assert browser.wait_for(
         "typeof chunkEls !== 'undefined' && chunkEls.size > 0 && [...chunkEls.values()].every((i) => i.complete)"
@@ -283,3 +289,31 @@ def test_polls_revalidate_instead_of_redownloading(page, monkeypatch, route, pol
             break
         page.sleep(50)
     assert codes and set(codes) == {304}
+
+
+def test_a_weblogin_link_opens_the_map_on_your_own_character(page, adapter, base_url):
+    adapter.register_player(99, "Browser")
+    try:
+        page.send("Page.navigate", url=f"{base_url}/login?t={adapter.web_logins.new_link_token(99)}")
+        assert page.wait_for("document.querySelector('form button')")
+        page.js("document.querySelector('form button').click()")
+        # Back on the map, logged in: the Secure cookie took over plain-HTTP localhost.
+        assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Browser'")
+        assert page.wait_for("selected?.actor === me.id && follow")
+        assert "Browser" in page.js("document.getElementById('you').textContent")
+        assert page.wait_for("actorEls.get(me.id)?.classList.contains('me')")
+    finally:
+        page.send("Network.clearBrowserCookies")
+        adapter._discord_player_map.pop(99)  # the other tests' map has no players on it
+
+
+def test_a_session_with_no_character_says_how_to_make_one(page):
+    assert page.wait_for("me === null")
+    assert "/register" in page.js("document.getElementById('you').textContent")
+
+
+def test_without_a_session_the_page_says_how_to_get_one(page, base_url):
+    page.send("Network.clearBrowserCookies")
+    page.send("Page.navigate", url=base_url + "/")
+    assert page.wait_for("document.body?.textContent.includes('/weblogin')")
+    assert page.js("typeof chunkEls") == "undefined", "the map itself never loaded"

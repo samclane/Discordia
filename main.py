@@ -43,7 +43,9 @@ def main():
 
     display = WindowRenderer(adapter)
 
+    web_url = None
     if args.web_port:
+        web_url = ConfigParser.WEB_PUBLIC_URL or f"http://localhost:{args.web_port}"
         threading.Thread(target=serve, args=(display, args.web_port), daemon=True).start()
     # The tick and the autosave run on the bot's event loop, in lockstep with the commands: no locking
     # needed, and a crash loses at most AUTOSAVE_SECONDS of play.
@@ -61,7 +63,7 @@ def main():
         # ponytail: the day restarts with the process. The shutdown digest below keeps a deploy from
         # throwing a partial day away; a crash still does.
         jobs.append((Alerts.DIGEST_SECONDS, cast(Callable[[], None], send_digest), "Daily digest"))
-    discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS)
+    discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url)
     LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)

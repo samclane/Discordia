@@ -30,3 +30,6 @@ WORLD_HEIGHT = int(config['World']['Height'])
 DISPLAY_WIDTH = int(config['Display']['Width'])
 DISPLAY_HEIGHT = int(config['Display']['Height'])
 DISPLAY_SCROLL_SPEED = int(config['Display']['ScrollSpeed'])
+
+# Where players open the web map, for /weblogin links. Blank: http://localhost:<web port>.
+WEB_PUBLIC_URL = config['Web']['PublicUrl']

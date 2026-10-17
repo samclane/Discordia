@@ -19,10 +19,18 @@ from PIL import Image
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _Handler
+from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 
+# Every test server shares these logins, so one session cookie gets a test past the gate on any of them.
+LOGINS = WebLogins()
+SESSION = LOGINS.redeem(LOGINS.new_link_token(0))
+COOKIE = f"session={SESSION}"
+
+
 def serve(adapter):
+    adapter.web_logins = LOGINS
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_Handler, WindowRenderer(adapter)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
@@ -40,6 +48,16 @@ def base_url():
     server = serve(adapter)
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
+
+
+@pytest.fixture(autouse=True)
+def logged_in():
+    """urlopen() sends the session cookie, as a logged-in browser would."""
+    opener = urllib.request.build_opener()
+    opener.addheaders = [("Cookie", COOKIE)]
+    urllib.request.install_opener(opener)
+    yield
+    urllib.request.install_opener(None)
 
 
 def get(url):
@@ -117,7 +135,7 @@ def test_one_connection_serves_many_requests(base_url):
     connection = http.client.HTTPConnection(host, int(port))
     sockets = set()
     for path in ["/world.json", "/explored.json", "/actors.json", "/client.js"]:
-        connection.request("GET", path)
+        connection.request("GET", path, headers={"Cookie": COOKIE})
         response = connection.getresponse()
         response.read()
         assert response.status == 200 and response.version == 11
@@ -211,3 +229,74 @@ def test_coastlines_are_drawn_from_the_neighbours():
     assert alone.getpixel((0, 0))[3] == 0  # rounded corner, ground shows through
     assert surrounded.getpixel((0, 0))[3] == 255
     assert renderer._terrain_cache["sand", 0] is None  # bare ground
+
+
+def test_a_weblogin_link_logs_in_once_and_shows_your_character():
+    adapter = WorldAdapter(GameSpace.World("Loginland", 40, 40, seed=7))
+    adapter.register_player(42, "Webber")
+    server = serve(adapter)
+    base = f"http://127.0.0.1:{server.server_port}"
+    token = adapter.web_logins.new_link_token(42)
+    try:
+        # Opening the link only shows a button: a link preview fetching it mustn't spend it.
+        assert f'value="{token}"'.encode() in get(f"{base}/login?t={token}")[2]
+
+        conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+
+        def post(t):
+            body = f"t={t}"
+            conn.request("POST", "/login", body, {"Content-Type": "application/x-www-form-urlencoded"})
+            response = conn.getresponse()
+            response.read()
+            return response
+
+        response = post(token)
+        assert response.status == 303 and response.headers["Location"] == "/"
+        cookie = response.headers["Set-Cookie"]
+        assert "HttpOnly" in cookie and "Secure" in cookie and "SameSite=Lax" in cookie
+        session = cookie.split(";")[0]
+        assert post(token).status == 403, "a link works once"
+
+        conn.request("GET", "/me.json", headers={"Cookie": session})
+        me = json.loads(conn.getresponse().read())
+        assert me["name"] == "Webber" and me["id"].startswith("player:")
+        conn.request("GET", "/me.json", headers={"Cookie": COOKIE})  # logged in as nobody's character
+        response = conn.getresponse()
+        response.read()
+        assert response.status == 404
+        for headers in ({"Cookie": "session=forged"}, {}):
+            conn.request("GET", "/me.json", headers=headers)
+            response = conn.getresponse()
+            response.read()
+            assert response.status == 401
+        conn.close()
+    finally:
+        server.shutdown()
+
+
+def test_weblogins_keep_only_digests_and_let_links_lapse():
+    now = [0.0]
+    logins = WebLogins(clock=lambda: now[0])
+    token = logins.new_link_token(42)
+    assert token not in repr(vars(logins)), "the secret itself must not be stored"
+    now[0] = LINK_SECONDS + 1
+    assert logins.redeem(token) is None
+
+    session = logins.redeem(logins.new_link_token(42))
+    assert logins.member_id(session) == 42
+    assert session not in repr(vars(logins))
+    now[0] += SESSION_SECONDS + 1
+    assert logins.member_id(session) is None
+
+
+@pytest.mark.parametrize("path", ["/", "/world.json", "/actors.json", "/chunk/0/0.png", "/client.js"])
+def test_without_a_session_the_map_is_closed(base_url, path):
+    """The map is for players: no cookie, or a forged one, gets nothing but how to get in."""
+    for cookie in ({}, {"Cookie": "session=forged"}):
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            urllib.request.build_opener().open(urllib.request.Request(base_url + path, headers=cookie))
+        assert refused.value.code == 401
+        body = refused.value.read()
+        refused.value.close()
+        if path == "/":
+            assert b"/weblogin" in body

@@ -9,24 +9,31 @@ and drawn on top, which keeps the server out of the per-frame PNG encode entirel
 
 Only explored chunks are served: a chunk nobody has walked into 404s rather than being generated, so
 generation stays on the game loop and a visitor panning about can't make the server build the world.
+
+Players only: every route but /login wants the session cookie a /weblogin link gives (see WebLogins).
 """
 
 from __future__ import annotations
 
 import gzip
+import html
 import json
 import logging
 import re
 import zlib
 from functools import partial
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import GameSpace
 from Discordia.GameLogic.Actors import PlayerCharacter
+from Discordia.GameLogic.Items import EquipmentSet
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.WebLogins import SESSION_SECONDS
+from Discordia.Interface.WorldAdapter import NotRegisteredException
 
 LOG = logging.getLogger("Discordia.Interface.WebApp")
 
@@ -38,6 +45,24 @@ ART_VERSION = 2
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
+# no-referrer: the login page has the token in its URL, and it mustn't follow a click anywhere else.
+PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Discordia</title>
+<style>body{background:#0e0f13;color:#dfe2ea;font:15px system-ui,sans-serif;display:grid;place-items:center;
+height:100vh;margin:0;padding:0 16px;text-align:center}button{font:inherit;padding:8px 18px;border:0;
+border-radius:6px;background:#e8b44a;cursor:pointer}</style>
+BODY
+"""
+# A button, not a redeem-on-GET: link previews and scanners fetch URLs, and would spend the one use.
+LOGIN_PAGE = PAGE.replace(
+    "BODY",
+    '<form method="post" action="/login"><input type="hidden" name="t" value="TOKEN">'
+    "<button>Log in to the map</button></form>",
+)
+GATE_PAGE = PAGE.replace("BODY", "<p>This map is for Discordia players. Run <b>/weblogin</b> in Discord for a link.</p>")
+SPENT_PAGE = PAGE.replace(
+    "BODY", "<p>That link has expired or was already used. Run <b>/weblogin</b> in Discord for a new one.</p>"
+)
 
 
 def _sprite_url(sprite_path: str) -> str:
@@ -135,6 +160,31 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
     return json.dumps({"actors": actors}).encode()
 
 
+def _me_json(character: PlayerCharacter) -> bytes:
+    """The logged-in player's own character: what /equipment says, for the web."""
+    loc = character.location
+    return json.dumps(
+        {
+            "id": f"player:{id(character)}",  # as in actors.json, so the client can pick itself out
+            "name": character.name,
+            "sprite": _sprite_url(character.sprite_path_string),
+            "level": character.level,
+            "class": character.player_class.name,
+            "hp": character.hit_points,
+            "hp_max": character.hit_points_max,
+            "currency": character.currency,
+            "xp_to_next": character.experience_to_next_level,
+            "location": {"x": loc.x, "y": loc.y} if loc else None,
+            "equipment": [
+                item.name
+                for item in character.equipment_set
+                if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+            ],
+            "inventory": [item.name for item in list(character.inventory)],
+        }
+    ).encode()
+
+
 class _Handler(BaseHTTPRequestHandler):
     # Keep-alive: a page load is hundreds of chunk requests, and the browser only opens six connections.
     protocol_version = "HTTP/1.1"
@@ -145,6 +195,12 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path != "/login" and self._member_id() is None:
+            if path == "/":
+                self._send(GATE_PAGE.encode(), "text/html; charset=utf-8", status=401)
+            else:
+                self.send_error(401)
+            return
         # A regenerated world or new art reuses these URLs, so tag the static responses with both.
         etag = f'"{self.renderer.world_adapter.world.seed}-{ART_VERSION}"'
 
@@ -170,6 +226,16 @@ class _Handler(BaseHTTPRequestHandler):
             # Actors only move on a tick, and the client polls faster than that: most polls can be a 304.
             body = _actors_json(self.renderer)
             self._send(body, "application/json", etag=f'"{zlib.crc32(body):x}"')
+        elif path == "/me.json":
+            try:
+                body = _me_json(self.renderer.world_adapter.get_player(self._member_id()))
+            except NotRegisteredException:  # logged in, but no character (yet, or anymore)
+                self._send(b'{"error": "no character"}', "application/json", status=404)
+            else:
+                self._send(body, "application/json")
+        elif path == "/login":
+            token = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
+            self._send(LOGIN_PAGE.replace("TOKEN", html.escape(token)).encode(), "text/html; charset=utf-8")
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -183,13 +249,42 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _send(self, body: bytes, ctype: str, etag: str | None = None):
+    def do_POST(self):
+        if urlsplit(self.path).path != "/login":
+            self.send_error(404)
+            return
+        length = self.headers.get("Content-Length", "")
+        if not length.isdigit() or int(length) > 1024:  # a token is 43 characters
+            self.send_error(400)
+            return
+        form = parse_qs(self.rfile.read(int(length)).decode(errors="replace"))
+        session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
+        if session is None:
+            self._send(SPENT_PAGE.encode(), "text/html; charset=utf-8", status=403)
+            return
+        self.send_response(303)
+        self.send_header("Location", "/")
+        # Secure: browsers still let localhost set it over plain HTTP, so a local run logs in too.
+        self.send_header(
+            "Set-Cookie", f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+        )
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _member_id(self) -> int | None:
+        try:
+            morsel = SimpleCookie(self.headers.get("Cookie", "")).get("session")
+        except CookieError:
+            return None
+        return self.renderer.world_adapter.web_logins.member_id(morsel.value) if morsel else None
+
+    def _send(self, body: bytes, ctype: str, etag: str | None = None, status: int = 200):
         if etag and self.headers.get("If-None-Match") == etag:
             self.send_response(304)
             self.send_header("ETag", etag)
             self.end_headers()
             return
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", ctype)
         if not ctype.startswith("image/"):
             self.send_header("Vary", "Accept-Encoding")

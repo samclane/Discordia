@@ -38,6 +38,8 @@
   .actor.selected .name { background: var(--accent); color: #000; }
   .actor.selected .bar { display: block; }
   .actor.selected { z-index: 1; }
+  .actor.me .name { background: var(--player); color: #000; }
+  body.far .actor.me .name { display: inline; }
   .actor.selected img { outline: calc(2px * var(--inv)) solid var(--accent); }
 
   .label { position: absolute; transform: translate(-50%, -100%) scale(var(--inv));
@@ -78,6 +80,7 @@
   .row .sub { color: var(--dim); font-size: 11px; }
   .row .bar { width: 44px; flex: none; }
   .empty { margin: 2px 14px; color: var(--dim); font-style: italic; }
+  .you { padding: 0 14px 6px 42px; color: var(--dim); font-size: 11px; }
 
   #info { border-top: 1px solid var(--line); padding: 10px 14px; min-height: 64px; }
   #info b { color: #fff; }
@@ -124,6 +127,7 @@
     <input id="search" type="search" placeholder="Find a player or town" autocomplete="off">
   </header>
   <div id="lists">
+    <h2>You</h2><div id="you"></div>
     <h2>Players</h2><div id="players"></div>
     <h2>Towns</h2><div id="towns"></div>
   </div>

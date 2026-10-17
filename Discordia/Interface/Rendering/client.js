@@ -26,6 +26,7 @@ const chunkData = new Map(); // "cx,cy" -> { terrain, wilds }, once fetched
 const actorEls = new Map(); // actor id -> element
 let actors = [];
 let selected = null; // { actor: id } or { x, y }
+let me; // your own character from /me.json: undefined until asked, null if you haven't logged in
 let follow = false;
 
 const view = { x: 0, y: 0, scale: 1 };
@@ -280,7 +281,9 @@ function renderActors() {
     const pct = a.hp_max ? (100 * a.hp) / a.hp_max : 0;
     el.querySelector(".bar i").style.width = pct + "%";
     el.querySelector(".bar").classList.toggle("low", pct <= 30);
-    el.className = `actor ${a.kind}${a.hp >= a.hp_max ? " full" : ""}${selected?.actor === a.id ? " selected" : ""}`;
+    el.className =
+      `actor ${a.kind}${a.hp >= a.hp_max ? " full" : ""}` +
+      `${selected?.actor === a.id ? " selected" : ""}${me?.id === a.id ? " me" : ""}`;
   }
   for (const [id, el] of actorEls) {
     if (!seen.has(id)) {
@@ -296,7 +299,44 @@ function renderActors() {
     `Seed ${world.seed} · ${world.width.toLocaleString()}² · ${explored.size} chunks explored · ` +
     `${actors.length - npcs} player${actors.length - npcs === 1 ? "" : "s"} · ${npcs} NPC${npcs === 1 ? "" : "s"}`;
   renderPlayers();
+  renderMe();
   renderInfo();
+}
+
+// Your own sheet, for whoever's /weblogin session this page is. Polled once a tick: it's tiny, and private,
+// so no ETag. A 404 means that session has no character; /register makes one, so keep asking.
+async function pollMe() {
+  if (!document.hidden) {
+    try {
+      const r = await fetch("/me.json", { cache: "no-store" });
+      const first = me === undefined;
+      me = r.ok ? await r.json() : null;
+      if (first && me?.location && !selected) selectActor(me.id, true); // open on yourself
+      renderMe();
+    } catch (err) {
+      // pollActors already shows the server as down
+    }
+  }
+  setTimeout(pollMe, 5000);
+}
+
+function renderMe() {
+  if (me === undefined) return;
+  if (!me) {
+    $("you").innerHTML = `<div class="empty">No character yet. Use /register in Discord.</div>`;
+    return;
+  }
+  const details = document.createElement("div");
+  details.className = "you";
+  details.innerHTML =
+    `${me.hp}/${me.hp_max} hp · ${me.xp_to_next} XP to level ${me.level + 1}` +
+    (me.location ? "" : " · not on the map") +
+    `<br>Equipped: ${esc(me.equipment.join(", ") || "nothing")}<br>Carrying: ${esc(me.inventory.join(", ") || "nothing")}`;
+  $("you").replaceChildren(
+    row(me.sprite, me.name, `Lv ${me.level} ${me.class} · $${me.currency.toLocaleString()}`, hpBar(me),
+        selected?.actor === me.id, () => selectActor(me.id, true)),
+    details
+  );
 }
 
 // --- sidebar --------------------------------------------------------------
@@ -549,4 +589,4 @@ $("zoom-out").onclick = () => zoomCenter(0.8);
 $("fit").onclick = () => fitToViewport();
 $("toggle").onclick = () => document.body.classList.toggle("open");
 
-loadWorld().then(pollActors);
+loadWorld().then(pollActors).then(pollMe);

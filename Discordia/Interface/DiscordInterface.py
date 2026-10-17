@@ -153,8 +153,10 @@ class DiscordInterface(commands.Cog):
         world_adapter: WorldAdapter,
         jobs: Sequence[Tuple[float, Callable[[], None], str]] = (),
         tick_seconds: float = 5.0,
+        web_url: str | None = None,
     ):
-        """`jobs` are (seconds, action, name) triples run periodically alongside the commands."""
+        """`jobs` are (seconds, action, name) triples run periodically alongside the commands.
+        `web_url` is where players reach the web map, or None if it isn't running."""
         self.bot: commands.Bot = commands.Bot(
             command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default()
         )
@@ -163,6 +165,7 @@ class DiscordInterface(commands.Cog):
         self.world_adapter: WorldAdapter = world_adapter
         self.jobs = jobs
         self.tick_seconds = tick_seconds
+        self.web_url = web_url.rstrip("/") if web_url else None
         self._job_loops: List[tasks.Loop] = (
             []
         )  # kept alive; a Loop nobody holds gets collected
@@ -295,6 +298,24 @@ class DiscordInterface(commands.Cog):
         )
         self.world_adapter.register_player(interaction.user.id, player_name=name)
         await _send(interaction, f"Welcome, {name}! Good luck out there, comrade!")
+
+    @app_commands.command()
+    @requires_character()
+    async def weblogin(self, interaction: discord.Interaction):
+        """Get a one-time link that logs you in to the web map"""
+        if self.web_url is None:
+            await _send(
+                interaction, "The web map isn't running on this server.", ephemeral=True
+            )
+            return
+        token = self.world_adapter.web_logins.new_link_token(interaction.user.id)
+        # Ephemeral: only you see it. <> stops Discord fetching it for a preview.
+        await _send(
+            interaction,
+            f"Your map login link. It works once, for 10 minutes; don't share it:\n"
+            f"<{self.web_url}/login?t={token}>",
+            ephemeral=True,
+        )
 
     @app_commands.command()
     @requires_character()

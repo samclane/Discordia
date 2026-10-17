@@ -13,6 +13,7 @@ from Discordia.GameLogic.GameSpace import (
     Direction,
     PlayerActionResponse,
 )
+from Discordia.Interface.WebLogins import WebLogins
 
 
 class NullWorldException(Exception):
@@ -70,6 +71,7 @@ class WorldAdapter:
         self.world: World = gameworld
         self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
+        self.web_logins = WebLogins()  # here because the bot and the web map both hold the adapter
 
     @property
     def width(self):

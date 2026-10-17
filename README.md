@@ -37,7 +37,12 @@ journalctl -u discordia -f
 
 The save is `/opt/discordia/discordia.db`; copy it over first to keep an existing world. The live map binds to
 localhost only, so view it through a tunnel: `ssh -L 8080:localhost:8080 root@<linode-ip>`, then open
-http://localhost:8080. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
+http://localhost:8080.
+
+To put the map on the internet: an nginx `server` block for your domain with `proxy_pass http://127.0.0.1:8080;`,
+`certbot --nginx -d <domain>` for HTTPS (the login cookie is HTTPS-only), and `PublicUrl = https://<domain>` under
+`[Web]` in `/opt/discordia/config.ini`. The map lets in only players with a `/weblogin` session, so the proxy needs no
+password of its own. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
 add a `discordia` host to `~/.ssh/config` and run it bare). It refuses if HEAD isn't pushed, pulls, restarts, and
 fails if the service doesn't come back up.
 
@@ -54,6 +59,9 @@ the bot syncs them.
     * Create a new player character and spawn into the game world.
 * `/look`
     * Get your grid location, and a picture of your surroundings, as far as your `FOV` can see.
+* `/weblogin`
+    * Get a private, one-time link (10 minutes) that logs you in to the web map, which is for players only. The map
+      then follows your character and shows your sheet. No password: Discord already knows who you are.
 * `/equipment`
     * Prints your "character sheet" in chat: name, level and experience to the next one, money, health, and equipment.
 * `/move` [`direction`]
