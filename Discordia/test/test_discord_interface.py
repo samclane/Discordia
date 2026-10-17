@@ -436,3 +436,17 @@ def test_weblogin_privately_sends_a_link_that_logs_you_in():
 def test_weblogin_says_so_when_there_is_no_web_map():
     _, [(content, _)] = weblogin(None)
     assert "isn't running" in content
+
+
+def test_what_the_bot_dms_is_kept_for_the_website():
+    adapter = WorldAdapter(GameSpace.World("Newsland", 40, 40, seed=0))
+    adapter.register_player(1, "Reader")
+    player = adapter.get_player(1)
+    adapter.world.tick = lambda: [  # type: ignore[method-assign]
+        GameSpace.PlayerActionResponse(target=player, text="A raider hits you.")
+    ]
+    interface = DiscordInterface(world_adapter=adapter)
+    stub_user(interface, [])
+
+    asyncio.run(interface.tick())
+    assert [text for _, text in adapter.news(player)] == ["A raider hits you."]

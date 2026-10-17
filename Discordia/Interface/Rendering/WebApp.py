@@ -21,6 +21,7 @@ import html
 import json
 import logging
 import re
+import time
 import zlib
 from functools import partial
 from http.cookies import CookieError, SimpleCookie
@@ -29,13 +30,22 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import GameSpace
+from Discordia.GameLogic import Events, GameSpace
 from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, PlayerCharacter, Soldier, WandererClass
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
 from Discordia.GameLogic.Weapons import Weapon
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WebLogins import SESSION_SECONDS
-from Discordia.Interface.WorldAdapter import NotRegisteredException
+from Discordia.Interface.WorldAdapter import (
+    DIRECTION_NAMES,
+    SUPERSEDED,
+    NotRegisteredException,
+    NotSpawnedException,
+    attack_text,
+    choose_text,
+    error_text,
+    move_text,
+)
 
 LOG = logging.getLogger("Discordia.Interface.WebApp")
 
@@ -209,7 +219,25 @@ def _item_row(label: str, item) -> str:
     )
 
 
-def _sheet(character: PlayerCharacter) -> dict:
+def _ago(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes} min ago"
+    return f"{minutes // 60} h ago" if minutes < 24 * 60 else f"{minutes // (24 * 60)} d ago"
+
+
+def _news_rows(news: list) -> str:
+    now = time.time()
+    rows = "".join(
+        f'<li><span class="slot">{_ago(now - t)}</span><span class="name">{html.escape(text)}</span></li>'
+        for t, text in reversed(news)
+    )
+    return rows or '<li class="empty-slot"><span class="name">Quiet so far. Nothing has found you yet.</span></li>'
+
+
+def _sheet(character: PlayerCharacter, news: list) -> dict:
     """me.html's placeholders, for one character. Read off the HTTP thread, like _me_json."""
     loc = character.location
     if loc is None:
@@ -257,6 +285,7 @@ def _sheet(character: PlayerCharacter) -> dict:
         "DEATHS": character.deaths,
         "DEATH_NOTE": death_note,
         "EQUIPMENT": Markup(equipment),
+        "NEWS": Markup(_news_rows(news)),
         "INVENTORY": Markup(
             inventory
             or '<li class="empty-slot"><span class="name">Nothing yet. Stores sell, and raiders drop.</span></li>'
@@ -264,9 +293,10 @@ def _sheet(character: PlayerCharacter) -> dict:
     }
 
 
-def _me_json(character: PlayerCharacter) -> bytes:
+def _me_json(character: PlayerCharacter, news: list) -> bytes:
     """The logged-in player's own character: what /equipment says, for the web."""
     loc = character.location
+    encounter = character.pending_event
     return json.dumps(
         {
             "id": f"player:{id(character)}",  # as in actors.json, so the client can pick itself out
@@ -285,6 +315,8 @@ def _me_json(character: PlayerCharacter) -> bytes:
                 if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
             ],
             "inventory": [item.name for item in list(character.inventory)],
+            "encounter": encounter.flavor_text if isinstance(encounter, Events.EncounterEvent) else None,
+            "news": [{"t": t, "text": text} for t, text in reversed(news[-10:])],  # newest first
         }
     ).encode()
 
@@ -334,7 +366,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(body, "application/json", etag=f'"{zlib.crc32(body):x}"')
         elif path == "/me.json":
             try:
-                body = _me_json(self.renderer.world_adapter.get_player(self._member_id()))
+                character = self.renderer.world_adapter.get_player(self._member_id())
+                body = _me_json(character, self.renderer.world_adapter.news(character))
             except NotRegisteredException:  # logged in, but no character (yet, or anymore)
                 self._send(b'{"error": "no character"}', "application/json", status=404)
             else:
@@ -357,7 +390,7 @@ class _Handler(BaseHTTPRequestHandler):
             if character is None:  # logged in, but nothing to show: the home page says how to make one
                 self._redirect("/#join")
             else:
-                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character))
+                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter.news(character)))
                 self._send(page, "text/html; charset=utf-8")
         elif path == "/":
             self._send(self._home(), "text/html; charset=utf-8")
@@ -376,14 +409,16 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if path == "/act":
+            self._act()
+            return
         if path != "/login":
             self.send_error(404)
             return
-        length = self.headers.get("Content-Length", "")
-        if not length.isdigit() or int(length) > 1024:  # a token is 43 characters
-            self.send_error(400)
+        body = self._body()
+        if body is None:
             return
-        form = parse_qs(self.rfile.read(int(length)).decode(errors="replace"))
+        form = parse_qs(body)
         session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
         if session is None:
             self._send(self._page("Link expired · Discordia", SPENT_BODY), "text/html; charset=utf-8", status=403)
@@ -396,6 +431,68 @@ class _Handler(BaseHTTPRequestHandler):
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _body(self) -> str | None:
+        """The request body, or None (with a 400 sent) if it's missing or too big for anything we take."""
+        length = self.headers.get("Content-Length", "")
+        if not length.isdigit() or int(length) > 1024:  # a token is 43 characters, an order less
+            self.send_error(400)
+            return None
+        return self.rfile.read(int(length)).decode(errors="replace")
+
+    def _act(self):
+        """Play from the browser: one order, queued like a slash command's, answered after its tick."""
+
+        def reply(status: int, text: str):
+            self._send(json.dumps({"text": text}).encode(), "application/json", status=status)
+
+        character = self._character()
+        # JSON only: a form on another site can post here, but it can't send JSON without asking first.
+        if "application/json" not in self.headers.get("Content-Type", ""):
+            self.send_error(415)
+            return
+        body = self._body()
+        if body is None:
+            return
+        if character is None:
+            return reply(401, "Log in first: /weblogin in Discord.")
+        try:
+            order = json.loads(body)
+            what = order["action"]
+        except (ValueError, TypeError, KeyError):
+            return reply(400, "That isn't an order.")
+        adapter = self.renderer.world_adapter
+        direction, choice = order.get("direction"), order.get("choice")
+        if what in ("move", "attack") and direction in DIRECTION_NAMES:
+            vector = GameSpace.DIRECTION_VECTORS[direction]
+            if what == "move":
+                action, say = (lambda: adapter.move_player(character, vector)), (
+                    lambda r: move_text(r, DIRECTION_NAMES[direction])
+                )
+            else:
+                action, say = (lambda: adapter.attack(character, vector)), (lambda r: attack_text(character, r))
+        elif what == "choose" and choice in Events.EncounterEvent.CHOICES:
+            action, say = (lambda: adapter.resolve_encounter(character, choice)), choose_text
+        else:
+            return reply(400, "That isn't an order.")
+        if character.location is None:
+            return reply(409, error_text(NotSpawnedException()))
+        if adapter.place_order is None:
+            return reply(503, "The game isn't running right now.")
+        try:
+            result = adapter.place_order(character, action)  # blocks this thread until the tick
+            # Inside the try: an answer that fails to format must still be an answer. A dropped
+            # connection makes the browser send the order again.
+            text = "You change your mind: a newer order took this one's place." if result is SUPERSEDED else say(result)
+        except TimeoutError:
+            return reply(504, "No tick came. Try again in a moment.")
+        except Exception as exc:
+            text = error_text(exc)
+            if text is None:
+                LOG.exception("Web order %r failed", order)
+                return reply(500, "Something went wrong on the server.")
+            return reply(409, text)
+        reply(200, text)
 
     def _redirect(self, location: str):
         self.send_response(303)

@@ -93,10 +93,38 @@
   #tools button, #toggle { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px;
                            background: var(--panel); cursor: pointer; font-size: 16px; line-height: 1; }
   #tools button:hover, #toggle:hover { border-color: var(--accent); }
-  #hover { position: absolute; left: 12px; bottom: 12px; padding: 3px 8px; border-radius: 4px;
+  #hover { position: absolute; left: 12px; top: 52px; padding: 3px 8px; border-radius: 4px;
            background: var(--panel); color: var(--dim); font-size: 12px; pointer-events: none; }
   #hover:empty { display: none; }
   #toggle { display: none; position: absolute; right: 12px; top: 12px; }
+
+  /* --- playing from the map: your orders, queued like slash commands --- */
+  #play { position: absolute; left: 12px; bottom: 12px; width: 236px; padding: 10px; border: 1px solid var(--line);
+          border-radius: 10px; background: #121318ee; backdrop-filter: blur(6px); }
+  #play[hidden], #encounter[hidden] { display: none; }
+  #play button { border: 1px solid var(--line); border-radius: 6px; background: #1b1d24; cursor: pointer; }
+  #play button:hover { border-color: var(--accent); }
+  #play button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+  #play button:disabled { opacity: .5; cursor: default; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+  .modes button { padding: 4px 0; font-size: 12px; font-weight: 600; color: var(--dim); }
+  #play .modes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #1a1408; }
+  #play.attack .modes button[aria-pressed="true"] { background: var(--npc); border-color: var(--npc); }
+  .pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px;
+         justify-content: center; }
+  .pad button { font-size: 18px; line-height: 1; }
+  #play.attack .pad button { color: var(--npc); }
+  .pad .hub { display: grid; place-items: center; color: var(--dim); font-size: 11px; text-align: center; }
+  #play.waiting .hub { color: var(--accent); }
+  #encounter { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #e8b44a1a; font-size: 12px; }
+  #encounter p { margin: 0 0 6px; }
+  #encounter div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  #encounter button { padding: 4px 0; font-size: 12px; }
+  #log { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; max-height: 120px; overflow-y: auto; }
+  #log li { padding: 4px 0; border-top: 1px solid var(--line); white-space: pre-line; }
+  #log li.news { color: #ffb3b3; }
+  #log:empty { display: none; }
+  @media (max-width: 700px) { #log { max-height: 64px; } }
 
   @media (max-width: 700px) {
     :root { --side: 0px; }
@@ -121,6 +149,28 @@
   <button id="fit" title="Fit map (F)">&#x2922;</button>
 </div>
 <div id="hover"></div>
+<div id="play" hidden>
+  <div id="encounter" hidden>
+    <p></p>
+    <div><button data-choice="talk">Talk</button><button data-choice="rob">Rob</button><button data-choice="ignore">Ignore</button></div>
+  </div>
+  <div class="modes" role="group" aria-label="What the pad does (T switches)">
+    <button data-mode="move" aria-pressed="true">Move</button>
+    <button data-mode="attack" aria-pressed="false">Attack</button>
+  </div>
+  <div class="pad">
+    <button data-dir="nw" aria-label="northwest">&#x2196;</button>
+    <button data-dir="n" aria-label="north">&#x2191;</button>
+    <button data-dir="ne" aria-label="northeast">&#x2197;</button>
+    <button data-dir="w" aria-label="west">&#x2190;</button>
+    <div class="hub" aria-live="polite"></div>
+    <button data-dir="e" aria-label="east">&#x2192;</button>
+    <button data-dir="sw" aria-label="southwest">&#x2199;</button>
+    <button data-dir="s" aria-label="south">&#x2193;</button>
+    <button data-dir="se" aria-label="southeast">&#x2198;</button>
+  </div>
+  <ol id="log" aria-live="polite"></ol>
+</div>
 <button id="toggle" title="Players and towns">&#9776;</button>
 
 <aside id="side">

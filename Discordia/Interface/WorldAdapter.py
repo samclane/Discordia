@@ -1,7 +1,9 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
 from __future__ import annotations
 
-from typing import Dict, Tuple, List, Iterator
+import time
+from collections import deque
+from typing import Any, Callable, Deque, Dict, Tuple, List, Iterator, Optional
 
 from Discordia.GameLogic import Actors, Events
 from Discordia.GameLogic.GameSpace import (
@@ -62,6 +64,65 @@ class NoMerchantException(Exception):
     pass
 
 
+def error_text(error: Exception) -> Optional[str]:
+    """What to tell a player whose command raised `error`, or None if it's a bug rather than a rule."""
+    if isinstance(error, NotRegisteredException):
+        return "You haven't registered a character yet. Use `/register` to make one."
+    if isinstance(error, AlreadyRegisteredException):
+        return "You already have a character."
+    if isinstance(error, NotSpawnedException):
+        return "Your character hasn't spawned into the world yet."
+    if isinstance(error, NoWeaponEquippedException):
+        return "You have no weapon equipped. Try `/inventory equip`."
+    if isinstance(error, InvalidSpaceException):
+        return str(error) or "You can't go that way."
+    if isinstance(error, CombatException):
+        return f"Attack failed: {error}"
+    if isinstance(error, NoEncounterException):
+        return "Nobody is waiting on you to decide anything."
+    if isinstance(error, NoMerchantException):
+        return "There is nobody here to trade with."
+    return None
+
+
+# What an order's results say back, from Discord or the web alike.
+def move_text(results: List[PlayerActionResponse], direction_name: str) -> str:
+    """Each step's events in turn, up to the first that stopped you."""
+    lines = []
+    for r in results:
+        if r.text:
+            lines.append(r.text)
+        if not r.is_successful:
+            break
+    return "\n".join(lines) or f"You move {direction_name}."
+
+
+def attack_text(character: Actors.PlayerCharacter, response: PlayerActionResponse) -> str:
+    target_name = response.target.name if response.target else "nobody"
+    return f"{character.name} deals {response.damage} to {target_name}.\n\n {response.text}"
+
+
+def choose_text(results: List[PlayerActionResponse]) -> str:
+    return "\n".join(r.text for r in results if r.text)
+
+
+# What an order resolves to when the player replaces it before the tick.
+SUPERSEDED = object()
+
+DIRECTION_NAMES = {
+    "n": "north",
+    "s": "south",
+    "e": "east",
+    "w": "west",
+    "ne": "northeast",
+    "se": "southeast",
+    "sw": "southwest",
+    "nw": "northwest",
+}
+
+NEWS_KEPT = 20  # world events remembered per player, for the website
+
+
 class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
@@ -72,6 +133,19 @@ class WorldAdapter:
         self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
         self.web_logins = WebLogins()  # here because the bot and the web map both hold the adapter
+        # Set by the running bot: queue an order for the next tick from another thread, and block for its
+        # result. None when nothing ticks the world (tests, a bare web server).
+        self.place_order: Optional[Callable[[Actors.PlayerCharacter, Callable[[], Any]], Any]] = None
+        # ponytail: in memory, so a restart forgets it. Save it if anyone misses it.
+        self._news: Dict[Actors.PlayerCharacter, Deque[Tuple[float, str]]] = {}
+
+    def add_news(self, character: Actors.PlayerCharacter, text: str):
+        """Remember something the world did to a player while they weren't looking (what the bot DMs)."""
+        self._news.setdefault(character, deque(maxlen=NEWS_KEPT)).append((time.time(), text))
+
+    def news(self, character: Actors.PlayerCharacter) -> List[Tuple[float, str]]:
+        """(unix time, text) pairs, oldest first. A snapshot: safe to call off the bot loop."""
+        return list(self._news.get(character, ()))
 
     @property
     def width(self):

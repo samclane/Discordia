@@ -3,6 +3,7 @@ End-to-end checks for the web map server: every route answers, the static respon
 and /sprites/ can't be walked out of.
 """
 
+import asyncio
 import gzip
 import http.client
 import io
@@ -11,6 +12,7 @@ import html
 import re
 from types import SimpleNamespace
 import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -23,7 +25,8 @@ from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _Handler
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
-from Discordia.Interface.WorldAdapter import WorldAdapter
+from Discordia.Interface.DiscordInterface import DiscordInterface
+from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter
 
 
 # Every test server shares these logins, so one session cookie gets a test past the gate on any of them.
@@ -392,4 +395,108 @@ def test_logging_out_ends_the_session_for_good():
         assert LOGINS.member_id(session) is None, "a copy of the old cookie must not still work"
     finally:
         conn.close()
+        server.shutdown()
+
+
+def act(port, order, cookie=None, content_type="application/json"):
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+    body = json.dumps(order)
+    headers = {"Content-Type": content_type, "Content-Length": str(len(body))}
+    if cookie:
+        headers["Cookie"] = cookie
+    conn.request("POST", "/act", body, headers)
+    response = conn.getresponse()
+    data = response.read()
+    conn.close()
+    return response.status, (json.loads(data)["text"] if response.status != 415 else None)
+
+
+def playing(name="Player"):
+    adapter = WorldAdapter(GameSpace.World("Playland", 40, 40, seed=7))
+    adapter.register_player(4, name)
+    server = serve(adapter)
+    return adapter, server, f"session={LOGINS.redeem(LOGINS.new_link_token(4))}"
+
+
+def test_web_orders_are_checked_before_they_queue():
+    adapter, server, cookie = playing()
+    port = server.server_port
+    try:
+        assert act(port, {"action": "move", "direction": "n"})[0] == 401
+        assert act(port, {"action": "move", "direction": "n"}, cookie, "text/plain")[0] == 415, "no forms from elsewhere"
+        assert act(port, {"action": "dance"}, cookie)[0] == 400
+        assert act(port, {"action": "move", "direction": "up"}, cookie)[0] == 400
+        assert act(port, {"action": "move", "direction": "n"}, cookie) == (503, "The game isn't running right now.")
+
+        adapter.place_order = lambda character, action: (_ for _ in ()).throw(InvalidSpaceException())
+        assert act(port, {"action": "move", "direction": "n"}, cookie) == (409, "You can't go that way.")
+        adapter.place_order = lambda character, action: SUPERSEDED
+        assert "change your mind" in act(port, {"action": "attack", "direction": "e"}, cookie)[1]
+        adapter.place_order = lambda character, action: action()  # no tick to wait for
+        status, text = act(port, {"action": "choose", "choice": "talk"}, cookie)
+        assert (status, text) == (409, "Nobody is waiting on you to decide anything.")
+    finally:
+        server.shutdown()
+
+
+def test_a_web_order_waits_for_the_bots_tick_and_moves_you():
+    """The whole bridge: HTTP thread -> the bot's event loop -> the tick -> back to the browser."""
+    adapter, server, cookie = playing()
+    player = adapter.get_player(4)
+    world = adapter.world
+    start = player.location
+    direction = next(
+        key
+        for key, name in DIRECTION_NAMES.items()
+        if world.is_space_valid(world.space_at(start.x + GameSpace.DIRECTION_VECTORS[key][0],
+                                               start.y + GameSpace.DIRECTION_VECTORS[key][1]))
+    )
+    interface = DiscordInterface(world_adapter=adapter)
+    loop = asyncio.new_event_loop()
+    threading.Thread(target=loop.run_forever, daemon=True).start()
+    interface._loop = loop
+    adapter.place_order = interface.order_threadsafe
+    adapter.world.tick = lambda: []  # type: ignore[method-assign]  # just the orders, no NPCs
+    try:
+        answer = {}
+        browser = threading.Thread(target=lambda: answer.update(r=act(server.server_port, {"action": "move", "direction": direction}, cookie)))
+        browser.start()
+        time.sleep(0.3)
+        assert player.location is start and browser.is_alive(), "the order waits for the tick"
+        asyncio.run_coroutine_threadsafe(interface.tick(), loop).result(10)
+        browser.join(10)
+        assert answer["r"][0] == 200
+        assert player.location is not start
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
+        server.shutdown()
+
+
+def test_me_json_carries_your_news_and_whoever_is_waiting():
+    from Discordia.GameLogic import Actors, Events
+
+    adapter, server, cookie = playing()
+    player = adapter.get_player(4)
+    adapter.add_news(player, "A raider hits you.")
+    player.pending_event = Events.EncounterEvent(1.0, "Someone blocks the road.", Actors.NPC(parent_world=adapter.world, name="Stranger"))
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+        conn.request("GET", "/me.json", headers={"Cookie": cookie})
+        me = json.loads(conn.getresponse().read())
+        conn.close()
+        assert me["encounter"] == "Someone blocks the road."
+        assert [n["text"] for n in me["news"]] == ["A raider hits you."]
+    finally:
+        server.shutdown()
+
+
+def test_an_order_whose_answer_breaks_still_gets_one():
+    """No reply at all reads as a dropped connection, and browsers send a dropped POST again: a second order."""
+    adapter, server, cookie = playing()
+    orders = []
+    adapter.place_order = lambda character, action: orders.append(1) or "not a response"
+    try:
+        assert act(server.server_port, {"action": "attack", "direction": "n"}, cookie)[0] == 500
+        assert orders == [1]
+    finally:
         server.shutdown()

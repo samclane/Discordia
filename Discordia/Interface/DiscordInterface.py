@@ -18,30 +18,21 @@ from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTOR
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import (
     WorldAdapter,
-    AlreadyRegisteredException,
     NotRegisteredException,
     NotSpawnedException,
     InvalidSpaceException,
-    NoWeaponEquippedException,
-    CombatException,
-    NoEncounterException,
-    NoMerchantException,
+    DIRECTION_NAMES,
+    SUPERSEDED,
+    attack_text,
+    choose_text,
+    error_text,
+    move_text,
 )
 
 LOG = logging.getLogger("Discordia.Interface.DiscordServer")
 
 DIRECTION_CHOICES = [
-    app_commands.Choice(name=name, value=key)
-    for name, key in [
-        ("north", "n"),
-        ("south", "s"),
-        ("east", "e"),
-        ("west", "w"),
-        ("northeast", "ne"),
-        ("southeast", "se"),
-        ("southwest", "sw"),
-        ("northwest", "nw"),
-    ]
+    app_commands.Choice(name=name, value=key) for key, name in DIRECTION_NAMES.items()
 ]
 
 ENCOUNTER_CHOICES = [
@@ -50,10 +41,6 @@ ENCOUNTER_CHOICES = [
 ]
 
 NO_STORE = "There's no store here. Find a town that has one."
-
-SUPERSEDED = (
-    object()
-)  # what an order resolves to when the player replaces it before the tick
 
 
 def _character(interaction: discord.Interaction) -> Actors.PlayerCharacter:
@@ -224,7 +211,10 @@ class DiscordInterface(commands.Cog):
             if event.target is not None:
                 news.setdefault(event.target, []).append(event.text)
         for character, lines in news.items():
-            await self._dm(character, "\n".join(lines))
+            text = "\n".join(lines)
+            if isinstance(character, Actors.PlayerCharacter):
+                self.world_adapter.add_news(character, text)
+            await self._dm(character, text)
 
     async def _dm(self, character: Actors.Actor, text: str):
         """Tell a player something that happened while they weren't looking. Best effort: DMs can be closed."""
@@ -238,7 +228,23 @@ class DiscordInterface(commands.Cog):
         except discord.HTTPException:  # closed DMs, blocked bot, deleted account
             LOG.info("Could not DM %s", member_id)
 
+    def order_threadsafe(
+        self,
+        character: Actors.PlayerCharacter,
+        action: Callable[[], Any],
+        timeout: float = 30,
+    ) -> Any:
+        """order() for a caller on another thread (the web map): queue it on the bot loop, block for the
+        tick. Raises whatever the action raised, or TimeoutError if no tick comes."""
+
+        async def place():
+            return await self.order(character, action)
+
+        return asyncio.run_coroutine_threadsafe(place(), self._loop).result(timeout)
+
     async def _setup_hook(self):
+        self._loop = asyncio.get_running_loop()
+        self.world_adapter.place_order = self.order_threadsafe
         await self.bot.add_cog(self)
         self._start_job(self.tick_seconds, self.tick, "World tick")
         for seconds, action, name in self.jobs:
@@ -260,23 +266,8 @@ class DiscordInterface(commands.Cog):
     ):
         """One handler for every game exception, instead of the same try/except in every command."""
         error = getattr(error, "original", error)
-        if isinstance(error, NotRegisteredException):
-            msg = "You haven't registered a character yet. Use `/register` to make one."
-        elif isinstance(error, AlreadyRegisteredException):
-            msg = "You already have a character."
-        elif isinstance(error, NotSpawnedException):
-            msg = "Your character hasn't spawned into the world yet."
-        elif isinstance(error, NoWeaponEquippedException):
-            msg = "You have no weapon equipped. Try `/inventory equip`."
-        elif isinstance(error, InvalidSpaceException):
-            msg = str(error) or "You can't go that way."
-        elif isinstance(error, CombatException):
-            msg = f"Attack failed: {error}"
-        elif isinstance(error, NoEncounterException):
-            msg = "Nobody is waiting on you to decide anything."
-        elif isinstance(error, NoMerchantException):
-            msg = "There is nobody here to trade with."
-        else:
+        msg = error_text(error)
+        if msg is None:
             LOG.error(
                 f"Unhandled error in /{interaction.command.name if interaction.command else '?'}",
                 exc_info=error,
@@ -379,19 +370,8 @@ class DiscordInterface(commands.Cog):
         if results is SUPERSEDED:
             await _send(interaction, "You change your mind before setting off.")
             return
-        results = cast(List[PlayerActionResponse], results)
-        msg = ""
-        # If any Events happen, let the PC know step-by-step
-        for r in results:
-            if r.text:
-                msg += r.text + "\n"
-            if not r.is_successful:
-                break
-
+        msg = move_text(cast(List[PlayerActionResponse], results), direction.name)
         character.last_time_moved = time.time()
-
-        if not msg:
-            msg = f"You move {direction.name}."
         for chunk in _chunks(msg):
             await _send(interaction, chunk)
 
@@ -413,13 +393,8 @@ class DiscordInterface(commands.Cog):
         if response is SUPERSEDED:
             await _send(interaction, "You hold your fire.")
             return
-        response = cast(PlayerActionResponse, response)
-        target_name = response.target.name if response.target else "nobody"
         await _send(
-            interaction,
-            f"{character.name} deals {response.damage} to {target_name}.\n"
-            f"\n"
-            f" {response.text}",
+            interaction, attack_text(character, cast(PlayerActionResponse, response))
         )
 
     @app_commands.command()
@@ -438,8 +413,7 @@ class DiscordInterface(commands.Cog):
         if results is SUPERSEDED:
             await _send(interaction, "You think better of it.")
             return
-        results = cast(List[PlayerActionResponse], results)
-        for chunk in _chunks("\n".join(r.text for r in results if r.text)):
+        for chunk in _chunks(choose_text(cast(List[PlayerActionResponse], results))):
             await _send(interaction, chunk)
 
     @trade.command(name="list")

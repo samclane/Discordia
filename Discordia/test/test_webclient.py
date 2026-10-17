@@ -22,7 +22,7 @@ import pytest
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface.Rendering.WebApp import _Handler
 from Discordia.Interface.WorldAdapter import WorldAdapter
-from Discordia.test.test_webapp import SESSION, serve
+from Discordia.test.test_webapp import LOGINS, SESSION, serve
 
 BROWSERS = [
     "google-chrome",
@@ -325,3 +325,25 @@ def test_without_a_session_the_page_says_how_to_get_one(page, base_url):
     assert page.wait_for("location.pathname === '/' && location.hash === '#join'")
     assert page.wait_for("document.body?.textContent.includes('/weblogin')")
     assert page.js("typeof chunkEls") == "undefined", "the map itself never loaded"
+
+
+def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
+    """Logged in with a character on the map: the pad shows, and a click is an order whose answer lands in the log."""
+    adapter.register_player(97, "Pilot")
+    orders = []
+    swing = GameSpace.PlayerActionResponse(text="You swing at nothing.")
+    adapter.place_order = lambda character, action: orders.append(character.name) or swing
+    try:
+        session = LOGINS.redeem(LOGINS.new_link_token(97))
+        page.send("Network.setCookie", name="session", value=session, url=base_url)
+        page.send("Page.navigate", url=base_url + "/map")
+        assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Pilot' && !play.hidden")
+        page.js("document.querySelector('#play [data-mode=attack]').click()")
+        page.js("document.querySelector('#play [data-dir=n]').click()")
+        assert page.wait_for("document.querySelector('#log li')?.textContent.includes('You swing at nothing.')")
+        assert orders == ["Pilot"], "one order, for the logged-in player"
+        assert page.js("play.classList.contains('attack')")
+    finally:
+        adapter.place_order = None
+        page.send("Network.clearBrowserCookies")
+        adapter._discord_player_map.pop(97)

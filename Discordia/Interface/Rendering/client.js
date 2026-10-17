@@ -321,6 +321,7 @@ async function pollMe() {
 }
 
 function renderMe() {
+  renderPlay();
   if (me === undefined) return;
   if (!me) {
     $("you").innerHTML = `<div class="empty">No character yet. Use /register in Discord.</div>`;
@@ -589,5 +590,85 @@ $("zoom-in").onclick = () => zoomCenter(1.25);
 $("zoom-out").onclick = () => zoomCenter(0.8);
 $("fit").onclick = () => fitToViewport();
 $("toggle").onclick = () => document.body.classList.toggle("open");
+
+// --- play ------------------------------------------------------------------
+
+// Orders go through the same queue as slash commands: each one waits for the next tick, and a second one
+// before then replaces the first. The request stays open until the tick answers it.
+const play = $("play");
+let mode = "move";
+let pending = 0; // orders still waiting on their tick
+const results = []; // { t, text } of this page's own orders, newest first
+
+function setMode(next) {
+  mode = next;
+  play.classList.toggle("attack", mode === "attack");
+  for (const b of play.querySelectorAll("[data-mode]")) b.setAttribute("aria-pressed", b.dataset.mode === mode);
+  renderPlay();
+}
+
+async function act(order) {
+  pending++;
+  renderPlay();
+  let text;
+  try {
+    const r = await fetch("/act", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
+    text = (await r.json()).text;
+  } catch (err) {
+    text = "Lost the server. Try again in a moment.";
+  }
+  pending--;
+  results.unshift({ t: Date.now() / 1000, text });
+  results.length = Math.min(results.length, 10);
+  // Show the world as the tick left it now, not at the next poll.
+  try {
+    const r = await fetch("/me.json", { cache: "no-store" });
+    if (r.ok) me = await r.json();
+  } catch (err) {}
+  renderMe();
+}
+
+function renderPlay() {
+  const playing = Boolean(me?.location);
+  play.hidden = !playing;
+  if (!playing) return;
+  play.classList.toggle("waiting", pending > 0);
+  play.querySelector(".hub").textContent = pending ? "next tick…" : mode === "move" ? "move" : "attack";
+  const encounter = $("encounter");
+  encounter.hidden = !me.encounter;
+  if (me.encounter) encounter.querySelector("p").textContent = me.encounter;
+  // Your orders and the world's news, together, newest first.
+  const entries = [...results, ...me.news.map((n) => ({ ...n, news: true }))].sort((a, b) => b.t - a.t).slice(0, 4);
+  $("log").replaceChildren(
+    ...entries.map((e) => {
+      const li = document.createElement("li");
+      li.textContent = e.text;
+      if (e.news) li.className = "news";
+      return li;
+    })
+  );
+}
+
+for (const b of play.querySelectorAll("[data-mode]")) b.onclick = () => setMode(b.dataset.mode);
+for (const b of play.querySelectorAll("[data-dir]")) {
+  b.title = `${b.getAttribute("aria-label")} (${"7 8 9 4 6 1 2 3".split(" ")[["nw", "n", "ne", "w", "e", "sw", "s", "se"].indexOf(b.dataset.dir)]})`;
+  b.onclick = () => act({ action: mode, direction: b.dataset.dir });
+}
+for (const b of play.querySelectorAll("[data-choice]")) b.onclick = () => act({ action: "choose", choice: b.dataset.choice });
+
+// Keys lay out like a numpad: 8 is north, 7 northwest. Arrows and WASD already pan the map.
+const KEY_DIRECTIONS = { 7: "nw", 8: "n", 9: "ne", 4: "w", 6: "e", 1: "sw", 2: "s", 3: "se" };
+addEventListener("keydown", (e) => {
+  if (play.hidden || e.target === search || e.ctrlKey || e.metaKey || e.altKey) return;
+  const key = e.code.startsWith("Numpad") ? e.code.slice(6) : e.key;
+  if (KEY_DIRECTIONS[key]) act({ action: mode, direction: KEY_DIRECTIONS[key] });
+  else if (e.key === "t") setMode(mode === "move" ? "attack" : "move");
+  else return;
+  e.preventDefault();
+});
 
 loadWorld().then(pollActors).then(pollMe);
