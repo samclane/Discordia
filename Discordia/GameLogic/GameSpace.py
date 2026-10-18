@@ -83,6 +83,15 @@ DEATH_TAX = 0.25
 # per 10 (about 9 a chunk) a player woke dozens at once; one per 40 is about 2 a chunk.
 WILDS_PER_RAIDER = 40
 
+# Caches: the map is cut into cells CACHE_CELL chunks a side, and each cell rolls CACHE_CHANCE for one cache in
+# one of its middle chunks (never an edge one, so two caches are always two chunks apart). Within that chunk it
+# goes on the square furthest from any town, and not at all if that's under CACHE_TOWN_DISTANCE squares.
+CACHE_CELL = 4
+CACHE_CHANCE = 0.5
+CACHE_TOWN_DISTANCE = 12
+# What a cache holds, in money per wilds level. Several kills' worth: it's a long walk out.
+CACHE_CURRENCY_PER_LEVEL = 100
+
 # NPCs only act within this many squares of a player. Everywhere else holds still until somebody comes
 # near, which keeps a tick cheap however many raiders are out there. A chunk, not the player's view, so
 # raiders still wander in from just out of sight.
@@ -580,6 +589,49 @@ class Wilds(Space):
         return str(self.sprite_path)
 
 
+class Cache(Space):
+    """A stash out past the towns: money and a piece of kit for the first player to step on it."""
+
+    def __init__(self, x, y, terrain: Terrain = NullTerrain()):
+        super().__init__(x, y, terrain)
+        self.name = "a cache"
+        self.level: int = 0  # set by the World with the wilds around it
+        # ponytail: not saved, so a restart refills every cache. Save opened caches if anyone farms that.
+        self.looted = False
+
+    def run_event(self, player) -> List[PlayerActionResponse]:
+        response = PlayerActionResponse(is_successful=True, source=player)
+        if self.looted:
+            response.text = "There's a cache here, already emptied."
+            return [response]
+        self.looted = True
+        response.currency = int(
+            normal(
+                CACHE_CURRENCY_PER_LEVEL * max(self.level, 1),
+                positive=True,
+                integer=True,
+            )
+        )
+        player.currency += response.currency
+        found = [f"${response.currency}"]
+        stock = Store.generate_store().inventory
+        if stock:
+            item = random.choice(stock)
+            player.inventory.append(item)
+            response.items.append(item)
+            found.append(str(item))
+        response.text = f"You find a cache, and in it {', '.join(found)}."
+        return [response]
+
+    @property
+    def sprite_path(self):
+        return SPRITE_FOLDER / "Structures" / "cache.png"
+
+    @property
+    def sprite_path_string(self):
+        return str(self.sprite_path)
+
+
 @dataclass
 class PlayerActionResponse:
     is_successful: bool = False
@@ -707,6 +759,62 @@ class World:
         return terrain
 
     def _load_chunk(self, cx: int, cy: int) -> List[List[Space]]:
+        rows = self._roll_chunk(cx, cy)
+        self._place_cache(cx, cy, rows)
+        for row in rows:
+            for space in row:
+                if isinstance(space, Town):
+                    self.towns.append(space)
+                elif isinstance(space, Wilds):
+                    self.wilds.append(space)
+        self._chunks[cx, cy] = (
+            rows  # published whole: the web map reads this from another thread
+        )
+        if self.starting_town is not None:
+            self._populate_chunk(cx, cy)
+        return rows
+
+    def _place_cache(self, cx: int, cy: int, rows: List[List[Space]]):
+        """Put this chunk's cache in, if its cell rolled one and picked this chunk (see CACHE_CELL)."""
+        gx, gy = cx // CACHE_CELL, cy // CACHE_CELL
+        with _seeded(self.seed, gx, gy, "cache"):
+            if random.random() > CACHE_CHANCE:
+                return
+            pick = (
+                gx * CACHE_CELL + random.randint(1, CACHE_CELL - 2),
+                gy * CACHE_CELL + random.randint(1, CACHE_CELL - 2),
+            )
+        if pick != (cx, cy):
+            return
+        # Towns over the chunk line count too. Rolling a neighbour is pure, so unloaded ones are rolled
+        # and thrown away rather than loaded, which would set every neighbour placing its own cache.
+        towns = [
+            space
+            for dx in (-1, 0, 1)
+            for dy in (-1, 0, 1)
+            if 0 <= (cx + dx) * CHUNK_SIZE < self.width
+            and 0 <= (cy + dy) * CHUNK_SIZE < self.height
+            for row in (
+                rows
+                if (dx, dy) == (0, 0)
+                else self._chunks.get((cx + dx, cy + dy))
+                or self._roll_chunk(cx + dx, cy + dy)
+            )
+            for space in row
+            if isinstance(space, Town)
+        ]
+        spots = [space for row in rows for space in row if space.terrain.buildable]
+        if not spots:
+            return
+        far = lambda s: min((s.distance(t) for t in towns), default=float("inf"))
+        spot = max(spots, key=far)
+        if far(spot) < CACHE_TOWN_DISTANCE:
+            return
+        x, y = spot.x % CHUNK_SIZE, spot.y % CHUNK_SIZE
+        rows[y][x] = Cache(spot.x, spot.y, spot.terrain)
+
+    def _roll_chunk(self, cx: int, cy: int) -> List[List[Space]]:
+        """A chunk's squares, towns and wilds. No side effects: the same chunk comes out every call."""
         x0, y0 = cx * CHUNK_SIZE, cy * CHUNK_SIZE
         xs = range(x0, min(x0 + CHUNK_SIZE, self.width))
         ys = range(y0, min(y0 + CHUNK_SIZE, self.height))
@@ -733,28 +841,21 @@ class World:
                     if here.buildable:
                         if random.random() <= self.gen_params.towns:
                             space = Town.generate_town(x, y, terrain=here)
-                            self.towns.append(space)
                         elif random.random() <= self.gen_params.wilds:
                             # Bare until the spawn is known: how rough it is depends on the distance.
                             space = Wilds(
                                 x, y, WildsNameGenerator.generate_name(), here
                             )
-                            self.wilds.append(space)
                     row.append(space)
                 rows.append(row)
-        self._chunks[cx, cy] = (
-            rows  # published whole: the web map reads this from another thread
-        )
-        if self.starting_town is not None:
-            self._populate_chunk(cx, cy)
         return rows
 
     def _populate_chunk(self, cx: int, cy: int):
-        """Rate the chunk's wilds. They roll their events from that on the first visit (Wilds.run_event)."""
+        """Rate the chunk's wilds and cache. Wilds roll their events from that on the first visit (Wilds.run_event)."""
         with _seeded(self.seed, cx, cy, "wilds"):
             for row in self._chunks[cx, cy]:
                 for space in row:
-                    if isinstance(space, Wilds):
+                    if isinstance(space, (Wilds, Cache)):
                         space.level = self.danger_level(space)
 
     def loaded_chunk(self, cx: int, cy: int) -> List[List[Space]] | None:

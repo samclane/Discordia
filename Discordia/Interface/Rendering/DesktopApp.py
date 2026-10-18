@@ -169,7 +169,9 @@ class WindowRenderer:
                 tile = self._terrain_cache[terrain.name, terrain.neighbours]
                 if tile is not None:
                     image.paste(tile, pos, tile)
-                if isinstance(space, (GameSpace.Town, GameSpace.Wilds)):
+                if isinstance(
+                    space, (GameSpace.Town, GameSpace.Wilds, GameSpace.Cache)
+                ):
                     self._paste(space.sprite_path_string, x, y, image)
         return image
 

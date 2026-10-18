@@ -459,6 +459,34 @@ def test_a_chunk_comes_out_the_same_whatever_order_it_is_explored_in():
         assert _describe(one, cx, cy) == _describe(two, cx, cy)
 
 
+def test_caches_sit_far_from_towns_and_each_other_and_pay_out_once():
+    world = GameSpace.World("Stash", 640, 640, seed=5)
+    for cx in range(640 // GameSpace.CHUNK_SIZE):
+        for cy in range(640 // GameSpace.CHUNK_SIZE):
+            world.space_at(cx * GameSpace.CHUNK_SIZE, cy * GameSpace.CHUNK_SIZE)
+    caches = [
+        space
+        for chunk in world.loaded_chunks()
+        for row in world.loaded_chunk(*chunk)
+        for space in row
+        if isinstance(space, GameSpace.Cache)
+    ]
+    assert len(caches) >= 3
+    for cache in caches:
+        assert cache.terrain.walkable and cache.level >= 1
+        assert min(map(cache.distance, world.towns)) >= GameSpace.CACHE_TOWN_DISTANCE
+        others = [c for c in caches if c is not cache]
+        assert min(map(cache.distance, others)) > 2 * GameSpace.CHUNK_SIZE
+
+    player = Actors.PlayerCharacter(parent_world=world, name="Finder")
+    world.add_actor(player)
+    money = player.currency
+    [found] = caches[0].run_event(player)
+    assert found.currency > 0 and player.currency == money + found.currency
+    [again] = caches[0].run_event(player)
+    assert again.currency == 0 and "emptied" in again.text
+
+
 def test_a_minecraft_sized_world_only_generates_where_somebody_goes():
     world = GameSpace.World("Vast", 30_000_000, 30_000_000, seed=1)
     assert len(world.loaded_chunks()) <= (2 * GameSpace.SPAWN_SEARCH_RINGS + 1) ** 2
