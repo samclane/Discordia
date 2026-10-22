@@ -965,6 +965,33 @@ def test_dying_costs_a_share_of_what_you_were_carrying(adapter):
     assert "$100" in GameSpace.death_toll_text(player)
 
 
+def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
+    player = adapter.get_player(1)
+    helmet = Armor.Helmet()
+    player.inventory.append(helmet)
+    player.currency = 400
+
+    assert player.stash_put(0, 300) == f"{helmet}, $300"
+    assert (list(player.inventory), player.currency) == ([], 100)
+    assert (list(player.stash), player.stash_currency) == ([helmet], 300)
+
+    player.take_damage(player.hit_points_max)
+    assert (list(player.stash), player.stash_currency) == ([helmet], 300)
+
+    assert player.stash_take(money=50) == "$50"
+    assert player.stash_take(0) == str(helmet)
+    assert (list(player.inventory), player.stash_currency) == ([helmet], 250)
+
+
+@pytest.mark.parametrize("index, money", [(0, 0), (None, 401), (None, -1)])
+def test_a_bad_stash_move_moves_nothing(adapter, index, money):
+    player = adapter.get_player(1)
+    player.currency = 400
+    with pytest.raises(ValueError):
+        player.stash_put(index, money)
+    assert (player.currency, player.stash_currency, list(player.stash)) == (400, 0, [])
+
+
 def test_dying_broke_costs_nothing_and_says_nothing(adapter):
     """A flat share never strands a player at zero, and there is no toll worth narrating."""
     player = adapter.get_player(1)

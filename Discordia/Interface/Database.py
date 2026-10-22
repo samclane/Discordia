@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS character (
     hit_points_max  INTEGER NOT NULL,
     currency        INTEGER NOT NULL,
     experience      INTEGER NOT NULL DEFAULT 0,
+    stash_currency  INTEGER NOT NULL DEFAULT 0,
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS item (
     id          INTEGER PRIMARY KEY,
     discord_id  INTEGER NOT NULL REFERENCES character (discord_id) ON DELETE CASCADE,
     class_path  TEXT    NOT NULL,
-    slot        TEXT  -- an EquipmentSet slot name, or NULL for "in the backpack"
+    slot        TEXT  -- an EquipmentSet slot name, STASH, or NULL for "in the backpack"
 );
 """
 
@@ -66,6 +67,9 @@ _ALLOWED_MODULES = frozenset(
         "Discordia.GameLogic.Weapons",
     }
 )
+
+
+STASH = "stash"  # item.slot for what's banked in town rather than carried
 
 
 def _class_path(obj) -> str:
@@ -104,14 +108,13 @@ class Database:
             row["name"]
             for row in self.connection.execute("PRAGMA table_info(character)")
         }
-        if "experience" not in columns:
-            LOG.info(
-                "Adding character.experience to a save file that predates levelling"
-            )
-            with self.connection:
-                self.connection.execute(
-                    "ALTER TABLE character ADD COLUMN experience INTEGER NOT NULL DEFAULT 0"
-                )
+        for column in ("experience", "stash_currency"):
+            if column not in columns:
+                LOG.info(f"Adding character.{column} to a save file that predates it")
+                with self.connection:
+                    self.connection.execute(
+                        f"ALTER TABLE character ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
+                    )
 
     def close(self):
         self.connection.close()
@@ -150,6 +153,7 @@ class Database:
         character.hit_points_max = row["hit_points_max"]
         character.hit_points = row["hit_points"]
         character.currency = row["currency"]
+        character.stash_currency = row["stash_currency"]
         character.location = adapter.world.space_at(row["x"], row["y"])
 
         for item_row in self.connection.execute(
@@ -158,6 +162,8 @@ class Database:
             item = _resolve(item_row["class_path"], Equipment)()
             if item_row["slot"] is None:
                 character.inventory.append(item)
+            elif item_row["slot"] == STASH:
+                character.stash.append(item)
             else:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
 
@@ -186,7 +192,7 @@ class Database:
         # sits in SCHEMA.
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
-            " currency, experience, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " currency, experience, stash_currency, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -195,6 +201,7 @@ class Database:
                 character.hit_points_max,
                 character.currency,
                 character.experience,
+                character.stash_currency,
                 character.location.x,
                 character.location.y,
             ),
@@ -209,5 +216,6 @@ class Database:
         self.connection.executemany(
             "INSERT INTO item (discord_id, class_path, slot) VALUES (?, ?, ?)",
             [(discord_id, class_path, slot) for class_path, slot in equipped]
-            + [(discord_id, _class_path(item), None) for item in character.inventory],
+            + [(discord_id, _class_path(item), None) for item in character.inventory]
+            + [(discord_id, _class_path(item), STASH) for item in character.stash],
         )

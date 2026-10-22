@@ -104,6 +104,13 @@ the bot syncs them.
             * Purchase the item at the given index, adding it to your inventory.
         * `/town store sell` [`index`] (Placeholder)
             * Sell an item from your inventory, removing it and giving you some money. 
+* `/stash list`
+    * In any town: what you've banked. The stash is one per player, reachable from every town, and
+    dying out in the wilds never touches it.
+    * `/stash put` [`item`] [`money`]
+        * Bank the inventory item at that index and/or that much money.
+    * `/stash take` [`item`] [`money`]
+        * Take the stashed item at that index and/or that much money back to carry.
             
 # Attributions
 

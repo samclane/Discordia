@@ -358,6 +358,9 @@ class PlayerCharacter(Actor):
         self.fov: int = self.fov_default
         self.inventory: Inventory = Inventory()
         self.currency: int = 1000
+        # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
+        self.stash: Inventory = Inventory()
+        self.stash_currency: int = 0
         # What the last death took, so whoever narrates it can say. Transient: not worth saving.
         self.last_death_cost: int = 0
         # Deaths so far. A player is revived the moment they die, so a fight watches this to know it's over.
@@ -470,6 +473,34 @@ class PlayerCharacter(Actor):
         if levels:
             return ", ".join(taken) + f" (level {self.level}!)"
         return ", ".join(taken)
+
+    def stash_put(self, index: int | None = None, money: int = 0) -> str:
+        """Bank the carried item at `index` and/or `money`. Callers check the player is in a town."""
+        return self._stash_move(index, money, to_stash=True)
+
+    def stash_take(self, index: int | None = None, money: int = 0) -> str:
+        """Pick up the stashed item at `index` and/or `money`, to carry out on the next raid."""
+        return self._stash_move(index, money, to_stash=False)
+
+    def _stash_move(self, index: int | None, money: int, to_stash: bool) -> str:
+        """Returns what moved, phrased for a player. Raises ValueError, checked before anything moves."""
+        source, dest = (self.inventory, self.stash) if to_stash else (self.stash, self.inventory)
+        available = self.currency if to_stash else self.stash_currency
+        if index is not None and not 0 <= index < len(source):
+            raise ValueError(f"There's nothing at #{index}.")
+        if not 0 <= money <= available:
+            raise ValueError(f"You can only move between $0 and ${available}.")
+        moved = []
+        if index is not None:
+            item = source.pop(index)
+            dest.append(item)
+            moved.append(str(item))
+        if money:
+            sign = 1 if to_stash else -1
+            self.currency -= sign * money
+            self.stash_currency += sign * money
+            moved.append(f"${money}")
+        return ", ".join(moved)
 
     def take_damage(self, damage: float):
         damage -= self.equipment_set.armor_count

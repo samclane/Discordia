@@ -4,6 +4,43 @@ Backlog for `/dev-loop`. One line per item, roughly in priority order within a s
 unchecked item it can finish in one sitting, checks it off, and appends a line under **Done**. Add new items at the
 bottom of the right section, add sections when a theme emerges. Keep items small enough for one commit.
 
+## Vibe: extraction idle
+
+Cookie Clicker meets Escape From Tarkov. Towns are safe; everything past them is a raid. You go out, grab what
+you can, and either make it back to a town (extract) or die and lose what you carried. What you bank builds a
+hideout that earns while you're away, and the hideout pays for better kit for riskier raids further out. Numbers
+always go up at home; the wilds are where you gamble them.
+
+When choosing between items, prefer the one that tightens that loop: risk out there, safety and growth at home,
+and a reason to check in on Discord a few times a day rather than grind for hours.
+
+## Extraction idle loop (the core)
+
+- [x] Stash: a per-player store of items and money kept in town (`/stash put|take|list`, only while standing in a
+  town). Saved in `Database` with a round-trip test. Carried and stashed are now two different things.
+- [ ] Raid loss: dying out past the towns drops everything carried, not `DEATH_TAX` of the money. The stash is
+  untouched. Say exactly what was lost in the death message.
+- [ ] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
+  XP since leaving). Track `raid_start` loot on the character; nothing to save, a restart mid-raid just ends it.
+- [ ] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
+- [ ] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
+  money per tick into the stash, whether the player is online or not.
+- [ ] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
+  idle income.
+- [ ] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
+  instead of money so raids feed the idle side.
+- [ ] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
+- [ ] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
+  instead of never/restart (see ponytail note in `GameSpace.Cache`).
+- [ ] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
+  cache and fights what it meets; when time is up it walks home. DM the result: extracted with X, or died at Y.
+- [ ] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
+  so the safe choice is boring but steady.
+- [ ] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
+  all the way back to a town.
+- [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
+  Tarkov wipe). Only once hideout income visibly plateaus.
+
 ## Gameplay loop (make it a game)
 
 - [x] Earn money: NPC kills drop currency (`NPC.on_death` -> `PlayerActionResponse`); stores are the only sink today and players start with 1000.
@@ -16,7 +53,6 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [x] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
 - [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
-- [ ] Player bases: `Base`/`BaseLevel` exist in GameSpace with no command. Add `/base build|upgrade|status` gated on `is_space_buildable`.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
 
 ## NPCs and world
@@ -74,6 +110,11 @@ bottom of the right section, add sections when a theme emerges. Keep items small
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-22 Stash: `PlayerCharacter.stash`/`stash_currency`, moved with `/stash put|take [item] [money]` and
+  read with `/stash list`, all gated on standing in a town. One stash per player, shared by every town. Saved as
+  item rows with `slot = 'stash'` plus a migrated `character.stash_currency` column. Death already only taxed
+  carried money, so the stash is safe today; the next item makes carrying actually risky.
 
 - 2026-10-12 Raiders hunt: one that sees a player outside a town (`NPC_SIGHT`, 6 squares) steps toward them each
   tick, and the first time it picks someone they're DM'd where it is, while there's room to run (a raider is no

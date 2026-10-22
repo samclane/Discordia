@@ -1,6 +1,6 @@
 # Discordia
 
-Discord MUD: a persistent 2D tile world (perlin-noise terrain, towns, wilds) that players explore and fight in via slash commands. Python 3.12, discord.py 2.x, Pillow, numpy, `astar`, SQLite.
+Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, towns, wilds) where players raid the wilds via slash commands, extract back to towns with loot, and build a hideout that earns while they're away (see ROADMAP.md "Vibe"). Python 3.12, discord.py 2.x, Pillow, numpy, `astar`, SQLite.
 
 ## Run / test
 

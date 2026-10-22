@@ -220,6 +220,8 @@ class TestGeneral(unittest.TestCase):
         player.hit_points -= 7
         player.equip(Jezail())
         player.inventory.append(Armor.Helmet())
+        player.stash.append(Jezail())
+        player.stash_currency = 77
         for _ in self._move_randomly():
             pass
 
@@ -254,6 +256,8 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
         self.assertIsInstance(restored.weapon, Jezail)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
+        self.assertEqual([type(item) for item in restored.stash], [Jezail])
+        self.assertEqual(restored.stash_currency, 77)
         self.assertEqual(
             (restored.location.x, restored.location.y),
             (player.location.x, player.location.y),

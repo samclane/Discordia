@@ -5,7 +5,7 @@ import inspect
 import logging
 import random
 import time
-from typing import Any, Callable, Dict, Iterator, List, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, cast
 
 import discord
 from discord import app_commands
@@ -133,6 +133,9 @@ class DiscordInterface(commands.Cog):
     )
     trade = app_commands.Group(
         name="trade", description="Deal with a trader you met on the road"
+    )
+    stash = app_commands.Group(
+        name="stash", description="Bank items and money in town, safe from whatever kills you out there"
     )
 
     def __init__(
@@ -437,6 +440,42 @@ class DiscordInterface(commands.Cog):
                 "You can't afford that, or there's nothing at that index.",
                 ephemeral=True,
             )
+
+    @stash.command(name="list")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def stash_list(self, interaction: discord.Interaction):
+        """See what you've banked"""
+        character = self._player(interaction)
+        msg = f"{character.name}'s stash: ${character.stash_currency}\n"
+        msg += "".join(f"\t#{index}\t{item}\n" for index, item in enumerate(character.stash)) or "\t(No items)"
+        await _send(interaction, msg)
+
+    @stash.command(name="put")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def stash_put(
+        self, interaction: discord.Interaction, item: Optional[int] = None, money: int = 0
+    ):
+        """Bank the inventory item at the given index, and/or some money"""
+        await self._stash_move(interaction, self._player(interaction).stash_put, item, money)
+
+    @stash.command(name="take")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def stash_take(
+        self, interaction: discord.Interaction, item: Optional[int] = None, money: int = 0
+    ):
+        """Take the stashed item at the given index, and/or some money, to carry"""
+        await self._stash_move(interaction, self._player(interaction).stash_take, item, money)
+
+    async def _stash_move(self, interaction: discord.Interaction, move, item, money):
+        try:
+            moved = move(item, money)
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, f"Moved {moved}." if moved else "Nothing to move.", ephemeral=not moved)
 
     @inventory.command(name="list")
     @requires_character()
