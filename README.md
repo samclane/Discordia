@@ -106,7 +106,8 @@ the bot syncs them.
             * Sell an item from your inventory, removing it and giving you some money. 
 * `/stash list`
     * In any town: what you've banked. The stash is one per player, reachable from every town, and
-    dying out in the wilds never touches it.
+    dying out in the wilds never touches it. Dying anywhere but a town loses everything you were
+    carrying, money and worn gear included, so bank what you want to keep before heading out.
     * `/stash put` [`item`] [`money`]
         * Bank the inventory item at that index and/or that much money.
     * `/stash take` [`item`] [`money`]

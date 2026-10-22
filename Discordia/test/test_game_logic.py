@@ -955,14 +955,26 @@ def test_dying_sends_you_back_to_the_starting_town(adapter):
     assert player.location == adapter.world.starting_town
 
 
-def test_dying_costs_a_share_of_what_you_were_carrying(adapter):
+def test_dying_on_a_raid_loses_everything_you_carried(adapter):
     player = adapter.get_player(1)
+    player.location = adapter.world.wilds[0]
     player.currency = 400
+    rifle, helmet = Weapons.Jezail(), Armor.Helmet()
+    player.equip(rifle)
+    player.inventory.append(helmet)
 
     player.take_damage(player.hit_points_max)
-    assert player.currency == 300
-    assert player.last_death_cost == 100
-    assert "$100" in GameSpace.death_toll_text(player)
+    assert (player.currency, list(player.inventory)) == (0, [])
+    assert isinstance(player.weapon, Weapons.Fist)  # back to bare hands, not unarmed
+    assert GameSpace.death_toll_text(player) == f" You lost $400, {helmet}, {rifle}."
+
+
+def test_dying_in_town_costs_nothing(adapter):
+    player = adapter.get_player(1)
+    player.currency = 400
+    player.take_damage(player.hit_points_max)
+    assert player.currency == 400
+    assert GameSpace.death_toll_text(player) == ""
 
 
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
@@ -975,8 +987,9 @@ def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     assert (list(player.inventory), player.currency) == ([], 100)
     assert (list(player.stash), player.stash_currency) == ([helmet], 300)
 
+    player.location = adapter.world.wilds[0]
     player.take_damage(player.hit_points_max)
-    assert (list(player.stash), player.stash_currency) == ([helmet], 300)
+    assert (list(player.stash), player.stash_currency, player.currency) == ([helmet], 300, 0)
 
     assert player.stash_take(money=50) == "$50"
     assert player.stash_take(0) == str(helmet)
@@ -993,8 +1006,9 @@ def test_a_bad_stash_move_moves_nothing(adapter, index, money):
 
 
 def test_dying_broke_costs_nothing_and_says_nothing(adapter):
-    """A flat share never strands a player at zero, and there is no toll worth narrating."""
+    """Fists don't count as kit: there is no toll worth narrating."""
     player = adapter.get_player(1)
+    player.location = adapter.world.wilds[0]
     player.currency = 0
 
     player.take_damage(player.hit_points_max)
@@ -1005,7 +1019,7 @@ def test_dying_broke_costs_nothing_and_says_nothing(adapter):
 def test_you_come_back_from_death_alive_and_can_die_again(adapter):
     """Dying used to leave you dead at 0 HP for good: every later fight was an instant, free loss."""
     player = adapter.get_player(1)
-    player.currency = 400
+    player.location = adapter.world.wilds[0]
 
     player.take_damage(player.hit_points_max)
     assert not player.is_dead
@@ -1013,7 +1027,6 @@ def test_you_come_back_from_death_alive_and_can_die_again(adapter):
 
     player.take_damage(player.hit_points_max)
     assert player.deaths == 2
-    assert player.currency == 225  # taxed once per death, never below zero
 
 
 def test_raiders_leave_players_in_town_alone(adapter):

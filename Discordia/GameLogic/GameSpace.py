@@ -74,10 +74,6 @@ NEIGHBOURS = [
 # How many sprites a wilds square picks between (Sprites/Structures/wilds_N.png).
 WILDS_SPRITES = 8
 
-# Share of carried money left behind on death. A flat share is self-balancing: it stings a rich player
-# and barely touches a broke one, so dying never strands anybody at zero.
-DEATH_TAX = 0.25
-
 # Roaming raiders are capped at one per this many wilds squares. At one per square every step off the
 # road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes. At one
 # per 10 (about 9 a chunk) a player woke dozens at once; one per 40 is about 2 a chunk.
@@ -119,7 +115,7 @@ def _seeded(*key):
 
 def death_toll_text(player: Actors.PlayerCharacter) -> str:
     """What the last death cost, phrased for a player, or "" if they had nothing to lose."""
-    return f" Death cost ${player.last_death_cost}." if player.last_death_cost else ""
+    return f" You lost {player.last_death_loss}." if player.last_death_loss else ""
 
 
 class Terrain(ABC):
@@ -1091,16 +1087,16 @@ class World:
         return events
 
     def handle_player_death(self, player: Actors.PlayerCharacter):
-        """Send a dead player home, lighter. Dying is otherwise free, and free death is no risk at all."""
+        """Send a dead player home. Out past the towns that's a lost raid: whatever they carried stays there,
+        and only the stash is safe. A town is safe, so a death in one costs nothing.
+        """
         LOG.info(f"Player {player.name} has died")
-        player.last_death_cost = int(player.currency * DEATH_TAX)
-        player.currency -= player.last_death_cost
-        player.deaths += 1
         here = player.location
+        player.last_death_loss = "" if isinstance(here, Town) else player.lose_carried()
+        player.deaths += 1
         self.stats.deaths_by_level[here.level if isinstance(here, Wilds) else 0] += 1
         player.location = self.starting_town
         player.revive()
-        return player.inventory
 
 
 class Store:

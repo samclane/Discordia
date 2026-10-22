@@ -18,11 +18,13 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [x] Stash: a per-player store of items and money kept in town (`/stash put|take|list`, only while standing in a
   town). Saved in `Database` with a round-trip test. Carried and stashed are now two different things.
-- [ ] Raid loss: dying out past the towns drops everything carried, not `DEATH_TAX` of the money. The stash is
+- [x] Raid loss: dying out past the towns drops everything carried, not `DEATH_TAX` of the money. The stash is
   untouched. Say exactly what was lost in the death message.
 - [ ] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
   XP since leaving). Track `raid_start` loot on the character; nothing to save, a restart mid-raid just ends it.
 - [ ] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
+- [ ] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
+  for a while, for the owner to walk back and recover or for anyone else to loot. Needs an item container on `Space`.
 - [ ] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
   money per tick into the stash, whether the player is online or not.
 - [ ] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
@@ -110,6 +112,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-22 Raid loss: dying anywhere but a town loses carried money, the backpack and worn gear
+  (`PlayerCharacter.lose_carried`), leaving bare fists; `DEATH_TAX` is gone. A town death costs nothing. Every
+  death message, and the `/me` sheet, says what was lost (`last_death_loss`). The stash is untouched.
 
 - 2026-10-22 Stash: `PlayerCharacter.stash`/`stash_currency`, moved with `/stash put|take [item] [money]` and
   read with `/stash list`, all gated on standing in a town. One stash per player, shared by every town. Saved as

@@ -262,8 +262,8 @@ def _sheet(character: PlayerCharacter, news: list) -> dict:
     )
     if not character.deaths:
         death_note = "None yet. Keep it that way."
-    elif character.last_death_cost:
-        death_note = f"The last one cost ${character.last_death_cost:,}."
+    elif character.last_death_loss:
+        death_note = f"The last one cost you {character.last_death_loss}."
     else:
         death_note = "You had nothing on you to lose last time."
     hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0

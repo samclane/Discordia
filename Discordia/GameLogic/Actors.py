@@ -361,8 +361,8 @@ class PlayerCharacter(Actor):
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
         self.stash: Inventory = Inventory()
         self.stash_currency: int = 0
-        # What the last death took, so whoever narrates it can say. Transient: not worth saving.
-        self.last_death_cost: int = 0
+        # What the last death took, phrased for a player, so whoever narrates it can say. Transient: not worth saving.
+        self.last_death_loss: str = ""
         # Deaths so far. A player is revived the moment they die, so a fight watches this to know it's over.
         self.deaths: int = 0
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
@@ -501,6 +501,25 @@ class PlayerCharacter(Actor):
             self.stash_currency += sign * money
             moved.append(f"${money}")
         return ", ".join(moved)
+
+    def lose_carried(self) -> str:
+        """Everything on you stays where you fell: money, backpack and what you were wearing. Back to bare
+        fists; the stash is untouched. Returns what was lost, phrased for a player, or "" if nothing was.
+        """
+        worn = [
+            item
+            for item in self.equipment_set
+            if type(item) not in Items.EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+            and not isinstance(item, Weapons.Fist)
+            and not any(item is carried for carried in self.inventory)
+        ]
+        lost = ([f"${self.currency}"] if self.currency else []) + [str(item) for item in self.inventory + worn]
+        self.currency = 0
+        self.inventory = Inventory()
+        self.equipment_set = Items.EquipmentSet()
+        self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
+        self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
+        return ", ".join(lost)
 
     def take_damage(self, damage: float):
         damage -= self.equipment_set.armor_count
