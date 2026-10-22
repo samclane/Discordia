@@ -500,3 +500,11 @@ def test_an_order_whose_answer_breaks_still_gets_one():
         assert orders == [1]
     finally:
         server.shutdown()
+
+
+def test_nice_name_is_stable_and_readable():
+    from Discordia import nice_name
+
+    assert nice_name("db0a3a5") == nice_name("db0a3a5")
+    assert nice_name("db0a3a5") != nice_name("cbad56f")
+    assert nice_name("0") == "ElegantStartingRabbit"
