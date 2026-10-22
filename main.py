@@ -5,6 +5,7 @@ import argparse
 from typing import Callable, cast
 
 import ConfigParser
+from Discordia import VERSION
 from Discordia.GameLogic import GameSpace
 from Discordia.Interface import Alerts
 from Discordia.Interface.Database import Database, DEFAULT_PATH
@@ -64,7 +65,7 @@ def main():
         # throwing a partial day away; a crash still does.
         jobs.append((Alerts.DIGEST_SECONDS, cast(Callable[[], None], send_digest), "Daily digest"))
     discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url)
-    LOG.info("Discordia Server has successfully started. Press Ctrl+C to quit.")
+    LOG.info("Discordia %s has successfully started. Press Ctrl+C to quit.", VERSION)
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
     except Exception:

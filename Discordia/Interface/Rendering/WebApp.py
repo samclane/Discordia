@@ -29,7 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from Discordia import SPRITE_FOLDER
+from Discordia import SPRITE_FOLDER, VERSION
 from Discordia.GameLogic import Events, GameSpace
 from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, PlayerCharacter, Soldier, WandererClass
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
@@ -538,7 +538,7 @@ class _Handler(BaseHTTPRequestHandler):
                 '<a class="btn" href="/map">Open the map</a></div>'
             )
         page = SITE_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
-        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.renderer.world_adapter.world.name, **values}
+        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.renderer.world_adapter.world.name, "VERSION": VERSION, **values}
         for key, value in sorted(values.items(), key=lambda kv: not isinstance(kv[1], Markup)):
             page = page.replace("{{%s}}" % key, value if isinstance(value, Markup) else html.escape(str(value)))
         return page.encode()
