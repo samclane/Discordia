@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from dataclasses import dataclass, field
 from typing import Any, Callable, Deque, Dict, Tuple, List, Iterator, Optional
 
 from Discordia.GameLogic import Actors, Events
@@ -123,6 +124,14 @@ DIRECTION_NAMES = {
 NEWS_KEPT = 20  # world events remembered per player, for the website
 
 
+@dataclass
+class GuildSettings:
+    """One Discord server's settings, set by its admins on the website. Saved as JSON: a new setting is a
+    new field with a default, and old saves load without a migration."""
+
+    channels: List[int] = field(default_factory=list)  # where commands work; empty means everywhere
+
+
 class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
@@ -136,6 +145,11 @@ class WorldAdapter:
         # Set by the running bot: queue an order for the next tick from another thread, and block for its
         # result. None when nothing ticks the world (tests, a bare web server).
         self.place_order: Optional[Callable[[Actors.PlayerCharacter, Callable[[], Any]], Any]] = None
+        # Discord server id -> its settings. Servers nobody has configured aren't in it.
+        self.guild_settings: Dict[int, GuildSettings] = {}
+        # Also set by the running bot, for the website's settings page: (member id, server id) ->
+        # (server name, [(channel id, channel name)]) if that member may manage that server, else None.
+        self.guild_for_admin: Optional[Callable[[int, int], Optional[Tuple[str, List[Tuple[int, str]]]]]] = None
         # ponytail: in memory, so a restart forgets it. Save it if anyone misses it.
         self._news: Dict[Actors.PlayerCharacter, Deque[Tuple[float, str]]] = {}
 

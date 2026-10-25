@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 221 tests, ~15s, no token needed
+python -m pytest Discordia/test -q                     # 235 tests, ~20s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -27,7 +27,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - `Discordia/Interface/`
   - `WorldAdapter.py` the only thing Discord and renderers touch: discord member id <-> PlayerCharacter, move/attack/look.
   - `DiscordInterface.py` slash commands as a Cog. Commands queue an *order*; `tick()` runs them and `World.tick()` in lockstep on the bot loop (no locks). NPC hits are DM'd.
-  - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path. NPCs and store stock are NOT saved.
+  - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path, `GuildSettings` per Discord server as JSON. NPCs and store stock are NOT saved.
   - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
     Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
     `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Handler._page` at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.
@@ -35,6 +35,11 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     `adapter.place_order`, which the running cog sets to `order_threadsafe`: queued on the bot loop, answered after the
     tick. Result/error wording (`move_text`, `error_text`, ...) lives in `WorldAdapter` so both sides say the same thing.
     What the tick DMs is also kept per player (`adapter.add_news`/`news`, in memory) for `/me` and the map.
+  - Server settings: `/settings` (Manage Server) hands out a login link to `/admin/<guild id>`, which asks Discord
+    live (`adapter.guild_for_admin`, set by the cog) whether the member may manage that server. Settings live in
+    `adapter.guild_settings` (`GuildSettings`, a new setting is a new field with a default); the cog's
+    `interaction_check` enforces the channel list. Checks must raise an `AppCommandError` (`_game_check` wraps game
+    exceptions): the command tree lets anything else escape unanswered.
   - `WebLogins.py` web map login: `/weblogin` replies (ephemeral) with a one-time link, the link trades for a session cookie, the map and its data need it (`/`, `/login`, `/sprites/` are public), and `/me.json` serves that player's sheet. No passwords; only SHA-256 digests kept, in memory (a restart logs people out). Prod: nginx + certbot in front, `[Web] PublicUrl` in config.ini.
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.
 

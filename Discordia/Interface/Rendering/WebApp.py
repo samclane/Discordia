@@ -23,6 +23,7 @@ import logging
 import re
 import time
 import zlib
+from dataclasses import replace
 from functools import partial
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -39,6 +40,7 @@ from Discordia.Interface.WebLogins import SESSION_SECONDS
 from Discordia.Interface.WorldAdapter import (
     DIRECTION_NAMES,
     SUPERSEDED,
+    GuildSettings,
     NotRegisteredException,
     NotSpawnedException,
     attack_text,
@@ -57,6 +59,7 @@ ME_HTML = Path(__file__).with_name("me.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 3
+ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
@@ -75,6 +78,7 @@ LOGIN_BODY = f"""<section class="solo"><div class="card">
     <p class="sub">You're one step from the map of {{{{WORLD}}}}.</p>
     <form method="post" action="/login">
       <input type="hidden" name="t" value="{{{{TOKEN}}}}">
+      <input type="hidden" name="next" value="{{{{NEXT}}}}">
       <button class="btn" autofocus>Enter the map</button>
     </form>
     <p class="fine">This link works once. Keep it to yourself.</p>
@@ -98,6 +102,18 @@ JOIN_OUT = """<p class="intro">A live view of the whole world: every explored ch
     </ol>"""
 JOIN_IN = """<p class="intro">You're logged in as <b>{{NAME}}</b>. The map opens on your character and follows it.</p>
     <div class="cta"><a class="btn" href="/map">Open the map</a><a class="btn ghost" href="/me">Your character</a></div>"""
+ADMIN_BODY = """<section class="sheet settings"><div class="wrap">
+    <p class="eyebrow">Server settings</p>
+    <h1>{{SERVER}}</h1>
+    {{SAVED}}
+    <form class="card" method="post" action="{{ACTION}}">
+      <h3>Channels</h3>
+      <p class="note">Discordia's commands only work in the channels ticked here, and in their threads.
+        Tick none and they work everywhere. <code>/settings</code> works anywhere.</p>
+      <ul class="items">{{CHANNELS}}</ul>
+      <button class="btn">Save</button>
+    </form>
+  </div></section>"""
 JOIN_NO_CHARACTER = """<p class="intro">You're logged in, but have no character to show. Make one with
       <code>/register</code> in Discord, and the map will follow it.</p>
     <a class="btn" href="/map">Open the map</a>"""
@@ -334,7 +350,7 @@ class _Handler(BaseHTTPRequestHandler):
         # The site is public; the map and everything it fetches are for players. Sprites are the game's
         # public art, and the site wears some.
         if path not in ("/", "/login") and not path.startswith("/sprites/") and self._member_id() is None:
-            if path in ("/map", "/me"):  # pages send you to how to get in; data just refuses
+            if path in ("/map", "/me") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
                 self._redirect("/#join")
             else:
                 self.send_error(401)
@@ -373,8 +389,9 @@ class _Handler(BaseHTTPRequestHandler):
             else:
                 self._send(body, "application/json")
         elif path == "/login":
-            token = parse_qs(urlsplit(self.path).query).get("t", [""])[0]
-            self._send(self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token), "text/html; charset=utf-8")
+            query = parse_qs(urlsplit(self.path).query)
+            token, after = query.get("t", [""])[0], query.get("next", [""])[0]
+            self._send(self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after), "text/html; charset=utf-8")
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -392,6 +409,12 @@ class _Handler(BaseHTTPRequestHandler):
             else:
                 page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter.news(character)))
                 self._send(page, "text/html; charset=utf-8")
+        elif ADMIN_ROUTE.fullmatch(path):
+            guild_id = int(path.rsplit("/", 1)[1])
+            guild = self._admin_guild(guild_id)
+            if guild is not None:
+                saved = "saved" in parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                self._send(self._admin_page(guild_id, guild, saved), "text/html; charset=utf-8")
         elif path == "/":
             self._send(self._home(), "text/html; charset=utf-8")
         else:
@@ -412,6 +435,9 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/act":
             self._act()
             return
+        if ADMIN_ROUTE.fullmatch(path):
+            self._save_admin(int(path.rsplit("/", 1)[1]))
+            return
         if path != "/login":
             self.send_error(404)
             return
@@ -423,8 +449,10 @@ class _Handler(BaseHTTPRequestHandler):
         if session is None:
             self._send(self._page("Link expired · Discordia", SPENT_BODY), "text/html; charset=utf-8", status=403)
             return
+        after = form.get("next", [""])[0]
         self.send_response(303)
-        self.send_header("Location", "/map")
+        # Only to a page of ours that's known: anything else would make the login link an open redirect.
+        self.send_header("Location", after if ADMIN_ROUTE.fullmatch(after) else "/map")
         # Secure: browsers still let localhost set it over plain HTTP, so a local run logs in too.
         self.send_header(
             "Set-Cookie", f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
@@ -432,10 +460,10 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def _body(self) -> str | None:
-        """The request body, or None (with a 400 sent) if it's missing or too big for anything we take."""
+    def _body(self, max_bytes: int = 1024) -> str | None:
+        """The request body, or None (with a 400 sent) if it's missing or bigger than `max_bytes`."""
         length = self.headers.get("Content-Length", "")
-        if not length.isdigit() or int(length) > 1024:  # a token is 43 characters, an order less
+        if not length.isdigit() or int(length) > max_bytes:  # a token is 43 characters, an order less
             self.send_error(400)
             return None
         return self.rfile.read(int(length)).decode(errors="replace")
@@ -493,6 +521,61 @@ class _Handler(BaseHTTPRequestHandler):
                 return reply(500, "Something went wrong on the server.")
             return reply(409, text)
         reply(200, text)
+
+    def _admin_guild(self, guild_id: int):
+        """(server name, channels) if the logged-in member may manage that server. Otherwise answers the
+        request itself and returns None."""
+        lookup = self.renderer.world_adapter.guild_for_admin
+        if lookup is None:
+            self.send_error(503, "The bot isn't running right now.")
+            return None
+        try:
+            guild = lookup(self._member_id(), guild_id)
+        except TimeoutError:
+            self.send_error(504, "Discord didn't answer. Try again in a moment.")
+            return None
+        if guild is None:
+            self.send_error(403, "You need Manage Server in that Discord server, and the bot has to be in it.")
+        return guild
+
+    def _admin_page(self, guild_id: int, guild, saved: bool) -> bytes:
+        name, channels = guild
+        picked = set(self.renderer.world_adapter.guild_settings.get(guild_id, GuildSettings()).channels)
+        rows = "".join(
+            f'<li><label><input type="checkbox" name="c" value="{channel_id}"{" checked" if channel_id in picked else ""}>'
+            f" #{html.escape(channel_name)}</label></li>"
+            for channel_id, channel_name in channels
+        )
+        return self._page(
+            f"{name} settings · Discordia",
+            ADMIN_BODY,
+            SERVER=name,
+            ACTION=f"/admin/{guild_id}",
+            CHANNELS=Markup(rows),
+            SAVED=Markup('<p class="alert"><b>Saved.</b> It applies to the next command.</p>' if saved else ""),
+        )
+
+    def _save_admin(self, guild_id: int):
+        # Changing a server's settings is the one thing here worth forging: refuse a form posted from another
+        # site whatever the cookie does. Browsers that don't send the header still don't send a Lax cookie.
+        if self.headers.get("Sec-Fetch-Site", "same-origin") != "same-origin":
+            self.send_error(403)
+            return
+        body = self._body(max_bytes=64 * 1024)  # a server's worth of channel ids
+        if body is None:
+            return
+        if self._member_id() is None:
+            self.send_error(401)
+            return
+        guild = self._admin_guild(guild_id)
+        if guild is None:
+            return
+        real = {channel_id for channel_id, _ in guild[1]}
+        picked = [int(c) for c in parse_qs(body).get("c", []) if c.isdigit() and int(c) in real]
+        settings = self.renderer.world_adapter.guild_settings
+        # One assignment, so the bot loop reading it from its thread sees the old settings or the new ones.
+        settings[guild_id] = replace(settings.get(guild_id, GuildSettings()), channels=picked)
+        self._redirect(f"/admin/{guild_id}?saved")
 
     def _redirect(self, location: str):
         self.send_response(303)

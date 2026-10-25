@@ -3,7 +3,7 @@ SQLite persistence for a Discordia server.
 
 The map is *not* stored: a World is fully reproducible from its seed, so the world table holds the seed and the
 generation parameters and `load()` re-generates an identical map. Only the state that can't be re-derived --
-characters, where they're standing, what they're carrying -- gets rows.
+characters, where they're standing, what they're carrying, each Discord server's settings -- gets rows.
 
 NPCs are deliberately not persisted; they're spawned by Events and despawn on death.
 """
@@ -20,7 +20,7 @@ from pathlib import Path
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.GameLogic.Items import Equipment, EquipmentSet
 from Discordia.GameLogic.Procedural import WorldGenerationParameters
-from Discordia.Interface.WorldAdapter import WorldAdapter
+from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 
 LOG = logging.getLogger("Discordia.Interface.Database")
 
@@ -54,6 +54,11 @@ CREATE TABLE IF NOT EXISTS item (
     discord_id  INTEGER NOT NULL REFERENCES character (discord_id) ON DELETE CASCADE,
     class_path  TEXT    NOT NULL,
     slot        TEXT  -- an EquipmentSet slot name, STASH, or NULL for "in the backpack"
+);
+
+CREATE TABLE IF NOT EXISTS guild (
+    guild_id    INTEGER PRIMARY KEY,  -- a Discord server
+    settings    TEXT    NOT NULL  -- JSON dump of GuildSettings
 );
 """
 
@@ -135,6 +140,10 @@ class Database:
         adapter = WorldAdapter(world)
         for character_row in self.connection.execute("SELECT * FROM character"):
             self._load_character(adapter, character_row)
+        adapter.guild_settings = {
+            row["guild_id"]: GuildSettings(**json.loads(row["settings"]))
+            for row in self.connection.execute("SELECT * FROM guild")
+        }
         LOG.info(
             f"Loaded world '{world.name}' (seed {world.seed}) with {len(world.players)} characters"
         )
@@ -186,6 +195,12 @@ class Database:
             self.connection.execute("DELETE FROM character")  # cascades to item
             for discord_id, character in adapter.iter_registered():
                 self._save_character(discord_id, character)
+            self.connection.execute("DELETE FROM guild")
+            self.connection.executemany(
+                "INSERT INTO guild VALUES (?, ?)",
+                # list(): the website changes settings from its own thread.
+                [(guild_id, json.dumps(asdict(settings))) for guild_id, settings in list(adapter.guild_settings.items())],
+            )
 
     def _save_character(self, discord_id: int, character: Actors.PlayerCharacter):
         # Columns named, not positional: a migrated column lands at the end of the table, wherever it

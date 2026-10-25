@@ -10,6 +10,8 @@ from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.DiscordInterface import (
     SUPERSEDED,
     DiscordInterface,
+    GameCheckFailure,
+    WrongChannel,
     _defer,
     _send,
 )
@@ -17,6 +19,7 @@ from Discordia.Interface.WorldAdapter import (
     InvalidSpaceException,
     NotRegisteredException,
     NotSpawnedException,
+    GuildSettings,
     WorldAdapter,
 )
 
@@ -39,6 +42,7 @@ EXPECTED = {
     "stash put",
     "stash take",
     "weblogin",
+    "settings",
 }
 
 
@@ -47,6 +51,7 @@ class StubAdapter:
 
     def __init__(self, character):
         self.character = character
+        self.guild_settings = {}
 
     def get_player(self, member_id):
         if self.character is None:
@@ -88,19 +93,57 @@ def test_slash_commands_registered():
     assert EXPECTED <= names, EXPECTED - names
 
 
-def test_every_command_but_register_requires_a_character():
+def test_every_command_but_register_and_settings_requires_a_character():
     interface = loaded_cog()
     unchecked = {
         cmd.qualified_name
         for cmd in interface.bot.tree.walk_commands()
         if isinstance(cmd, app_commands.Command) and not cmd.checks
     }
-    assert unchecked == {"register"}, unchecked
+    assert unchecked == {"register", "settings"}, unchecked
 
 
 def run_checks(command, interaction) -> bool:
-    """Every prerequisite on the command, in whatever order they were stacked."""
-    return all(asyncio.run(check(interaction)) for check in command.checks)
+    """Every prerequisite on the command, in whatever order they were stacked. Raises the game exception
+    a check refused with."""
+    try:
+        return all(asyncio.run(check(interaction)) for check in command.checks)
+    except GameCheckFailure as failure:
+        raise failure.original
+
+
+def test_a_refusing_check_reaches_the_error_handler():
+    """The tree only handles AppCommandErrors. A bare game exception escapes it, and the player is left
+    with "The application did not respond" instead of being told to /register."""
+    _, command, interaction = build(None)
+    interaction.guild_id = None  # a DM: no server's channel settings to pass first
+    with pytest.raises(app_commands.AppCommandError) as caught:
+        asyncio.run(command._invoke_with_namespace(interaction, None))
+    assert isinstance(caught.value.original, NotRegisteredException)
+
+
+def channel_check(channels, channel_id, parent_id=None, command="look", guild_id=5):
+    """Run the cog's channel gate for a command typed in `channel_id` of a server that allows `channels`."""
+    adapter = SimpleNamespace(guild_settings={5: GuildSettings(channels=channels)})
+    interface = loaded_cog(adapter)
+    interaction = SimpleNamespace(
+        guild_id=guild_id,
+        channel_id=channel_id,
+        channel=SimpleNamespace(parent_id=parent_id),
+        command=command_named(interface, command),
+    )
+    return asyncio.run(interface.interaction_check(interaction))
+
+
+def test_commands_only_work_in_the_channels_a_server_picked():
+    assert channel_check([], 1), "no channels picked means everywhere"
+    assert channel_check([1, 2], 2)
+    assert channel_check([1, 2], 99, parent_id=1), "a thread counts as its channel"
+    assert channel_check([1], 99, guild_id=6), "another server's settings don't apply"
+    assert channel_check([1], 99, guild_id=None), "nor in DMs"
+    assert channel_check([1], 99, command="settings"), "admins can always get back to the settings"
+    with pytest.raises(WrongChannel, match="<#1>, <#2>"):
+        channel_check([1, 2], 99)
 
 
 def test_check_rejects_unregistered():
@@ -315,7 +358,7 @@ def test_a_failing_job_keeps_ticking():
 
 if __name__ == "__main__":
     test_slash_commands_registered()
-    test_every_command_but_register_requires_a_character()
+    test_every_command_but_register_and_settings_requires_a_character()
     test_check_rejects_unregistered()
     test_check_rejects_unspawned()
     test_check_passes_for_spawned_character()

@@ -508,3 +508,51 @@ def test_nice_name_is_stable_and_readable():
     assert nice_name("db0a3a5") == nice_name("db0a3a5")
     assert nice_name("db0a3a5") != nice_name("cbad56f")
     assert nice_name("0") == "ElegantStartingRabbit"
+
+
+def test_server_admins_pick_the_channels_on_the_settings_page():
+    adapter = WorldAdapter(GameSpace.World("Adminland", 40, 40, seed=7))
+    server = serve(adapter)
+    conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+
+    def request(method, path, body=None, cookie=COOKIE, **headers):
+        if cookie:
+            headers["Cookie"] = cookie
+        if body is not None:
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+        conn.request(method, path, body, headers)
+        response = conn.getresponse()
+        return response.status, response.headers.get("Location"), response.read().decode()
+
+    asked = []
+    try:
+        assert request("GET", "/admin/5", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
+        assert request("GET", "/admin/5")[0] == 503, "no bot to ask who's an admin"
+
+        adapter.guild_for_admin = lambda member, guild: asked.append((member, guild))
+        assert request("GET", "/admin/5")[0] == 403, "not an admin there"
+        assert request("POST", "/admin/5", "c=11")[0] == 403
+        assert adapter.guild_settings == {}
+
+        adapter.guild_for_admin = lambda member, guild: asked.append((member, guild)) or (
+            "Test <Server>",
+            [(11, "general"), (12, "raids")],
+        )
+        status, _, page = request("GET", "/admin/5")
+        assert status == 200 and "Test &lt;Server&gt;" in page and "#raids" in page and " checked" not in page
+        assert asked[-1] == (0, 5), "asks Discord about the logged-in member, every time"
+
+        assert request("POST", "/admin/5", "c=12", **{"Sec-Fetch-Site": "cross-site"})[0] == 403, "no forged forms"
+        assert request("POST", "/admin/5", "c=12&c=999")[:2] == (303, "/admin/5?saved")
+        assert adapter.guild_settings[5].channels == [12], "only that server's channels"
+        status, _, page = request("GET", "/admin/5?saved")
+        assert 'value="12" checked' in page and 'value="11">' in page and "Saved." in page
+
+        # /settings' link logs in and lands here; nowhere else but the map.
+        for after, landing in (("/admin/5", "/admin/5"), ("//evil.example", "/map"), ("", "/map")):
+            token = adapter.web_logins.new_link_token(0)
+            assert f'name="next" value="{html.escape(after)}"' in request("GET", f"/login?t={token}&next={after}")[2]
+            assert request("POST", "/login", f"t={token}&next={after}", cookie=None)[:2] == (303, landing)
+    finally:
+        conn.close()
+        server.shutdown()

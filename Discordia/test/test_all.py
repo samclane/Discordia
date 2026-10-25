@@ -15,7 +15,7 @@ from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Database import Database
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
-from Discordia.Interface.WorldAdapter import WorldAdapter
+from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 from Discordia.GameLogic.Items import Equipment, EquipmentSet, OffHandEquipment
 
 Armor.random()  # Keep Armor import; we need the namespace
@@ -222,6 +222,7 @@ class TestGeneral(unittest.TestCase):
         player.inventory.append(Armor.Helmet())
         player.stash.append(Jezail())
         player.stash_currency = 77
+        self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12])
         for _ in self._move_randomly():
             pass
 
@@ -258,6 +259,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
         self.assertEqual([type(item) for item in restored.stash], [Jezail])
         self.assertEqual(restored.stash_currency, 77)
+        self.assertEqual(adapter.guild_settings, {5: GuildSettings(channels=[11, 12])})
         self.assertEqual(
             (restored.location.x, restored.location.y),
             (player.location.x, player.location.y),

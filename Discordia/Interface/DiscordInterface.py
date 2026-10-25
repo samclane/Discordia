@@ -54,6 +54,34 @@ def _character(interaction: discord.Interaction) -> Actors.PlayerCharacter:
     )  # raises NotRegisteredException
 
 
+class GameCheckFailure(app_commands.CheckFailure):
+    """A game exception a check raised, as `original`, like CommandInvokeError has it."""
+
+    def __init__(self, original: Exception):
+        super().__init__(str(original))
+        self.original = original
+
+
+class WrongChannel(app_commands.CheckFailure):
+    """A command used outside the channels its server's admins picked. The message says where to go."""
+
+
+def _game_check(predicate: Callable[[discord.Interaction], Any]):
+    """app_commands.check for a predicate that raises game exceptions. The command tree only handles
+    AppCommandErrors: anything else escapes it, and the player gets "The application did not respond"
+    instead of why."""
+
+    async def wrapped(interaction: discord.Interaction) -> bool:
+        try:
+            return await predicate(interaction)
+        except app_commands.AppCommandError:
+            raise
+        except Exception as exc:
+            raise GameCheckFailure(exc) from exc
+
+    return app_commands.check(wrapped)
+
+
 def requires_character():
     """Prerequisite check: caller has a registered character that's spawned into the world."""
 
@@ -62,7 +90,7 @@ def requires_character():
             raise NotSpawnedException
         return True
 
-    return app_commands.check(predicate)
+    return _game_check(predicate)
 
 
 def requires_space(space_type: type[GameSpace.Space]):
@@ -75,7 +103,7 @@ def requires_space(space_type: type[GameSpace.Space]):
             )
         return True
 
-    return app_commands.check(predicate)
+    return _game_check(predicate)
 
 
 def _town_of(character: Actors.PlayerCharacter) -> GameSpace.Town:
@@ -245,9 +273,31 @@ class DiscordInterface(commands.Cog):
 
         return asyncio.run_coroutine_threadsafe(place(), self._loop).result(timeout)
 
+    def guild_for_admin(
+        self, member_id: int, guild_id: int, timeout: float = 10
+    ) -> Optional[Tuple[str, List[Tuple[int, str]]]]:
+        """For the website's settings page, from its thread: (server name, [(channel id, name)]) if the
+        member may manage that server, else None. Asks Discord every time rather than trusting a cache,
+        so taking someone's Manage Server away locks them out at once."""
+
+        async def look():
+            guild = self.bot.get_guild(guild_id)
+            if guild is None:  # not a server the bot is in
+                return None
+            try:
+                member = await guild.fetch_member(member_id)
+            except discord.HTTPException:  # not in that server
+                return None
+            if not member.guild_permissions.manage_guild:
+                return None
+            return guild.name, [(channel.id, channel.name) for channel in guild.text_channels]
+
+        return asyncio.run_coroutine_threadsafe(look(), self._loop).result(timeout)
+
     async def _setup_hook(self):
         self._loop = asyncio.get_running_loop()
         self.world_adapter.place_order = self.order_threadsafe
+        self.world_adapter.guild_for_admin = self.guild_for_admin
         await self.bot.add_cog(self)
         self._start_job(self.tick_seconds, self.tick, "World tick")
         for seconds, action, name in self.jobs:
@@ -268,6 +318,9 @@ class DiscordInterface(commands.Cog):
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ):
         """One handler for every game exception, instead of the same try/except in every command."""
+        if isinstance(error, WrongChannel):
+            await _send(interaction, str(error), ephemeral=True)
+            return
         error = getattr(error, "original", error)
         msg = error_text(error)
         if msg is None:
@@ -278,6 +331,19 @@ class DiscordInterface(commands.Cog):
             msg = "Something went wrong on the server."
         LOG.warning(f"{interaction.user.display_name}: {type(error).__name__}")
         await _send(interaction, msg, ephemeral=True)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Commands only work in the channels a server's admins picked on the website: all of them if
+        they picked none. /settings works anywhere, so nobody locks themselves out."""
+        settings = self.world_adapter.guild_settings.get(interaction.guild_id or 0)
+        if settings is None or not settings.channels or getattr(interaction.command, "name", None) == "settings":
+            return True
+        # A thread counts as the channel it hangs off.
+        if {interaction.channel_id, getattr(interaction.channel, "parent_id", None)} & set(settings.channels):
+            return True
+        raise WrongChannel(
+            "Discordia doesn't play in this channel. Try " + ", ".join(f"<#{c}>" for c in settings.channels) + "."
+        )
 
     def _player(self, interaction: discord.Interaction) -> Actors.PlayerCharacter:
         return self.world_adapter.get_player(interaction.user.id)
@@ -308,6 +374,26 @@ class DiscordInterface(commands.Cog):
             interaction,
             f"Your map login link. It works once, for 10 minutes; don't share it:\n"
             f"<{self.web_url}/login?t={token}>",
+            ephemeral=True,
+        )
+
+    @app_commands.command()
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_guild=True)  # hides it from everyone else in the command list
+    async def settings(self, interaction: discord.Interaction):
+        """Choose which channels Discordia plays in on this server (admins)"""
+        if self.web_url is None:
+            await _send(interaction, "The website isn't running on this server.", ephemeral=True)
+            return
+        # Server admins can hand the command to anyone; the website asks Discord again either way.
+        if not interaction.permissions.manage_guild:
+            await _send(interaction, "You need Manage Server to change this server's settings.", ephemeral=True)
+            return
+        token = self.world_adapter.web_logins.new_link_token(interaction.user.id)
+        await _send(
+            interaction,
+            f"This server's Discordia settings. The link works once, for 10 minutes; don't share it:\n"
+            f"<{self.web_url}/login?t={token}&next=/admin/{interaction.guild_id}>",
             ephemeral=True,
         )
 
