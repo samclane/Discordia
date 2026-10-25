@@ -106,11 +106,19 @@ ADMIN_BODY = """<section class="sheet settings"><div class="wrap">
     <p class="eyebrow">Server settings</p>
     <h1>{{SERVER}}</h1>
     {{SAVED}}
-    <form class="card" method="post" action="{{ACTION}}">
-      <h3>Channels</h3>
-      <p class="note">Discordia's commands only work in the channels ticked here, and in their threads.
-        Tick none and they work everywhere. <code>/settings</code> works anywhere.</p>
-      <ul class="items">{{CHANNELS}}</ul>
+    <form method="post" action="{{ACTION}}">
+      <div class="card">
+        <h3>Channels</h3>
+        <p class="note">Discordia's commands only work in the channels ticked here, and in their threads.
+          Tick none and they work everywhere. <code>/settings</code> works anywhere.</p>
+        <ul class="items">{{CHANNELS}}</ul>
+      </div>
+      <div class="card">
+        <h3>Daily digest</h3>
+        <p class="note">At midnight UTC: how many played, kills, deaths, and the top five. Only on days something
+          happened. The bot needs permission to post in that channel.</p>
+        <label>Post it in <select name="digest">{{DIGEST}}</select></label>
+      </div>
       <button class="btn">Save</button>
     </form>
   </div></section>"""
@@ -540,7 +548,13 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _admin_page(self, guild_id: int, guild, saved: bool) -> bytes:
         name, channels = guild
-        picked = set(self.renderer.world_adapter.guild_settings.get(guild_id, GuildSettings()).channels)
+        settings = self.renderer.world_adapter.guild_settings.get(guild_id, GuildSettings())
+        picked = set(settings.channels)
+        digest = '<option value="">Nowhere</option>' + "".join(
+            f'<option value="{channel_id}"{" selected" if channel_id == settings.digest_channel else ""}>'
+            f"#{html.escape(channel_name)}</option>"
+            for channel_id, channel_name in channels
+        )
         rows = "".join(
             f'<li><label><input type="checkbox" name="c" value="{channel_id}"{" checked" if channel_id in picked else ""}>'
             f" #{html.escape(channel_name)}</label></li>"
@@ -552,7 +566,8 @@ class _Handler(BaseHTTPRequestHandler):
             SERVER=name,
             ACTION=f"/admin/{guild_id}",
             CHANNELS=Markup(rows),
-            SAVED=Markup('<p class="alert"><b>Saved.</b> It applies to the next command.</p>' if saved else ""),
+            DIGEST=Markup(digest),
+            SAVED=Markup('<p class="alert"><b>Saved.</b></p>' if saved else ""),
         )
 
     def _save_admin(self, guild_id: int):
@@ -571,10 +586,16 @@ class _Handler(BaseHTTPRequestHandler):
         if guild is None:
             return
         real = {channel_id for channel_id, _ in guild[1]}
-        picked = [int(c) for c in parse_qs(body).get("c", []) if c.isdigit() and int(c) in real]
+        form = parse_qs(body)
+        picked = [int(c) for c in form.get("c", []) if c.isdigit() and int(c) in real]
+        digest = form.get("digest", [""])[0]
         settings = self.renderer.world_adapter.guild_settings
         # One assignment, so the bot loop reading it from its thread sees the old settings or the new ones.
-        settings[guild_id] = replace(settings.get(guild_id, GuildSettings()), channels=picked)
+        settings[guild_id] = replace(
+            settings.get(guild_id, GuildSettings()),
+            channels=picked,
+            digest_channel=int(digest) if digest.isdigit() and int(digest) in real else None,
+        )
         self._redirect(f"/admin/{guild_id}?saved")
 
     def _redirect(self, location: str):

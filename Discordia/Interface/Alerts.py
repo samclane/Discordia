@@ -4,7 +4,7 @@ import json
 import logging
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time as day_time
 from logging.handlers import QueueHandler, QueueListener
 from queue import SimpleQueue
 from typing import Dict, Optional
@@ -14,7 +14,8 @@ from Discordia.GameLogic.GameSpace import Stats, World
 # An error raised every tick would otherwise ping every 5 seconds; the same text pings once per this long.
 REPEAT_SECONDS = 600
 DISCORD_LIMIT = 2000  # characters per webhook message
-DIGEST_SECONDS = 24 * 60 * 60
+# A time of day, not 24 hours after start: the server restarts on every deploy, and the day would restart with it.
+DIGEST_TIME = day_time(0, 0, tzinfo=timezone.utc)
 
 
 def post(url: str, content: str):

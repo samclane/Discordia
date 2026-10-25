@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import threading
 import argparse
@@ -50,20 +51,21 @@ def main():
         threading.Thread(target=serve, args=(display, args.web_port), daemon=True).start()
     # The tick and the autosave run on the bot's event loop, in lockstep with the commands: no locking
     # needed, and a crash loses at most AUTOSAVE_SECONDS of play.
-    jobs: list[tuple[float, Callable[[], None], str]] = [
+    jobs: list[tuple[float | datetime.time, Callable[[], None], str]] = [
         (AUTOSAVE_SECONDS, lambda: database.save(adapter), "Autosave")
     ]
     webhook = ConfigParser.ALERT_WEBHOOK_URL
-    if webhook:
-        async def send_digest():
-            # Summed on the loop, beside the game; posted off it, so a slow Discord can't stall a tick.
-            text = Alerts.digest(adapter.world)
-            if text:
+
+    async def send_digest():
+        text = Alerts.digest(adapter.world)
+        if text:
+            await discord_interface.post_digest(text)  # to each server that picked a channel; best effort
+            if webhook:  # posted off the loop, so a slow Discord can't stall a tick
                 await asyncio.to_thread(Alerts.post, webhook, text)
 
-        # ponytail: the day restarts with the process. The shutdown digest below keeps a deploy from
-        # throwing a partial day away; a crash still does.
-        jobs.append((Alerts.DIGEST_SECONDS, cast(Callable[[], None], send_digest), "Daily digest"))
+    # ponytail: Stats aren't saved, so the day after a deploy only counts from the restart. Servers' channels
+    # lose that part; the webhook gets it from the shutdown digest below. Save Stats if the undercount matters.
+    jobs.append((Alerts.DIGEST_TIME, cast(Callable[[], None], send_digest), "Daily digest"))
     discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url)
     LOG.info("Discordia %s has successfully started. Press Ctrl+C to quit.", VERSION)
     try:
@@ -75,7 +77,7 @@ def main():
         database.save(adapter)
         database.close()
         LOG.info("World saved.")
-        if webhook:
+        if webhook:  # only: the bot is gone by now, and servers would get a partial day on every deploy
             try:
                 text = Alerts.digest(adapter.world)
                 if text:

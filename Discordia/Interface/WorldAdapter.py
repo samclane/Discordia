@@ -130,6 +130,7 @@ class GuildSettings:
     new field with a default, and old saves load without a migration."""
 
     channels: List[int] = field(default_factory=list)  # where commands work; empty means everywhere
+    digest_channel: Optional[int] = None  # where the daily digest goes; None means it doesn't
 
 
 class WorldAdapter:

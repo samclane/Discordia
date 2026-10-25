@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 235 tests, ~20s, no token needed
+python -m pytest Discordia/test -q                     # 236 tests, ~20s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -38,7 +38,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - Server settings: `/settings` (Manage Server) hands out a login link to `/admin/<guild id>`, which asks Discord
     live (`adapter.guild_for_admin`, set by the cog) whether the member may manage that server. Settings live in
     `adapter.guild_settings` (`GuildSettings`, a new setting is a new field with a default); the cog's
-    `interaction_check` enforces the channel list. Checks must raise an `AppCommandError` (`_game_check` wraps game
+    `interaction_check` enforces the channel list, `post_digest` posts the daily digest (midnight UTC) to each
+    server's `digest_channel`. Checks must raise an `AppCommandError` (`_game_check` wraps game
     exceptions): the command tree lets anything else escape unanswered.
   - `WebLogins.py` web map login: `/weblogin` replies (ephemeral) with a one-time link, the link trades for a session cookie, the map and its data need it (`/`, `/login`, `/sprites/` are public), and `/me.json` serves that player's sheet. No passwords; only SHA-256 digests kept, in memory (a restart logs people out). Prod: nginx + certbot in front, `[Web] PublicUrl` in config.ini.
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.

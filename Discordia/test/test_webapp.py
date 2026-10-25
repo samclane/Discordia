@@ -543,10 +543,15 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
         assert asked[-1] == (0, 5), "asks Discord about the logged-in member, every time"
 
         assert request("POST", "/admin/5", "c=12", **{"Sec-Fetch-Site": "cross-site"})[0] == 403, "no forged forms"
-        assert request("POST", "/admin/5", "c=12&c=999")[:2] == (303, "/admin/5?saved")
+        assert request("POST", "/admin/5", "c=12&c=999&digest=11")[:2] == (303, "/admin/5?saved")
         assert adapter.guild_settings[5].channels == [12], "only that server's channels"
+        assert adapter.guild_settings[5].digest_channel == 11
         status, _, page = request("GET", "/admin/5?saved")
         assert 'value="12" checked' in page and 'value="11">' in page and "Saved." in page
+        assert '<option value="11" selected>#general' in page
+        for digest in ("999", "", "nope"):
+            request("POST", "/admin/5", f"c=12&digest={digest}")
+            assert adapter.guild_settings[5].digest_channel is None, digest
 
         # /settings' link logs in and lands here; nowhere else but the map.
         for after, landing in (("/admin/5", "/admin/5"), ("//evil.example", "/map"), ("", "/map")):

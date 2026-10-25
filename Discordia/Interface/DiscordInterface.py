@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import inspect
 import logging
 import random
@@ -169,11 +170,12 @@ class DiscordInterface(commands.Cog):
     def __init__(
         self,
         world_adapter: WorldAdapter,
-        jobs: Sequence[Tuple[float, Callable[[], None], str]] = (),
+        jobs: Sequence[Tuple[float | datetime.time, Callable[[], None], str]] = (),
         tick_seconds: float = 5.0,
         web_url: str | None = None,
     ):
-        """`jobs` are (seconds, action, name) triples run periodically alongside the commands.
+        """`jobs` are (every, action, name) triples run alongside the commands: every so many seconds, or
+        daily at a datetime.time.
         `web_url` is where players reach the web map, or None if it isn't running."""
         self.bot: commands.Bot = commands.Bot(
             command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default()
@@ -191,14 +193,15 @@ class DiscordInterface(commands.Cog):
             Actors.PlayerCharacter, Tuple[Callable[[], Any], asyncio.Future]
         ] = {}
 
-    def _start_job(self, seconds: float, action: Callable[[], Any], name: str):
-        """Run `action` every `seconds` on the bot's event loop: same thread as the commands, so no locking.
+    def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
+        """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
+        the commands, so no locking.
 
         Each job blocks command handling while it runs, which is why they're all short. A job may be
         a coroutine function; the tick is one, because it sends DMs.
         """
 
-        @tasks.loop(seconds=seconds)
+        @tasks.loop(**({"time": every} if isinstance(every, datetime.time) else {"seconds": every}))
         async def job():
             try:
                 result = action()
@@ -259,6 +262,21 @@ class DiscordInterface(commands.Cog):
         except discord.HTTPException:  # closed DMs, blocked bot, deleted account
             LOG.info("Could not DM %s", member_id)
 
+    async def post_digest(self, text: str):
+        """Post the daily digest in every server that picked a channel for it. Best effort, like _dm."""
+        for guild_id, settings in list(self.world_adapter.guild_settings.items()):
+            if settings.digest_channel is None:
+                continue
+            channel = self.bot.get_channel(settings.digest_channel)
+            if channel is None:  # deleted, or the bot can't see it any more
+                LOG.info("No digest channel %s in server %s", settings.digest_channel, guild_id)
+                continue
+            try:
+                for chunk in _chunks(text):
+                    await channel.send(chunk)  # type: ignore[union-attr]  # the website only offers text channels
+            except discord.HTTPException:  # not allowed to post there
+                LOG.info("Could not post the digest in %s", settings.digest_channel)
+
     def order_threadsafe(
         self,
         character: Actors.PlayerCharacter,
@@ -300,8 +318,8 @@ class DiscordInterface(commands.Cog):
         self.world_adapter.guild_for_admin = self.guild_for_admin
         await self.bot.add_cog(self)
         self._start_job(self.tick_seconds, self.tick, "World tick")
-        for seconds, action, name in self.jobs:
-            self._start_job(seconds, action, name)
+        for every, action, name in self.jobs:
+            self._start_job(every, action, name)
         synced = await self.bot.tree.sync()
         LOG.info(
             f"Synced {len(synced)} slash commands (global commands can take up to an hour to appear)."

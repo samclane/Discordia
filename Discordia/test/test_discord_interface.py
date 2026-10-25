@@ -324,6 +324,30 @@ def test_a_closed_dm_doesnt_take_the_tick_down():
     assert sent == []
 
 
+def test_the_digest_goes_to_each_server_that_picked_a_channel():
+    adapter = SimpleNamespace(
+        guild_settings={
+            1: GuildSettings(digest_channel=10),
+            2: GuildSettings(),  # didn't pick one
+            3: GuildSettings(digest_channel=30),  # the bot may not post there
+            4: GuildSettings(digest_channel=40),  # deleted
+        }
+    )
+    interface = DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
+    sent = []
+
+    async def send(channel_id, text):
+        if channel_id == 30:
+            raise discord.HTTPException(SimpleNamespace(status=403, reason="Forbidden"), "Missing Access")  # type: ignore[arg-type]
+        sent.append((channel_id, text))
+
+    channels = {c: SimpleNamespace(send=lambda text, c=c: send(c, text)) for c in (10, 30)}
+    interface.bot.get_channel = channels.get  # type: ignore[method-assign]
+
+    asyncio.run(interface.post_digest("A quiet day."))  # one server's trouble stays its own
+    assert sent == [(10, "A quiet day.")]
+
+
 def test_jobs_run_on_the_bots_event_loop():
     ticks = []
     interface = DiscordInterface(
