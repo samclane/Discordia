@@ -75,11 +75,11 @@ PARTY = """<div class="party" aria-hidden="true">
 LOGIN_BODY = f"""<section class="solo"><div class="card">
     {PARTY}
     <h1>Ready, traveller?</h1>
-    <p class="sub">You're one step from the map of {{{{WORLD}}}}.</p>
+    <p class="sub">You're one step from {{{{GOAL}}}}.</p>
     <form method="post" action="/login">
       <input type="hidden" name="t" value="{{{{TOKEN}}}}">
       <input type="hidden" name="next" value="{{{{NEXT}}}}">
-      <button class="btn" autofocus>Enter the map</button>
+      <button class="btn" autofocus>{{{{BUTTON}}}}</button>
     </form>
     <p class="fine">This link works once. Keep it to yourself.</p>
   </div></section>"""
@@ -399,7 +399,15 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/login":
             query = parse_qs(urlsplit(self.path).query)
             token, after = query.get("t", [""])[0], query.get("next", [""])[0]
-            self._send(self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after), "text/html; charset=utf-8")
+            if not ADMIN_ROUTE.fullmatch(after):
+                goal, button = f"the map of {self.renderer.world_adapter.world.name}", "Enter the map"
+            elif self._member_id() is None:
+                goal, button = "this server's settings", "Open server settings"
+            else:  # already logged in: no need to spend the link, the settings page asks Discord itself
+                self._redirect(after)
+                return
+            page = self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after, GOAL=goal, BUTTON=button)
+            self._send(page, "text/html; charset=utf-8")
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):
@@ -512,7 +520,10 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             return reply(400, "That isn't an order.")
         if character.location is None:
-            return reply(409, error_text(NotSpawnedException()))
+            text = error_text(NotSpawnedException())
+            if text is None:
+                return reply(500, "Something went wrong on the server.")
+            return reply(409, text)
         if adapter.place_order is None:
             return reply(503, "The game isn't running right now.")
         try:
@@ -533,12 +544,16 @@ class _Handler(BaseHTTPRequestHandler):
     def _admin_guild(self, guild_id: int):
         """(server name, channels) if the logged-in member may manage that server. Otherwise answers the
         request itself and returns None."""
+        member_id = self._member_id()
+        if member_id is None:
+            self.send_error(401, "Log in first.")
+            return None
         lookup = self.renderer.world_adapter.guild_for_admin
         if lookup is None:
             self.send_error(503, "The bot isn't running right now.")
             return None
         try:
-            guild = lookup(self._member_id(), guild_id)
+            guild = lookup(member_id, guild_id)
         except TimeoutError:
             self.send_error(504, "Discord didn't answer. Try again in a moment.")
             return None

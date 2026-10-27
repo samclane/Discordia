@@ -556,8 +556,14 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
         # /settings' link logs in and lands here; nowhere else but the map.
         for after, landing in (("/admin/5", "/admin/5"), ("//evil.example", "/map"), ("", "/map")):
             token = adapter.web_logins.new_link_token(0)
-            assert f'name="next" value="{html.escape(after)}"' in request("GET", f"/login?t={token}&next={after}")[2]
+            page = request("GET", f"/login?t={token}&next={after}", cookie=None)[2]
+            assert f'name="next" value="{html.escape(after)}"' in page
+            assert ("Open server settings" in page) == (landing == "/admin/5")
             assert request("POST", "/login", f"t={token}&next={after}", cookie=None)[:2] == (303, landing)
+        # Already logged in: straight to the settings, and the link stays unspent.
+        token = adapter.web_logins.new_link_token(0)
+        assert request("GET", f"/login?t={token}&next=/admin/5")[:2] == (303, "/admin/5")
+        assert adapter.web_logins.redeem(token) is not None
     finally:
         conn.close()
         server.shutdown()
