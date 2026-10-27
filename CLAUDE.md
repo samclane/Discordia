@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 236 tests, ~20s, no token needed
+python -m pytest Discordia/test -q                     # 238 tests, ~25s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -35,6 +35,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     `adapter.place_order`, which the running cog sets to `order_threadsafe`: queued on the bot loop, answered after the
     tick. Result/error wording (`move_text`, `error_text`, ...) lives in `WorldAdapter` so both sides say the same thing.
     What the tick DMs is also kept per player (`adapter.add_news`/`news`, in memory) for `/me` and the map.
+  - Adding the bot: the public `/invite` redirects to Discord's add-to-server page (`adapter.invite_url`, built by
+    the cog at startup from the application id); `on_guild_join` posts a welcome in the server's system channel.
   - Server settings: `/settings` (Manage Server) hands out a login link to `/admin/<guild id>`, which asks Discord
     live (`adapter.guild_for_admin`, set by the cog) whether the member may manage that server. Settings live in
     `adapter.guild_settings` (`GuildSettings`, a new setting is a new field with a default); the cog's

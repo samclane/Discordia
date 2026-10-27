@@ -81,6 +81,7 @@
   .tag { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--well);
          border: 1px solid var(--line); color: var(--dim); font-size: 12px; font-weight: 600; vertical-align: 2px; }
 
+  ol.steps + .cta { margin-top: 24px; }
   ol.steps { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
   ol.steps li { display: flex; gap: 14px; align-items: baseline; counter-increment: step; }
   ol.steps li::before { content: counter(step); flex: none; display: grid; place-items: center; width: 28px;
@@ -153,6 +154,7 @@
       <a href="/#how">How to play</a>
       <a href="/#classes">Classes</a>
       <a href="/#join">The map</a>
+      <a href="/#add">Add to your server</a>
     </nav>
     {{ACCOUNT}}
   </div>

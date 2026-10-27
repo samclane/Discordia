@@ -151,6 +151,8 @@ class WorldAdapter:
         # Also set by the running bot, for the website's settings page: (member id, server id) ->
         # (server name, [(channel id, channel name)]) if that member may manage that server, else None.
         self.guild_for_admin: Optional[Callable[[int, int], Optional[Tuple[str, List[Tuple[int, str]]]]]] = None
+        # And Discord's "add this bot to a server" link, for the website's /invite.
+        self.invite_url: Optional[str] = None
         # ponytail: in memory, so a restart forgets it. Save it if anyone misses it.
         self._news: Dict[Actors.PlayerCharacter, Deque[Tuple[float, str]]] = {}
 

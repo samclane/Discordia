@@ -357,7 +357,7 @@ class _Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         # The site is public; the map and everything it fetches are for players. Sprites are the game's
         # public art, and the site wears some.
-        if path not in ("/", "/login") and not path.startswith("/sprites/") and self._member_id() is None:
+        if path not in ("/", "/login", "/invite") and not path.startswith("/sprites/") and self._member_id() is None:
             if path in ("/map", "/me") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
                 self._redirect("/#join")
             else:
@@ -408,6 +408,12 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             page = self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after, GOAL=goal, BUTTON=button)
             self._send(page, "text/html; charset=utf-8")
+        elif path == "/invite":  # Discord's own page takes it from here: pick a server, approve
+            invite_url = self.renderer.world_adapter.invite_url
+            if invite_url is None:
+                self.send_error(503, "The bot isn't running right now.")
+            else:
+                self._redirect(invite_url)
         elif path == "/client.js":
             self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
         elif path.startswith("/sprites/"):

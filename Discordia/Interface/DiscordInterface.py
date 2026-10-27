@@ -19,7 +19,6 @@ from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTOR
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import (
     WorldAdapter,
-    NotRegisteredException,
     NotSpawnedException,
     InvalidSpaceException,
     DIRECTION_NAMES,
@@ -42,6 +41,13 @@ ENCOUNTER_CHOICES = [
 ]
 
 NO_STORE = "There's no store here. Find a town that has one."
+# What the bot asks for when it's added to a server: enough to post the welcome and the daily digest.
+# Commands answer through their interaction, which needs no channel permissions.
+INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True)
+WELCOME = (
+    "Discordia is here: a world of towns and wilds, played with slash commands. "
+    "Start with `/register`. Admins: `/settings` picks the channels it plays in, and where the daily digest goes."
+)
 
 
 def _character(interaction: discord.Interaction) -> Actors.PlayerCharacter:
@@ -201,7 +207,9 @@ class DiscordInterface(commands.Cog):
         a coroutine function; the tick is one, because it sends DMs.
         """
 
-        @tasks.loop(**({"time": every} if isinstance(every, datetime.time) else {"seconds": every}))
+        loop = tasks.loop(time=every) if isinstance(every, datetime.time) else tasks.loop(seconds=every)
+
+        @loop
         async def job():
             try:
                 result = action()
@@ -316,6 +324,11 @@ class DiscordInterface(commands.Cog):
         self._loop = asyncio.get_running_loop()
         self.world_adapter.place_order = self.order_threadsafe
         self.world_adapter.guild_for_admin = self.guild_for_admin
+        self.world_adapter.invite_url = discord.utils.oauth_url(
+            cast(int, self.bot.application_id),  # login fetched it before this hook
+            permissions=INVITE_PERMISSIONS,
+            scopes=("bot", "applications.commands"),
+        )
         await self.bot.add_cog(self)
         self._start_job(self.tick_seconds, self.tick, "World tick")
         for every, action, name in self.jobs:
@@ -331,6 +344,18 @@ class DiscordInterface(commands.Cog):
             LOG.error("Bot user is None. Something went wrong.")
             return
         LOG.info(f"Connected successfully: {self.bot.user.name}: <{self.bot.user.id}>")
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        """Say hello and where to start. Best effort, like _dm: the server may have no system channel, or
+        not let the bot post in it."""
+        LOG.info("Joined server %s <%s>", guild.name, guild.id)
+        if guild.system_channel is None:
+            return
+        try:
+            await guild.system_channel.send(WELCOME)
+        except discord.HTTPException:
+            LOG.info("Could not welcome server %s", guild.id)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError

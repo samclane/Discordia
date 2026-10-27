@@ -567,3 +567,24 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
     finally:
         conn.close()
         server.shutdown()
+
+
+def test_invite_sends_server_owners_to_discord():
+    adapter = WorldAdapter(GameSpace.World("Inviteland", 40, 40, seed=7))
+    server = serve(adapter)
+    conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+
+    def location():
+        conn.request("GET", "/invite")  # no cookie: anyone may add the bot
+        response = conn.getresponse()
+        response.read()
+        return response.status, response.headers.get("Location")
+
+    try:
+        assert location()[0] == 503, "no bot running, so no link"
+        adapter.invite_url = "https://discord.com/oauth2/authorize?client_id=1"
+        assert location() == (303, adapter.invite_url)
+        assert b'href="/invite"' in get(f"http://127.0.0.1:{server.server_port}/")[2]
+    finally:
+        conn.close()
+        server.shutdown()

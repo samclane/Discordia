@@ -117,12 +117,12 @@ def test_a_refusing_check_reaches_the_error_handler():
     with "The application did not respond" instead of being told to /register."""
     _, command, interaction = build(None)
     interaction.guild_id = None  # a DM: no server's channel settings to pass first
-    with pytest.raises(app_commands.AppCommandError) as caught:
-        asyncio.run(command._invoke_with_namespace(interaction, None))
+    with pytest.raises(GameCheckFailure) as caught:  # an AppCommandError, so the tree handles it
+        asyncio.run(command._invoke_with_namespace(cast(Any, interaction), cast(Any, None)))
     assert isinstance(caught.value.original, NotRegisteredException)
 
 
-def channel_check(channels, channel_id, parent_id=None, command="look", guild_id=5):
+def channel_check(channels, channel_id, parent_id=None, command="look", guild_id: int | None = 5):
     """Run the cog's channel gate for a command typed in `channel_id` of a server that allows `channels`."""
     adapter = SimpleNamespace(guild_settings={5: GuildSettings(channels=channels)})
     interface = loaded_cog(adapter)
@@ -132,7 +132,7 @@ def channel_check(channels, channel_id, parent_id=None, command="look", guild_id
         channel=SimpleNamespace(parent_id=parent_id),
         command=command_named(interface, command),
     )
-    return asyncio.run(interface.interaction_check(interaction))
+    return asyncio.run(interface.interaction_check(cast(Any, interaction)))
 
 
 def test_commands_only_work_in_the_channels_a_server_picked():
@@ -508,7 +508,7 @@ def test_weblogin_privately_sends_a_link_that_logs_you_in():
     link = content.splitlines()[-1]
     assert link.startswith("<https://map.example/login?t=") and link.endswith(">")  # <>: no preview fetch
     session = adapter.web_logins.redeem(link[len("<https://map.example/login?t=") : -1])
-    assert adapter.web_logins.member_id(session) == 1
+    assert session is not None and adapter.web_logins.member_id(session) == 1
 
 
 def test_weblogin_says_so_when_there_is_no_web_map():
@@ -528,3 +528,18 @@ def test_what_the_bot_dms_is_kept_for_the_website():
 
     asyncio.run(interface.tick())
     assert [text for _, text in adapter.news(player)] == ["A raider hits you."]
+
+
+def test_joining_a_server_says_where_to_start():
+    interface = DiscordInterface(world_adapter=cast(WorldAdapter, SimpleNamespace()))
+    sent = []
+
+    async def send(text):
+        sent.append(text)
+
+    guild = SimpleNamespace(name="S", id=1, system_channel=SimpleNamespace(send=send))
+    asyncio.run(interface.on_guild_join(cast(Any, guild)))
+    assert "/register" in sent[0] and "/settings" in sent[0]
+    guild.system_channel = None  # nowhere to say it
+    asyncio.run(interface.on_guild_join(cast(Any, guild)))
+    assert len(sent) == 1
