@@ -4,7 +4,11 @@
 [![Build Status](https://travis-ci.com/samclane/Discordia.svg?branch=master)](https://travis-ci.com/samclane/Discordia)
 [![codecov](https://codecov.io/gh/samclane/Discordia/branch/master/graph/badge.svg)](https://codecov.io/gh/samclane/Discordia)
 
-![Screenshot](screenshots/screen1.png)
+![The live map](screenshots/map.png)
+
+| Home page | Character sheet |
+|---|---|
+| ![Home page](screenshots/home.png) | ![Character sheet](screenshots/me.png) |
 
 Requires Python 3.7+
 
