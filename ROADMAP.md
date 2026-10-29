@@ -54,6 +54,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
 - [x] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
 - [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
+- [ ] `CombatEvent.run` never checks `ProjectileWeapon.is_empty`, so guns fire forever into negative ammo (found by
+  `test_simulation.py`; drop its `KNOWN` entry once fixed). Decide what an empty gun does mid-fight: reload, fists, or flee.
+- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 20+ without going past danger 4, and most
+  deaths happen on open ground (roaming raiders), not in wilds fights. Tune XP or danger once Extract exists.
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
 
