@@ -53,7 +53,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - Anything on a saved character (new field, new equipment slot) needs a `Database` save/load change and a round-trip test in `test_game_logic.py`.
 - Tests: pytest, plain functions, no Discord token. Discord commands are tested with fake interactions in `test_discord_interface.py`; copy an existing one. The web map page is tested in headless Chrome/Edge over DevTools in `test_webclient.py` (skipped without a browser): `page.js(...)` runs script in it.
 - `test_simulation.py` is a player simulator: bots play through `WorldAdapter` in lockstep with `World.tick()` and
-  flag anomalies. `python -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl` for a long run to analyse.
+  flag anomalies. `python -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl --html sim.html` for a long run to analyse;
+  `--html` draws it (trails and deaths on the map, charts over time) from the `sim_report.html` template.
 - `# ponytail:` comments mark deliberate shortcuts and their upgrade path. Read them before "fixing" one.
 - Black formatting. Small diffs, no speculative abstractions.
 

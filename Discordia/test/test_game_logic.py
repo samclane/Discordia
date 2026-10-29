@@ -1015,16 +1015,20 @@ def test_a_dead_npc_cannot_be_attacked_again(adapter):
         adapter.attack(player, None)
 
 
-def test_an_empty_gun_cannot_shoot(adapter):
+def test_an_empty_gun_cannot_shoot_so_you_swing_fists(adapter):
+    """Nothing to load and someone on your square: you still get to hit back, just not with the gun."""
     adapter.register_player(2, "Victim")
-    attacker = adapter.get_player(1)
+    attacker, victim = adapter.get_player(1), adapter.get_player(2)
     musket = Weapons.Jezail()
     attacker.equip(musket)
     musket.fire()
     assert musket.is_empty
 
-    with pytest.raises(CombatException, match="empty"):
-        adapter.attack(attacker, None)
+    response = adapter.attack(attacker, None)
+    assert response.target is victim
+    assert response.damage == Weapons.Fist().damage
+    assert "fists" in response.text
+    assert musket.current_capacity == 0  # never fired past empty
 
 
 def test_dying_sends_you_back_to_the_starting_town(adapter):

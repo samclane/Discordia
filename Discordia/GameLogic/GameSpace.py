@@ -965,20 +965,16 @@ class World:
         response = PlayerActionResponse(
             text="No targets found in that direction", source=player_character
         )
-        weapon = player_character.weapon
+        held = player_character.weapon
+        weapon = player_character.ready_weapon()
         if weapon is None:
             response.text = "You have no weapon equipped!"
             return response
         loc: Space = player_character.location
-        if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
-            weapon.reload(player_character)  # from the pack, if it holds the right rounds
         dmg: int = int(
             weapon.damage
         )  # weapons compute in floats; a hit lands in whole points
         while dmg > 0:
-            if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
-                response.text = "Your weapon is empty, and you carry no rounds for it."
-                break
             targets: List[Actors.Actor] = [
                 actor
                 for actor in self.players + self.npcs
@@ -1018,6 +1014,8 @@ class World:
                     dmg = int(
                         weapon.calc_damage(int(player_character.location.distance(loc)))
                     )
+        if weapon is not held and held is not None:
+            response.text = f"Your {held.name} is empty, with nothing to load, so it's fists. {response.text}"
         return response
 
     def near_a_player(self, space: Space | None) -> bool:

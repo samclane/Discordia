@@ -56,9 +56,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
 - [x] `CombatEvent.run` never checks `ProjectileWeapon.is_empty`, so guns fire forever into negative ammo (found by
   `test_simulation.py`; drop its `KNOWN` entry once fixed). Decide what an empty gun does mid-fight: reload, fists, or flee.
-- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 4-10 (20+ back when guns never ran dry)
-  without going past danger 4, and most deaths happen on open ground (roaming raiders), not in wilds fights. Tune
-  XP or danger once Extract exists.
+- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
+  or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
 
@@ -118,6 +117,14 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 "Roaming raiders" weren't the problem: the simulator credited each death to the square the bot stood on
+  *before* its fatal move, so wilds fights read as open-ground deaths. It now records where each death happened and
+  what caused it (`died_at`). The real killer on the map was an empty gun: `/attack` refused with "empty, no rounds"
+  and you couldn't punch either (unequipping leaves an empty hand, not fists), so one level-1 raider could
+  grind down a level-19 character. `PlayerCharacter.ready_weapon()` reloads from the pack or falls back to fists,
+  for `/attack` and wilds fights alike. Map-NPC deaths over three seeds: 26 to 6. Bots also take stash money to
+  re-arm after a death now, instead of raiding on fists forever.
 
 - 2026-10-28 Ammo: guns had magazines and `reload`, but no `Items.Ammo` was ever made, so `CombatEvent` fired
   forever into negative rounds and `/attack` went dead after one magazine. A box per caliber now lives in

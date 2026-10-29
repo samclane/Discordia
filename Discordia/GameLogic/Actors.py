@@ -438,6 +438,16 @@ class PlayerCharacter(Actor):
     def has_weapon_equipped(self) -> bool:
         return self.weapon is not None
 
+    def ready_weapon(self) -> Union[Weapons.Weapon, None]:
+        """What to hit with right now: the weapon in hand, reloaded from the pack if it has run dry, or bare
+        fists if there is nothing to load. An empty gun is a club, never a reason to stand there and take it."""
+        weapon = self.weapon
+        if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
+            weapon.reload(self)
+            if weapon.is_empty:
+                return Weapons.Fist()
+        return weapon
+
     def equip(
         self, equipment: Equipment, equipment_type: Type[Equipment] | None = None
     ):

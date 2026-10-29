@@ -4,7 +4,7 @@ import random
 from abc import ABC
 from typing import List, Iterator, Type
 
-from Discordia.GameLogic import Actors, GameSpace, Items, Weapons
+from Discordia.GameLogic import Actors, GameSpace, Items
 from Discordia.GameLogic.Procedural import normal
 
 
@@ -60,7 +60,7 @@ class CombatEvent(Event):
                 attack_response = GameSpace.PlayerActionResponse(
                     source=player_character
                 )
-                weapon = fists or player_character.weapon
+                weapon = fists or player_character.ready_weapon()
                 if weapon is None:
                     attack_response.is_successful = False
                     attack_response.text = (
@@ -68,16 +68,15 @@ class CombatEvent(Event):
                     )
                     yield attack_response
                     break
-                if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
-                    weapon.reload(player_character)
-                    if weapon.is_empty:
-                        yield GameSpace.PlayerActionResponse(
-                            is_successful=True,
-                            source=player_character,
-                            text=f"{player_character.name}'s {weapon.name} is empty, "
-                            f"with nothing to load. Fists it is.",
-                        )
-                        weapon = fists = Weapons.Fist()
+                held = player_character.weapon
+                if fists is None and weapon is not held and held is not None:
+                    yield GameSpace.PlayerActionResponse(
+                        is_successful=True,
+                        source=player_character,
+                        text=f"{player_character.name}'s {held.name} is empty, "
+                        f"with nothing to load. Fists it is.",
+                    )
+                    fists = weapon
                 # Damage is always calculated at full power (min distance). At least a point a round, so a
                 # weak weapon makes a long fight, never an endless one.
                 dmg = max(1, int(weapon.damage))

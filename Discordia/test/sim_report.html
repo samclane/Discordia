@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Run</title>
+<!-- Filled in by test_simulation.report(): the run's data replaces the null below. No build step. -->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 2px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.sub { color: var(--ink-2); margin: 0 0 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 24px; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 13px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; }
+.charts .card { margin: 0; position: relative; }
+svg { display: block; width: 100%; height: auto; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.grid line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.series { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.cross { stroke: var(--muted); stroke-width: 1; visibility: hidden; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); visibility: hidden; min-width: 130px; z-index: 2; }
+.tip .head { color: var(--ink-2); margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 8px; }
+.tip .row b { font-variant-numeric: tabular-nums; min-width: 3ch; }
+.tip .row span:last-child { color: var(--ink-2); }
+.map-wrap { position: relative; overflow: hidden; border-radius: 6px; }
+.map-wrap svg { background: #181818; }
+.trail { fill: none; stroke-width: 1.75; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: 0.9; }
+.halo { fill: none; stroke: rgba(0,0,0,0.55); stroke-width: 4; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.now { stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; visibility: hidden; }
+.map-wrap image { opacity: 0.55; } /* the ground is context; the trails are the story */
+.death line { stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.death line.under { stroke: rgba(0,0,0,0.7); stroke-width: 5; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+td.num, th.num { text-align: right; }
+.scroll { overflow-x: auto; }
+.empty { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulation run</h1>
+  <p class="sub" id="sub"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>Where the bots went</h2>
+    <div class="map-wrap"><svg id="map"></svg></div>
+    <div class="legend" id="map-legend"></div>
+  </div>
+
+  <div class="legend" id="chart-legend" style="margin: 0 0 10px"></div>
+  <div class="charts" id="charts"></div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Bots at the end of the run</h2>
+    <div class="scroll"><table id="table"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Anomalies</h2>
+    <div id="anomalies"></div>
+  </div>
+</main>
+<script>
+const DATA = /*DATA*/null;
+const NS = "http://www.w3.org/2000/svg";
+const color = (i) => (i < 8 ? `var(--s${i + 1})` : "var(--muted)"); // past 8 bots: muted, never a made-up hue
+const el = (tag, attrs = {}, parent) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const html = (tag, text, parent, cls) => {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (cls) node.className = cls;
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const fmt = (v) => (Math.abs(v) >= 10000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v * 10) / 10}`);
+const bots = DATA.bots;
+const ticks = bots[0].level.length;
+
+// --- Header and stat tiles ------------------------------------------------------------------------
+document.getElementById("sub").textContent =
+  `${bots.length} bots, ${ticks} ticks, seed ${DATA.seed}, a ${DATA.size}×${DATA.size} world`;
+const totalDeaths = bots.reduce((n, b) => n + b.deaths[ticks - 1], 0);
+const tiles = document.getElementById("tiles");
+for (const [label, value] of [
+  ["Ticks", ticks],
+  ["Deaths", totalDeaths],
+  ["Kills", DATA.kills],
+  ["Anomalies", DATA.anomalies.length],
+  ["Chunks explored", DATA.chunks],
+]) {
+  const tile = html("div", undefined, tiles, "tile");
+  html("div", label, tile, "label");
+  html("div", value.toLocaleString(), tile, "value");
+}
+
+function legend(parent) {
+  bots.forEach((b, i) => {
+    const item = html("span", undefined, parent);
+    html("i", undefined, item, "key").style.borderColor = color(i);
+    item.appendChild(document.createTextNode(b.name));
+  });
+}
+
+// --- Map: the explored ground, each bot's trail, where it died ----------------------------------
+const map = document.getElementById("map");
+const [w, h] = DATA.squares;
+const [ox, oy] = DATA.origin;
+map.setAttribute("viewBox", `0 0 ${w} ${h}`);
+const img = el("image", { href: DATA.map, width: w, height: h, preserveAspectRatio: "none" }, map);
+img.style.imageRendering = "pixelated";
+bots.forEach((b, i) => {
+  // A death respawns the bot in town: break the trail there instead of drawing the teleport.
+  let segment = [];
+  const flush = () => {
+    if (segment.length > 1) {
+      const points = segment.join(" ");
+      el("polyline", { points, class: "halo" }, map);
+      el("polyline", { points, class: "trail" }, map).style.stroke = color(i);
+    }
+    segment = [];
+  };
+  for (let t = 0; t < ticks; t++) {
+    if (t && b.deaths[t] !== b.deaths[t - 1]) flush();
+    segment.push(`${b.x[t] - ox + 0.5},${b.y[t] - oy + 0.5}`);
+  }
+  flush();
+});
+const r = Math.max(w, h) / 160; // marker size in squares, so it reads at any map size
+bots.forEach((b, i) => {
+  for (const [x, y, t] of b.died) {
+    const cx = x - ox + 0.5, cy = y - oy + 0.5;
+    const g = el("g", { class: "death" }, map);
+    for (const cls of ["under", ""]) {
+      for (const [y1, y2] of [[cy - r, cy + r], [cy + r, cy - r]]) {
+        const line = el("line", { x1: cx - r, y1, x2: cx + r, y2, class: cls }, g);
+        if (!cls) line.style.stroke = color(i);
+      }
+    }
+    el("title", {}, g).textContent = `${b.name} died around here, tick ${t}`;
+  }
+});
+const [tx, ty] = DATA.town;
+el("rect", { x: tx - ox + 0.5 - r * 1.4, y: ty - oy + 0.5 - r * 1.4, width: r * 2.8, height: r * 2.8, fill: "#fff", stroke: "#000", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }, map);
+const nowDots = bots.map((b, i) => {
+  const dot = el("circle", { r: r * 1.6, class: "now" }, map);
+  dot.style.fill = color(i);
+  return dot;
+});
+const mapLegend = document.getElementById("map-legend");
+legend(mapLegend);
+html("span", "✕ died   ■ starting town   ● position at the hovered tick", mapLegend);
+
+// --- Charts over time: one measure each, every bot a line, crosshairs in sync --------------------
+function niceTicks(max, n = 4) {
+  if (max <= 0) return [0, 1];
+  const raw = max / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const out = [];
+  for (let v = 0; v < max + step * 0.999; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+const W = 520, H = 220, M = { l: 44, r: 12, t: 10, b: 26 };
+const xs = (t) => M.l + (t / Math.max(ticks - 1, 1)) * (W - M.l - M.r);
+const crosshairs = [];
+const tips = [];
+
+function chart(title, key, unit) {
+  const card = html("div", undefined, document.getElementById("charts"), "card");
+  html("h2", title, card);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, card);
+  const max = Math.max(...bots.map((b) => Math.max(...b[key])));
+  const yt = niceTicks(max);
+  const top = yt[yt.length - 1];
+  const ys = (v) => H - M.b - (v / top) * (H - M.t - M.b);
+  const grid = el("g", { class: "grid" }, svg);
+  for (const v of yt) {
+    if (v) el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v) }, grid);
+    el("text", { x: M.l - 6, y: ys(v) + 4, "text-anchor": "end" }, svg).textContent = fmt(v);
+  }
+  el("line", { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), class: "baseline" }, svg);
+  for (const t of niceTicks(ticks - 1, 5)) {
+    if (t > ticks - 1) continue;
+    el("text", { x: xs(t), y: H - 8, "text-anchor": "middle" }, svg).textContent = t.toLocaleString();
+  }
+  bots.forEach((b, i) => {
+    // ponytail: every tick a vertex. Fine to ~20k ticks; decimate per pixel column past that.
+    const points = b[key].map((v, t) => `${xs(t).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
+    el("polyline", { points, class: "series" }, svg).style.stroke = color(i);
+  });
+  const cross = el("line", { y1: M.t, y2: H - M.b, class: "cross" }, svg);
+  crosshairs.push(cross);
+  const tip = html("div", undefined, card, "tip");
+  tips.push(tip);
+
+  const hit = el("rect", { x: M.l, y: 0, width: W - M.l - M.r, height: H, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", (ev) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((ev.clientX - box.left) / box.width) * W;
+    const t = Math.round(((px - M.l) / (W - M.l - M.r)) * (ticks - 1));
+    show(Math.min(Math.max(t, 0), ticks - 1), tip, key, unit, ev.clientX - card.getBoundingClientRect().left);
+  });
+  hit.addEventListener("pointerleave", hide);
+}
+
+function show(t, tip, key, unit, x) {
+  for (const c of crosshairs) {
+    c.setAttribute("x1", xs(t));
+    c.setAttribute("x2", xs(t));
+    c.style.visibility = "visible";
+  }
+  bots.forEach((b, i) => {
+    nowDots[i].setAttribute("cx", b.x[t] - ox + 0.5);
+    nowDots[i].setAttribute("cy", b.y[t] - oy + 0.5);
+    nowDots[i].style.visibility = "visible";
+  });
+  tip.replaceChildren();
+  html("div", `Tick ${t.toLocaleString()}`, tip, "head");
+  bots
+    .map((b, i) => [b[key][t], b.name, i])
+    .sort((a, b) => b[0] - a[0])
+    .forEach(([v, name, i]) => {
+      const row = html("div", undefined, tip, "row");
+      html("i", undefined, row, "key").style.borderColor = color(i);
+      html("b", `${unit === "$" ? "$" : ""}${fmt(v)}`, row);
+      html("span", name, row);
+    });
+  tip.style.visibility = "visible";
+  const card = tip.parentElement;
+  tip.style.top = "44px";
+  tip.style.left = `${Math.min(x + 14, card.clientWidth - tip.offsetWidth - 8)}px`;
+}
+
+function hide() {
+  for (const c of crosshairs) c.style.visibility = "hidden";
+  for (const d of nowDots) d.style.visibility = "hidden";
+  for (const tip of tips) tip.style.visibility = "hidden";
+}
+
+legend(document.getElementById("chart-legend"));
+chart("Level", "level");
+chart("Net worth (carried + stashed)", "worth", "$");
+chart("Distance from the starting town (squares)", "distance");
+chart("Deaths so far", "deaths");
+
+// --- The table view: every number the charts end on, readable without hovering ------------------
+const table = document.getElementById("table");
+const head = html("tr", undefined, html("thead", undefined, table));
+for (const [label, num] of [["Bot", 0], ["Reach", 1], ["Level", 1], ["Deaths", 1], ["Net worth", 1], ["Furthest", 1], ["Weapon", 0]]) {
+  html("th", label, head, num ? "num" : "");
+}
+const body = html("tbody", undefined, table);
+bots.forEach((b, i) => {
+  const row = html("tr", undefined, body);
+  const name = html("td", undefined, row);
+  html("i", undefined, name, "key").style.borderColor = color(i);
+  name.appendChild(document.createTextNode(` ${b.name}`));
+  for (const v of [b.reach, b.level[ticks - 1], b.deaths[ticks - 1], `$${b.worth[ticks - 1].toLocaleString()}`, Math.max(...b.distance)]) {
+    html("td", typeof v === "number" ? v.toLocaleString() : v, row, "num");
+  }
+  html("td", b.weapon, row);
+});
+
+const anomalies = document.getElementById("anomalies");
+if (!DATA.anomalies.length) html("p", "None. Every bot stayed within the rules for the whole run.", anomalies, "empty");
+else {
+  const t = html("table", undefined, anomalies);
+  const hr = html("tr", undefined, html("thead", undefined, t));
+  for (const label of ["Tick", "Bot", "What"]) html("th", label, hr);
+  const tb = html("tbody", undefined, t);
+  for (const [tick, name, what] of DATA.anomalies.slice(0, 200)) {
+    const row = html("tr", undefined, tb);
+    html("td", tick, row); html("td", name, row); html("td", what, row);
+  }
+  if (DATA.anomalies.length > 200) html("p", `…and ${DATA.anomalies.length - 200} more in the JSON log.`, anomalies, "empty");
+}
+</script>
+</body>
+</html>
