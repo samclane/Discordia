@@ -23,6 +23,10 @@ HIDEOUT_GROWTH = 1.15
 HIDEOUT_SALVAGE_EVERY = 5
 HIDEOUT_INCOME = 10
 HIDEOUT_PAY_TICKS = 60
+# A camp out past the towns heals CAMP_HEAL_SHARE of your hit points every CAMP_HEAL_TICKS: full in twenty minutes
+# at a 5-second tick. Slow next to an inn, which is the point: it saves the walk, not the time.
+CAMP_HEAL_TICKS = 12
+CAMP_HEAL_SHARE = 0.05
 
 
 class BodySize(Enum):
@@ -395,6 +399,8 @@ class PlayerCharacter(Actor):
         # An unattended raid (World.tick walks it): (the World.ticks it heads home at, deaths when it set out,
         # the deepest danger level it goes to). Saved, so a restart picks the raid up where it was.
         self.auto_raid: Tuple[int, int, int] | None = None
+        # Resting where you stand (World.advance heals it), until you move or die.
+        self.camping: bool = False
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
@@ -405,6 +411,7 @@ class PlayerCharacter(Actor):
         # Walking on is how you ignore a stranger. Cleared before the step, so an encounter raised by
         # the square you land on survives.
         self.pending_event = None
+        self.camping = False
         was_out = not isinstance(self.location, GameSpace.Town)
         if not was_out:
             self.raid_start = (self.currency, self.carried, self.experience)
@@ -532,6 +539,11 @@ class PlayerCharacter(Actor):
         if levels:
             return ", ".join(taken) + f" (level {self.level}!)"
         return ", ".join(taken)
+
+    @property
+    def camp_heal(self) -> int:
+        """Hit points a camp gives back every CAMP_HEAL_TICKS."""
+        return max(1, round(self.hit_points_max * CAMP_HEAL_SHARE))
 
     def stash_put(self, index: int | None = None, money: int = 0) -> str:
         """Bank the carried item at `index` and/or `money`. Callers check the player is in a town."""

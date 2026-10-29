@@ -46,6 +46,7 @@ EXPECTED = {
     "stash take",
     "hideout build",
     "raid",
+    "camp",
     "weblogin",
     "settings",
 }

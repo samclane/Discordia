@@ -126,6 +126,9 @@ the bot syncs them.
     * From any town: send your character out alone, no deeper than danger `depth` (default 1: safe, small hauls;
       deeper pays more and kills more). It walks to the nearest stocked cache in reach, fights whatever it meets, and heads for the nearest town when time is up or it's badly hurt. You get one message at the end:
       what it brought home, or what it lost.
+* `/camp`
+    * Out past the towns: rest where you stand, healing a little every minute (full in about twenty) until you
+      move. Raiders can still find you.
 * `/hideout build`
     * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000
       and each after 15% more; every 5th costs salvage instead, which only caches out in the wilds hold. Each level

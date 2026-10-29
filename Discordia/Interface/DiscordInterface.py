@@ -752,6 +752,17 @@ class DiscordInterface(commands.Cog):
         """Raid alone for this many minutes, no deeper than `depth`: deeper pays more and kills more"""
         await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes, depth))
 
+    @app_commands.command()
+    @requires_character()
+    async def camp(self, interaction: discord.Interaction):
+        """Rest where you stand, out past the towns: you heal slowly until you move"""
+        try:
+            text = self.world_adapter.camp(self._player(interaction))
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, text)
+
     @town.command(name="status")
     @requires_character()
     async def town_status(self, interaction: discord.Interaction):

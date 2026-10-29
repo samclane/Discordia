@@ -1,6 +1,7 @@
 # Note: NEVER EVER import Discord here, this defeats the whole point of an ADAPTER
 from __future__ import annotations
 
+import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -170,6 +171,19 @@ class WorldAdapter:
         """What the hideout pays into the stash an hour, at this server's tick."""
         ticks_an_hour = 3600 / self.tick_seconds
         return int(Actors.HIDEOUT_INCOME * character.hideout_level * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
+
+    def camp(self, character: Actors.PlayerCharacter) -> str:
+        """Rest where `character` stands, out past the towns: World.advance heals it until it moves or dies."""
+        if isinstance(character.location, Town):
+            raise ValueError("You're in a town: `/town inn` patches you up on the spot.")
+        character.camping = True
+        missing = character.hit_points_max - character.hit_points
+        minutes = math.ceil(missing / character.camp_heal) * Actors.CAMP_HEAL_TICKS * self.tick_seconds / 60
+        return (
+            f"{character.name} makes camp. Back to full in about {minutes:.0f} minutes, as long as you stay put."
+            if missing > 0
+            else f"{character.name} makes camp, already at full health."
+        )
 
     def start_raid(self, character: Actors.PlayerCharacter, minutes: int, depth: int = 1) -> str:
         """Send `character` out unattended for `minutes`, no deeper than danger `depth`; World.tick walks it

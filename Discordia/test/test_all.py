@@ -232,6 +232,7 @@ class TestGeneral(unittest.TestCase):
         self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
         for _ in self._move_randomly():
             pass
+        player.camping = True  # after the moves, which break camp
 
         path = Path(self.temp_dir.name) / "roundtrip.db"
         database = Database(path)
@@ -268,6 +269,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(restored.stash_currency, 77)
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
         self.assertEqual(restored.hideout_level, 3)
+        self.assertTrue(restored.camping)
         self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.
         self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))

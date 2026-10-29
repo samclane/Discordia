@@ -60,7 +60,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   `test_simulation.py`; drop its `KNOWN` entry once fixed). Decide what an empty gun does mid-fight: reload, fists, or flee.
 - [x] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
-- [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
+- [x] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
 
 ## NPCs and world
@@ -129,6 +129,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Rest outside towns: `/camp` (not in a town; there the inn is free) sets
+  `PlayerCharacter.camping`, and `World.advance` heals a camper `CAMP_HEAL_SHARE` (5%) of max every
+  `CAMP_HEAL_TICKS` (a minute), so full in twenty minutes. Moving or dying breaks camp. Saved as a migrated
+  `character.camping` column, and since healing is in `advance`, a load heals campers for the downtime too.
 
 - 2026-10-29 Levels outrun the map: a kill below your level pays its share of your level in XP (a level-1
   raider gives a level-4 player a quarter), so farming the wilds by town stops paying and levels keep pace with

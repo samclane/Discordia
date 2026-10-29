@@ -1337,6 +1337,24 @@ def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter
     assert targets == [exfil]
 
 
+def test_a_camp_heals_slowly_until_you_move(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    with pytest.raises(ValueError, match="inn"):
+        adapter.camp(player)  # in town: the inn is right there
+    d = _quiet_step_out_of_town(world)
+    town = world.starting_town
+    player.location = world.space_at(town.x + d[0], town.y + d[1])
+    world.npcs = []
+    player.hit_points = 10
+    assert "minutes" in adapter.camp(player)
+    world.ticks = 0
+    world.advance(2 * Actors.CAMP_HEAL_TICKS)
+    assert player.hit_points == 10 + 2 * player.camp_heal
+    player.attempt_move((-d[0], -d[1]))  # back into town
+    world.advance(Actors.CAMP_HEAL_TICKS)
+    assert not player.camping and player.hit_points == 10 + 2 * player.camp_heal
+
+
 def test_an_auto_raid_that_dies_says_so(adapter):
     player = adapter.get_player(1)
     adapter.start_raid(player, 60)

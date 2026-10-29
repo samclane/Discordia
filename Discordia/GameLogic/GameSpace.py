@@ -1173,9 +1173,12 @@ class World:
         """Move the clock on `ticks`, paying every hideout once for each pay day passed. tick() moves it one;
         a load moves it however many ticks the server was down for, so a restart doesn't eat idle income."""
         paydays = (self.ticks + ticks) // Actors.HIDEOUT_PAY_TICKS - self.ticks // Actors.HIDEOUT_PAY_TICKS
+        heals = (self.ticks + ticks) // Actors.CAMP_HEAL_TICKS - self.ticks // Actors.CAMP_HEAL_TICKS
         self.ticks += ticks
         for p in self.players:
             p.stash_currency += Actors.HIDEOUT_INCOME * p.hideout_level * paydays
+            if p.camping:
+                p.hit_points += p.camp_heal * heals
 
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
@@ -1268,6 +1271,7 @@ class World:
                 player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
         player.deaths += 1
         player.raid_start = None
+        player.camping = False
         self.stats.deaths_by_level[here.level if isinstance(here, Wilds) else 0] += 1
         player.location = self.starting_town
         player.revive()
