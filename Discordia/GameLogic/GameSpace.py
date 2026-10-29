@@ -87,6 +87,11 @@ CACHE_CHANCE = 0.5
 CACHE_TOWN_DISTANCE = 12
 # What a cache holds, in money per wilds level. Several kills' worth: it's a long walk out.
 CACHE_CURRENCY_PER_LEVEL = 100
+# Its piece of kit is the dearest of `level` picks from a store's stock, and it holds one salvage plus one more
+# every CACHE_LEVELS_PER_SALVAGE levels: further out pays better. An emptied cache restocks after
+# CACHE_REFILL_TICKS, four hours at a 5-second tick, so a raid route is worth running a few times a day.
+CACHE_LEVELS_PER_SALVAGE = 3
+CACHE_REFILL_TICKS = 2880
 
 # NPCs only act within this many squares of a player. Everywhere else holds still until somebody comes
 # near, which keeps a tick cheap however many raiders are out there. A chunk, not the player's view, so
@@ -599,27 +604,26 @@ class Cache(Space):
         super().__init__(x, y, terrain)
         self.name = "a cache"
         self.level: int = 0  # set by the World with the wilds around it
-        # ponytail: not saved, so a restart refills every cache. Save opened caches if anyone farms that.
-        self.looted = False
+        # World.ticks when it was last emptied, or None if it's full.
+        # ponytail: not saved, so a restart refills every cache early. Save opened caches if anyone farms that.
+        self.looted_at: int | None = None
 
     def run_event(self, player) -> List[PlayerActionResponse]:
         response = PlayerActionResponse(is_successful=True, source=player)
-        if self.looted:
-            response.text = "There's a cache here, already emptied."
+        now = player.parent_world.ticks
+        if self.looted_at is not None and now - self.looted_at < CACHE_REFILL_TICKS:
+            response.text = "There's a cache here, already emptied. Someone will restock it, in time."
             return [response]
-        self.looted = True
-        response.currency = int(
-            normal(
-                CACHE_CURRENCY_PER_LEVEL * max(self.level, 1),
-                positive=True,
-                integer=True,
-            )
-        )
+        self.looted_at = now
+        level = max(self.level, 1)
+        response.currency = int(normal(CACHE_CURRENCY_PER_LEVEL * level, positive=True, integer=True))
         player.currency += response.currency
         found = [f"${response.currency}"]
         stock = Store.generate_store().inventory
+        kit = [max(random.sample(stock, min(level, len(stock))), key=lambda i: i.base_value)] if stock else []
         # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
-        for item in ([random.choice(stock)] if stock else []) + [Items.Salvage()]:
+        salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE)]
+        for item in kit + salvage:
             player.inventory.append(item)
             response.items.append(item)
             found.append(str(item))

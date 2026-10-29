@@ -32,7 +32,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
   instead of money so raids feed the idle side.
 - [x] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
-- [ ] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
+- [x] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
   instead of never/restart (see ponytail note in `GameSpace.Cache`).
 - [ ] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
   cache and fights what it meets; when time is up it walks home. DM the result: extracted with X, or died at Y.
@@ -125,6 +125,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Caches are raid targets: money already scaled with level; now the piece of kit is the dearest of
+  `level` picks from a store's stock, and the salvage is 1 + `level // CACHE_LEVELS_PER_SALVAGE` pieces. `looted`
+  became `looted_at` (a `World.ticks`), and an emptied cache restocks after `CACHE_REFILL_TICKS`, four hours at a
+  5-second tick. Still not saved: a restart refills them early.
 
 - 2026-10-29 Discord server simulator (`test_server_simulation.py`): members on two fake servers use the real slash
   commands, and every message the bot sends is checked for spam, posts outside allowed channels, leaked links, mass

@@ -1231,6 +1231,32 @@ def test_a_cache_always_holds_salvage(adapter):
     assert any(isinstance(item, Items.Salvage) for item in player.inventory)
 
 
+def test_a_far_cache_pays_better_than_a_near_one(adapter):
+    player = adapter.get_player(1)
+
+    def haul(level):
+        random.seed(level)
+        cache = GameSpace.Cache(0, 0)
+        cache.level = level
+        player.inventory, player.currency = Actors.Inventory(), 0
+        cache.run_event(player)
+        kit = [i for i in player.inventory if not isinstance(i, Items.Salvage)]
+        return player.currency, kit[0].base_value, len(player.inventory) - len(kit)
+
+    near, far = haul(1), haul(9)
+    assert far[0] > near[0] and far[1] > near[1]  # more money, dearer kit
+    assert (near[2], far[2]) == (1, 1 + 9 // GameSpace.CACHE_LEVELS_PER_SALVAGE)
+
+
+def test_an_emptied_cache_restocks_on_a_timer(adapter):
+    player = adapter.get_player(1)
+    cache = GameSpace.Cache(0, 0)
+    cache.run_event(player)
+    assert "already emptied" in cache.run_event(player)[0].text
+    adapter.world.ticks += GameSpace.CACHE_REFILL_TICKS
+    assert "You find a cache" in cache.run_event(player)[0].text
+
+
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     player = adapter.get_player(1)
     helmet = Armor.Helmet()
