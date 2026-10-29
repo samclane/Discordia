@@ -149,7 +149,7 @@ class Actor(AbstractActor, ABC):
             return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
         self.location = self.parent_world.space_at(new_coords.x, new_coords.y)
         if isinstance(
-            self.location, (GameSpace.Wilds, GameSpace.Cache)
+            self.location, (GameSpace.Wilds, GameSpace.Cache, GameSpace.Extract)
         ) and isinstance(self, PlayerCharacter):
             return self.location.run_event(player=self)
         else:

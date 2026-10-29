@@ -93,6 +93,10 @@ CACHE_CURRENCY_PER_LEVEL = 100
 CACHE_LEVELS_PER_SALVAGE = 3
 CACHE_REFILL_TICKS = 2880
 
+# Extraction points: on the same cells as caches, each cell rolls EXTRACT_CHANCE for one on a plain square of one
+# of its middle chunks. Stepping on one is a ride to the nearest town, so a deep raid needn't walk all the way back.
+EXTRACT_CHANCE = 0.5
+
 # NPCs only act within this many squares of a player. Everywhere else holds still until somebody comes
 # near, which keeps a tick cheap however many raiders are out there. A chunk, not the player's view, so
 # raiders still wander in from just out of sight.
@@ -642,6 +646,31 @@ class Cache(Space):
         return str(self.sprite_path)
 
 
+class Extract(Space):
+    """A way out in the wilds: step on it and you're driven to the nearest town, raid over."""
+
+    def __init__(self, x, y, terrain: Terrain = NullTerrain()):
+        super().__init__(x, y, terrain)
+        self.name = "an extraction point"
+
+    def run_event(self, player) -> List[PlayerActionResponse]:
+        world = player.parent_world
+        # Picked up here, before the ride: a pile on this square can't be reached any other way.
+        responses = [found] if (found := world.pick_up_remains(player)) is not None else []
+        town = min(world.towns, key=self.distance)
+        player.location = town  # PlayerCharacter.attempt_move sees a town and reports the haul
+        text = f"A ride is waiting at the extraction point. It drops you in {town.name}."
+        return responses + [PlayerActionResponse(is_successful=True, source=player, text=text)]
+
+    @property
+    def sprite_path(self):
+        return SPRITE_FOLDER / "Structures" / "extract.png"
+
+    @property
+    def sprite_path_string(self):
+        return str(self.sprite_path)
+
+
 @dataclass
 class PlayerActionResponse:
     is_successful: bool = False
@@ -709,6 +738,7 @@ class World:
         self.towns: List[Town] = []  # in loaded chunks only, like wilds
         self.wilds: List[Wilds] = []
         self.caches: List[Cache] = []
+        self.extracts: List[Extract] = []
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
@@ -786,6 +816,7 @@ class World:
     def _load_chunk(self, cx: int, cy: int) -> List[List[Space]]:
         rows = self._roll_chunk(cx, cy)
         self._place_cache(cx, cy, rows)
+        self._place_extract(cx, cy, rows)
         for row in rows:
             for space in row:
                 if isinstance(space, Town):
@@ -794,6 +825,8 @@ class World:
                     self.wilds.append(space)
                 elif isinstance(space, Cache):
                     self.caches.append(space)
+                elif isinstance(space, Extract):
+                    self.extracts.append(space)
         self._chunks[cx, cy] = (
             rows  # published whole: the web map reads this from another thread
         )
@@ -801,17 +834,32 @@ class World:
             self._populate_chunk(cx, cy)
         return rows
 
-    def _place_cache(self, cx: int, cy: int, rows: List[List[Space]]):
-        """Put this chunk's cache in, if its cell rolled one and picked this chunk (see CACHE_CELL)."""
+    def _cell_picked(self, cx: int, cy: int, kind: str, chance: float) -> bool:
+        """Whether this chunk's cell rolled a `kind` (under `chance`) and put it in this chunk (see CACHE_CELL)."""
         gx, gy = cx // CACHE_CELL, cy // CACHE_CELL
-        with _seeded(self.seed, gx, gy, "cache"):
-            if random.random() > CACHE_CHANCE:
-                return
+        with _seeded(self.seed, gx, gy, kind):
+            if random.random() > chance:
+                return False
             pick = (
                 gx * CACHE_CELL + random.randint(1, CACHE_CELL - 2),
                 gy * CACHE_CELL + random.randint(1, CACHE_CELL - 2),
             )
-        if pick != (cx, cy):
+        return pick == (cx, cy)
+
+    def _place_extract(self, cx: int, cy: int, rows: List[List[Space]]):
+        """Put this chunk's extraction point in, if its cell rolled one here: any plain square will do."""
+        if not self._cell_picked(cx, cy, "extract", EXTRACT_CHANCE):
+            return
+        spots = [space for row in rows for space in row if type(space) is Space and space.terrain.buildable]
+        if not spots:
+            return
+        with _seeded(self.seed, cx, cy, "extract"):
+            spot = random.choice(spots)
+        rows[spot.y % CHUNK_SIZE][spot.x % CHUNK_SIZE] = Extract(spot.x, spot.y, spot.terrain)
+
+    def _place_cache(self, cx: int, cy: int, rows: List[List[Space]]):
+        """Put this chunk's cache in, if its cell rolled one and picked this chunk (see CACHE_CELL)."""
+        if not self._cell_picked(cx, cy, "cache", CACHE_CHANCE):
             return
         # Towns over the chunk line count too. Rolling a neighbour is pure, so unloaded ones are rolled
         # and thrown away rather than loaded, which would set every neighbour placing its own cache.
@@ -1094,8 +1142,8 @@ class World:
                 return PlayerActionResponse(
                     is_successful=True, target=player, source=player, text=f"Your raid is over, in {here.name}."
                 )
-            town = min(self.towns, key=here.distance)
-            results = player.step(town)
+            # An extraction point drops it in a town, so the nearest of either is the way home.
+            results = player.step(min(self.towns + self.extracts, key=here.distance))
         else:
             stocked = [
                 c for c in self.caches

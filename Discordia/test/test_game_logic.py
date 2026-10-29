@@ -1293,6 +1293,40 @@ def test_an_auto_raid_with_no_cache_keeps_to_its_depth(adapter, monkeypatch):
     assert 2 <= deepest <= 3  # got there, and a wandering step past the edge is walked straight back
 
 
+def test_an_extraction_point_drives_you_to_the_nearest_town_and_ends_the_raid():
+    world = GameSpace.World("Exfil", 640, 640, seed=5)
+    for cx in range(640 // GameSpace.CHUNK_SIZE):
+        for cy in range(640 // GameSpace.CHUNK_SIZE):
+            world.space_at(cx * GameSpace.CHUNK_SIZE, cy * GameSpace.CHUNK_SIZE)
+    assert len(world.extracts) >= 3
+    assert all(e.terrain.walkable and world.space_at(e.x, e.y) is e for e in world.extracts)
+
+    player = Actors.PlayerCharacter(parent_world=world, name="Rider")
+    world.add_actor(player)
+    extract = world.extracts[0]
+    d = next(d for d in DIRECTION_VECTORS.values() if world.is_coords_valid(extract.x - d[0], extract.y - d[1]))
+    player.location = world.space_at(extract.x - d[0], extract.y - d[1])
+    player.raid_start = (player.currency, player.carried, player.experience)
+    player.currency += 50
+    told = [r.text for r in player.attempt_move(d)]
+    assert player.location is min(world.towns, key=extract.distance)
+    assert "extraction point" in told[0] and "Raid over" in told[-1] and "$50" in told[-1]
+
+
+def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter, monkeypatch):
+    world, player = adapter.world, adapter.get_player(1)
+    town = world.starting_town
+    player.location = world.space_at(town.x + 20, town.y)
+    exfil = GameSpace.Extract(town.x + 22, town.y)
+    world.extracts, world.npcs = [exfil], []
+    targets = []
+    monkeypatch.setattr(player, "step", lambda space, toward=True: targets.append(space) or [])
+    monkeypatch.setattr(player, "attempt_move", lambda shift: [])
+    player.auto_raid = (0, player.deaths, 1)  # time's up
+    world.tick()
+    assert targets == [exfil]
+
+
 def test_an_auto_raid_that_dies_says_so(adapter):
     player = adapter.get_player(1)
     adapter.start_raid(player, 60)

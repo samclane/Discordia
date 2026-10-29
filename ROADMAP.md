@@ -39,7 +39,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
   so the safe choice is boring but steady.
 - [x] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
-- [ ] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
+- [x] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
 - [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
   Tarkov wipe). Only once hideout income visibly plateaus.
@@ -97,6 +97,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
 - [ ] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
 - [ ] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
+- [ ] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
+  a player where the nearest one is. A bearing to it in `/look`, like `/choose talk`'s directions to a town.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
 - [x] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
 
@@ -126,6 +128,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Extraction points: each cache cell (`CACHE_CELL` chunks a side) rolls `EXTRACT_CHANCE` for an
+  `Extract` on a plain square of one of its middle chunks, seeded like caches. Stepping on one takes any remains
+  there, then drives you to the nearest town, which ends the raid with the usual haul. Auto-raids head home by the
+  nearest town or extraction point. Drawn with Kenney's taxi; `ART_VERSION` 4. The cell roll is shared with caches
+  (`World._cell_picked`).
 
 - 2026-10-29 Auto-raid survives a restart: `auto_raid`'s home-at tick and depth are two migrated, nullable
   `character` columns. Deaths aren't saved, so a loaded raid counts them from the load. The clock runs on by the

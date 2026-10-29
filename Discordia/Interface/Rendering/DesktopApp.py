@@ -170,7 +170,7 @@ class WindowRenderer:
                 if tile is not None:
                     image.paste(tile, pos, tile)
                 if isinstance(
-                    space, (GameSpace.Town, GameSpace.Wilds, GameSpace.Cache)
+                    space, (GameSpace.Town, GameSpace.Wilds, GameSpace.Cache, GameSpace.Extract)
                 ):
                     self._paste(space.sprite_path_string, x, y, image)
         return image
