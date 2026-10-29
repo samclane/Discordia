@@ -69,6 +69,16 @@ table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nu
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
 th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
 td.num, th.num { text-align: right; }
+th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; font: inherit; color: inherit; }
+th button:hover, th button:focus-visible { color: var(--ink); text-decoration: underline; }
+th button::after { content: "↕"; color: var(--muted); font-size: 11px; }
+th[aria-sort=ascending] button::after { content: "▲"; color: var(--ink); }
+th[aria-sort=descending] button::after { content: "▼"; color: var(--ink); }
+#table tbody tr { cursor: pointer; }
+#table tbody tr:hover { background: var(--grid); }
+#table tbody tr[aria-selected=true] { background: var(--grid); font-weight: 600; }
+.dim { opacity: 0.12; }
+.hint { color: var(--ink-2); font-size: 12px; margin: 0 0 8px; }
 .scroll { overflow-x: auto; }
 .empty { color: var(--ink-2); }
 </style>
@@ -90,6 +100,7 @@ td.num, th.num { text-align: right; }
 
   <div class="card" style="margin-top:16px">
     <h2>Bots at the end of the run</h2>
+    <p class="hint">Click a column to sort. Click a bot to follow it on the map and charts; click again to let go.</p>
     <div class="scroll"><table id="table"></table></div>
   </div>
 
@@ -157,8 +168,8 @@ bots.forEach((b, i) => {
   const flush = () => {
     if (segment.length > 1) {
       const points = segment.join(" ");
-      el("polyline", { points, class: "halo" }, map);
-      el("polyline", { points, class: "trail" }, map).style.stroke = color(i);
+      el("polyline", { points, class: "halo", "data-bot": i }, map);
+      el("polyline", { points, class: "trail", "data-bot": i }, map).style.stroke = color(i);
     }
     segment = [];
   };
@@ -172,7 +183,7 @@ const r = Math.max(w, h) / 160; // marker size in squares, so it reads at any ma
 bots.forEach((b, i) => {
   for (const [x, y, t] of b.died) {
     const cx = x - ox + 0.5, cy = y - oy + 0.5;
-    const g = el("g", { class: "death" }, map);
+    const g = el("g", { class: "death", "data-bot": i }, map);
     for (const cls of ["under", ""]) {
       for (const [y1, y2] of [[cy - r, cy + r], [cy + r, cy - r]]) {
         const line = el("line", { x1: cx - r, y1, x2: cx + r, y2, class: cls }, g);
@@ -228,7 +239,7 @@ function chart(title, key, unit) {
   bots.forEach((b, i) => {
     // ponytail: every tick a vertex. Fine to ~20k ticks; decimate per pixel column past that.
     const points = b[key].map((v, t) => `${xs(t).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
-    el("polyline", { points, class: "series" }, svg).style.stroke = color(i);
+    el("polyline", { points, class: "series", "data-bot": i }, svg).style.stroke = color(i);
   });
   const cross = el("line", { y1: M.t, y2: H - M.b, class: "cross" }, svg);
   crosshairs.push(cross);
@@ -285,23 +296,68 @@ chart("Net worth (carried + stashed)", "worth", "$");
 chart("Distance from the starting town (squares)", "distance");
 chart("Deaths so far", "deaths");
 
-// --- The table view: every number the charts end on, readable without hovering ------------------
+// --- The table view: every number the charts end on, sortable, and a row picks a bot to follow -----
+const last = ticks - 1;
+const rows = bots.map((b, i) => ({
+  i, name: b.name, weapon: b.weapon, reach: b.reach, level: b.level[last], deaths: b.deaths[last],
+  worth: b.worth[last], furthest: Math.max(...b.distance),
+}));
+const columns = [
+  ["name", "Bot", false], ["reach", "Reach", true], ["level", "Level", true], ["deaths", "Deaths", true],
+  ["worth", "Net worth", true], ["furthest", "Furthest", true], ["weapon", "Weapon", false],
+];
 const table = document.getElementById("table");
-const head = html("tr", undefined, html("thead", undefined, table));
-for (const [label, num] of [["Bot", 0], ["Reach", 1], ["Level", 1], ["Deaths", 1], ["Net worth", 1], ["Furthest", 1], ["Weapon", 0]]) {
-  html("th", label, head, num ? "num" : "");
-}
+const headRow = html("tr", undefined, html("thead", undefined, table));
 const body = html("tbody", undefined, table);
-bots.forEach((b, i) => {
-  const row = html("tr", undefined, body);
-  const name = html("td", undefined, row);
-  html("i", undefined, name, "key").style.borderColor = color(i);
-  name.appendChild(document.createTextNode(` ${b.name}`));
-  for (const v of [b.reach, b.level[ticks - 1], b.deaths[ticks - 1], `$${b.worth[ticks - 1].toLocaleString()}`, Math.max(...b.distance)]) {
-    html("td", typeof v === "number" ? v.toLocaleString() : v, row, "num");
+let sort = { key: "i", dir: 1 };
+let focused = null;
+
+function focusBot(i) {
+  focused = focused === i ? null : i;
+  document.querySelectorAll("[data-bot]").forEach((n) => n.classList.toggle("dim", focused !== null && +n.dataset.bot !== focused));
+  renderRows();
+}
+
+function renderRows() {
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[sort.key], y = b[sort.key];
+    return (typeof x === "string" ? x.localeCompare(y, undefined, { numeric: true }) : x - y) * sort.dir || a.i - b.i;
+  });
+  body.replaceChildren();
+  for (const r of sorted) {
+    const tr = html("tr", undefined, body);
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-selected", focused === r.i);
+    tr.addEventListener("click", () => focusBot(r.i));
+    tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); focusBot(r.i); } });
+    for (const [key, , num] of columns) {
+      const td = html("td", undefined, tr, num ? "num" : "");
+      if (key === "name") {
+        html("i", undefined, td, "key").style.borderColor = color(r.i);
+        td.appendChild(document.createTextNode(` ${r.name}`));
+      } else {
+        td.textContent = key === "worth" ? `$${r.worth.toLocaleString()}` : typeof r[key] === "number" ? r[key].toLocaleString() : r[key];
+      }
+    }
   }
-  html("td", b.weapon, row);
-});
+  headRow.querySelectorAll("th").forEach((th) => {
+    const on = th.dataset.key === sort.key;
+    th.setAttribute("aria-sort", on ? (sort.dir > 0 ? "ascending" : "descending") : "none");
+  });
+}
+
+for (const [key, label, num] of columns) {
+  const th = html("th", undefined, headRow, num ? "num" : "");
+  th.dataset.key = key;
+  const button = html("button", label, th);
+  button.type = "button";
+  button.addEventListener("click", () => {
+    // First click: biggest first for numbers, A-Z for text. Again: reverse.
+    sort = sort.key === key ? { key, dir: -sort.dir } : { key, dir: num ? -1 : 1 };
+    renderRows();
+  });
+}
+renderRows();
 
 const anomalies = document.getElementById("anomalies");
 if (!DATA.anomalies.length) html("p", "None. Every bot stayed within the rules for the whole run.", anomalies, "empty");
