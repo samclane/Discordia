@@ -185,7 +185,11 @@ class DiscordInterface(commands.Cog):
         daily at a datetime.time.
         `web_url` is where players reach the web map, or None if it isn't running."""
         self.bot: commands.Bot = commands.Bot(
-            command_prefix=str(DISCORD_PREFIX), intents=discord.Intents.default()
+            command_prefix=str(DISCORD_PREFIX),
+            intents=discord.Intents.default(),
+            # The bot never means to ping anyone, and player-chosen names end up in its messages: a character
+            # called "@everyone" would otherwise ping the whole server. Channel links (<#id>) aren't pings.
+            allowed_mentions=discord.AllowedMentions.none(),
         )
         # ponytail: attribute override instead of a Bot subclass; subclass it if the bot needs more hooks
         self.bot.setup_hook = self._setup_hook

@@ -85,6 +85,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
+- [ ] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
+  DMs "X hits you for 2 damage." every tick (5s) until one of you leaves or dies, a phone notification each time.
+  396 of 470 DMs in a 500-tick run. Options: DM only the first hit of a fight and the death (the rest still goes
+  to `add_news` for `/me`), or batch a fight into one DM every N ticks.
 
 ## Rendering
 
