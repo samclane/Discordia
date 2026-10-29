@@ -14,6 +14,8 @@ from Discordia.Interface.DiscordInterface import (
     WrongChannel,
     _defer,
     _send,
+    _stock_choices,
+    _stock_listing,
 )
 from Discordia.Interface.WorldAdapter import (
     InvalidSpaceException,
@@ -181,6 +183,45 @@ def test_the_stash_is_only_reachable_from_a_town(name):
     _, command, interaction = build(SimpleNamespace(registered=True, location=wilds), name)
     with pytest.raises(InvalidSpaceException, match="town"):
         run_checks(command, interaction)
+
+
+def _little_store():
+    from Discordia.GameLogic import Armor, Items
+
+    # Out of order on purpose: the listing sorts, but the #s stay the store's own.
+    return GameSpace.Store([Weapons.MosinNagant(), Weapons.Ammo9mm(), Weapons.Hammer(), Items.Salvage(), Armor.SSh68()])
+
+
+def test_the_stock_listing_groups_sorts_and_marks_what_you_cannot_afford():
+    character = Actors.PlayerCharacter(None, name="Shopper")
+    character.currency = 150
+    text = _stock_listing(_little_store(), character)
+    rows = [line for line in text.splitlines() if line.startswith("#")]
+    assert [row.split()[0] for row in rows] == ["#2", "#0", "#4", "#1", "#3"]  # weapons cheapest first, then armor...
+    assert rows[1].endswith("$370 ✗") and not rows[0].endswith("✗")
+    assert text.startswith("You have $150.") and "```" in text
+    assert [line.split()[0] for line in _stock_listing(_little_store(), character, "ammo").splitlines()[2:-1]] == [
+        "AMMO",
+        "#1",
+    ]
+
+
+def test_buying_autocompletes_by_name_cheapest_first():
+    store = _little_store()
+    prices = [store.get_price(store.inventory[c.value]) for c in _stock_choices(store, "")]
+    assert len(prices) == len(store.inventory) and prices == sorted(prices)
+    hammer = _stock_choices(store, "ham")
+    assert [(c.name, c.value) for c in hammer] == [("Hammer · $100", 2)]
+    assert [c.value for c in _stock_choices(store, "#0")] == [0]  # typing the old index still finds it
+
+
+def test_buy_autocomplete_only_suggests_in_a_town():
+    town = GameSpace.Town(0, 0, "Testville", store=_little_store())
+    for location, expected in [(town, 1), (GameSpace.Wilds(0, 0, "Nowhere"), 0)]:
+        interface, _, interaction = build(SimpleNamespace(location=location), "town store buy")
+        assert len(asyncio.run(interface._buy_choices(interaction, "ham"))) == expected
+    interface, _, interaction = build(None, "town store buy")  # not registered
+    assert asyncio.run(interface._buy_choices(interaction, "ham")) == []
 
 
 def test_space_check_passes_inside_a_town():

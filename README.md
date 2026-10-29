@@ -98,18 +98,21 @@ the bot syncs them.
     * The wilds can also turn up a trader with a few things laid out on a blanket. Lists what they have
     and what they want for it, at a markup over town prices.
     * `/trade buy` [`index`]
-        * Buy the trader's item at that index. They are gone as soon as you move on.
+        * Buy the trader's item at that index (start typing its name to pick it). They are gone as soon as you
+          move on.
 * `/town status`
     * Calling `town` with no parameters is a debug command to check if you're inside a town or not.
     * `/town inn`
         * Run the events of the town's inn. Usually restores health/resources. 
     * `/town recruit`
         * Change your player class to the one offered by the town.
-    * `/town store list`
-        * Lists all the items (Name, Price, Quantity) in the Town's store. 
-        * `/town store buy` [`index`] (Placeholder)
-            * Purchase the item at the given index, adding it to your inventory.
-        * `/town store sell` [`index`] (Placeholder)
+    * `/town store list` [`kind`]
+        * What the town's store sells, grouped into weapons, armor, ammo and other, cheapest first, with each
+          item's damage, armor or rounds. ✗ marks what you can't afford. `kind` shows just one group.
+        * `/town store buy` [`index`]
+            * Purchase the item at the given index, adding it to your inventory. Start typing an item's name
+              and Discord suggests matches with their prices, so you don't need the list's numbers.
+        * `/town store sell` [`index`]
             * Sell an item from your inventory, removing it and giving you some money. 
 * `/stash list`
     * In any town: what you've banked. The stash is one per player, reachable from every town, and

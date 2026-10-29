@@ -6,7 +6,7 @@ import inspect
 import logging
 import random
 import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, Tuple, cast
 
 import discord
 from discord import app_commands
@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 
 import Discordia.GameLogic.Actors as Actors
 from ConfigParser import DISCORD_PREFIX
-from Discordia.GameLogic import Events, GameSpace
+from Discordia.GameLogic import Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import PlayerActionResponse, DIRECTION_VECTORS
 from Discordia.GameLogic.Items import Equipment
 from Discordia.Interface.WorldAdapter import (
@@ -118,12 +118,51 @@ def _town_of(character: Actors.PlayerCharacter) -> GameSpace.Town:
     return cast(GameSpace.Town, character.location)
 
 
-def _stock_listing(store: GameSpace.Store) -> str:
-    """What's for sale and what it costs, for a town store or a trader's blanket alike."""
-    msg = "Index\tName\tPrice\tCount\n"
-    for idx, item in enumerate(store.inventory):
-        msg += f"#{idx}\t{item.name}\t${store.get_price(item)}\t{store.inventory.count(item)}\n"
-    return msg
+# How a stock listing groups items, first match wins: (heading, stat column, what's in it, its stat).
+STOCK_KINDS: List[Tuple[str, str, type, Callable[[Any], str]]] = [
+    ("weapons", "dmg", Weapons.Weapon, lambda item: f"{item.damage:g}"),
+    ("armor", "arm", Items.ArmorAbstract, lambda item: f"{item.armor_count:g}"),
+    ("ammo", "rds", Items.Ammo, lambda item: str(item.quantity)),
+    ("other", "", Equipment, lambda item: ""),  # whatever players sold it, salvage and the like
+]
+STOCK_NAME_WIDTH = 22  # keeps a row inside a phone's code block
+
+
+def _stock_listing(store: GameSpace.Store, character: Actors.PlayerCharacter, kind: str | None = None) -> str:
+    """What's for sale, for a town store or a trader's blanket alike: grouped, cheapest first, in a code block
+    so the columns line up. The #s are the store's own, for buy. ✗ marks what you can't afford."""
+    w = STOCK_NAME_WIDTH
+    groups: Dict[str, List[Tuple[int, Equipment]]] = {}
+    for index, item in enumerate(store.inventory):
+        heading = next(h for h, _, cls, _ in STOCK_KINDS if isinstance(item, cls))
+        groups.setdefault(heading, []).append((index, item))
+    lines = []
+    for heading, column, _, stat in STOCK_KINDS:
+        if heading not in groups or kind not in (None, heading):
+            continue
+        lines.append(f"{heading.upper():<{w + 4}} {column:>4} {'price':>6}")
+        for index, item in sorted(groups[heading], key=lambda row: store.get_price(row[1])):
+            price = store.get_price(item)
+            name = item.name if len(item.name) <= w else item.name[: w - 1] + "…"
+            dear = " ✗" if price > character.currency else ""
+            lines.append(f"{'#' + str(index):<4}{name:<{w}} {stat(item):>4} {'$' + str(price):>6}{dear}")
+    if not lines:
+        return f"Nothing in {kind} here right now."
+    return f"You have ${character.currency:,}.\n```\n" + "\n".join(lines) + "\n```"
+
+
+def _stock_choices(store: GameSpace.Store, current: str) -> List[app_commands.Choice[int]]:
+    """Autocomplete for a buy: items whose name (or #) matches what's typed so far, cheapest first."""
+    typed = current.strip().lstrip("#").lower()
+    matches = [
+        (index, item)
+        for index, item in enumerate(store.inventory)
+        if typed in item.name.lower() or typed == str(index)
+    ]
+    return [
+        app_commands.Choice(name=f"{item.name} · ${store.get_price(item)}", value=index)
+        for index, item in sorted(matches, key=lambda row: store.get_price(row[1]))[:25]  # Discord's cap
+    ]
 
 
 def _chunks(text: str, size: int = 2000) -> Iterator[str]:
@@ -570,13 +609,13 @@ class DiscordInterface(commands.Cog):
     @requires_character()
     async def trade_list(self, interaction: discord.Interaction):
         """See what the trader in front of you is selling"""
-        store = self.world_adapter.merchant_store(self._player(interaction))
-        await _send(interaction, _stock_listing(store))
+        character = self._player(interaction)
+        await _send(interaction, _stock_listing(self.world_adapter.merchant_store(character), character))
 
     @trade.command(name="buy")
     @requires_character()
     async def trade_buy(self, interaction: discord.Interaction, index: int):
-        """Buy the trader's item at the given index"""
+        """Buy the trader's item at the given index (start typing its name to pick it)"""
         character = self._player(interaction)
         store = self.world_adapter.merchant_store(character)
         if store.sell_item(index, character):
@@ -587,6 +626,14 @@ class DiscordInterface(commands.Cog):
                 "You can't afford that, or there's nothing at that index.",
                 ephemeral=True,
             )
+
+    @trade_buy.autocomplete("index")
+    async def _trade_choices(self, interaction: discord.Interaction, current: str):
+        # No checks run on an autocomplete: anyone not standing at a trader just gets no suggestions.
+        try:
+            return _stock_choices(self.world_adapter.merchant_store(self._player(interaction)), current)
+        except Exception:
+            return []
 
     @stash.command(name="list")
     @requires_character()
@@ -736,8 +783,10 @@ class DiscordInterface(commands.Cog):
     @store.command(name="list")
     @requires_character()
     @requires_space(GameSpace.Town)
-    async def store_list(self, interaction: discord.Interaction):
-        """List what this town's store has for sale"""
+    async def store_list(
+        self, interaction: discord.Interaction, kind: Optional[Literal["weapons", "armor", "ammo", "other"]] = None
+    ):
+        """List what this town's store has for sale, or just one kind of thing"""
         character = self._player(interaction)
         store = _town_of(character).store
         if store is None:
@@ -748,13 +797,13 @@ class DiscordInterface(commands.Cog):
                 "There are no items in the store at the moment. Please try again later.",
             )
         else:
-            await _send(interaction, _stock_listing(store))
+            await _send(interaction, _stock_listing(store, character, kind))
 
     @store.command()
     @requires_character()
     @requires_space(GameSpace.Town)
     async def buy(self, interaction: discord.Interaction, index: int):
-        """Buy the store item at the given index"""
+        """Buy the store item at the given index (start typing its name to pick it)"""
         character = self._player(interaction)
         store = _town_of(character).store
         if store is None:
@@ -763,6 +812,15 @@ class DiscordInterface(commands.Cog):
             await _send(interaction, "Item successfully bought.")
         else:
             await _send(interaction, "Not enough money.")
+
+    @buy.autocomplete("index")
+    async def _buy_choices(self, interaction: discord.Interaction, current: str):
+        # No checks run on an autocomplete: anyone not in a town just gets no suggestions.
+        try:
+            town = self._player(interaction).location
+        except Exception:
+            return []
+        return _stock_choices(town.store, current) if isinstance(town, GameSpace.Town) else []
 
     @store.command()
     @requires_character()
