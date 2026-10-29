@@ -42,7 +42,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
 - [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
-  Tarkov wipe). Only once hideout income visibly plateaus.
+  Tarkov wipe). Only once hideout income visibly plateaus. (blocked: needs live numbers showing the plateau, and
+  a call on the multiplier and on what a wipe resets: level, gear, the pouch?)
 
 ## Gameplay loop (make it a game)
 
@@ -57,7 +58,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
 - [x] `CombatEvent.run` never checks `ProjectileWeapon.is_empty`, so guns fire forever into negative ammo (found by
   `test_simulation.py`; drop its `KNOWN` entry once fixed). Decide what an empty gun does mid-fight: reload, fists, or flee.
-- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
+- [x] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
@@ -128,6 +129,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Levels outrun the map: a kill below your level pays its share of your level in XP (a level-1
+  raider gives a level-4 player a quarter), so farming the wilds by town stops paying and levels keep pace with
+  how deep you raid. Over 3000 ticks on seeds 0/1/2 the top bot went from level 14/23/7 to 7/8/4, against max
+  danger 5. `NPC.level` (from hit points) replaces the copy in `EncounterEvent._rob`. Prestige marked blocked.
 
 - 2026-10-29 Extraction points: each cache cell (`CACHE_CELL` chunks a side) rolls `EXTRACT_CHANCE` for an
   `Extract` on a plain square of one of its middle chunks, seeded like caches. Stepping on one takes any remains

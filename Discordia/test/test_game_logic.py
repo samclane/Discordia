@@ -593,6 +593,16 @@ def test_a_kill_pays_experience_and_announces_a_level(adapter):
     assert "XP" in phrase and "level 2" in phrase
 
 
+def test_a_kill_below_your_level_pays_its_share_of_your_level(adapter):
+    player = adapter.get_player(1)
+    player.gain_experience(3 * Actors.EXPERIENCE_PER_LEVEL)  # level 4
+    mook = Actors.NPC(None, Actors.HIT_POINTS_PER_LEVEL, "Mook")  # level 1
+    adapter.world.add_actor(mook, player.location)
+    before = player.experience
+    player.loot(mook, GameSpace.PlayerActionResponse(source=player))
+    assert player.experience - before == Actors.HIT_POINTS_PER_LEVEL // 2 // 4
+
+
 def test_a_generated_npc_is_tougher_at_a_higher_level():
     """Averaged, and on consecutive levels: the old curve floored 1 and 2 to the same value."""
     weak = sum(Actors.NPC.generate(1).hit_points for _ in range(50))

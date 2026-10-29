@@ -220,8 +220,7 @@ class EncounterEvent(Event):
     ):
         """A contest between the player's level and the stranger's, who is only as tough as their hide."""
         npc = self.npc_involved
-        npc_level = max(1, npc.hit_points_max // Actors.HIT_POINTS_PER_LEVEL)
-        odds = player_character.level / (player_character.level + npc_level)
+        odds = player_character.level / (player_character.level + npc.level)
         if random.random() >= odds:
             hurt = max(1, npc.hit_points_max // 5)
             deaths = player_character.deaths

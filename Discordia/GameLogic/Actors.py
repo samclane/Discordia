@@ -223,6 +223,11 @@ class NPC(Actor):
         self.location = None  # type: ignore[assignment]  # despawns the NPC
         return self.inventory
 
+    @property
+    def level(self) -> int:
+        """NPCs never learned to track their own level: they're only as tough as their hide."""
+        return max(1, self.hit_points_max // HIT_POINTS_PER_LEVEL)
+
     def attempt_move(
         self, shift: Tuple[int, int]
     ) -> List[GameSpace.PlayerActionResponse]:
@@ -518,8 +523,9 @@ class PlayerCharacter(Actor):
         corpse.currency = 0
         self.parent_world.stats.kills += 1
 
-        # A tougher corpse is worth more, and NPCs never learned to track their own level.
-        experience = corpse.hit_points_max // 2
+        # A tougher corpse is worth more, and one below your level pays its share of yours: levels keep pace with
+        # how deep you raid, rather than piling up on the wilds next to town.
+        experience = corpse.hit_points_max // 2 * min(corpse.level, self.level) // self.level
         levels = self.gain_experience(experience)
         if experience:
             taken.append(f"{experience} XP")
