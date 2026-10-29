@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS item (
     id          INTEGER PRIMARY KEY,
     discord_id  INTEGER NOT NULL REFERENCES character (discord_id) ON DELETE CASCADE,
     class_path  TEXT    NOT NULL,
-    slot        TEXT  -- an EquipmentSet slot name, STASH, or NULL for "in the backpack"
+    slot        TEXT  -- an EquipmentSet slot name, STASH, POUCH, or NULL for "in the backpack"
 );
 
 CREATE TABLE IF NOT EXISTS guild (
@@ -75,6 +75,7 @@ _ALLOWED_MODULES = frozenset(
 
 
 STASH = "stash"  # item.slot for what's banked in town rather than carried
+POUCH = "pouch"  # item.slot for the one carried item a death leaves alone
 
 
 def _class_path(obj) -> str:
@@ -173,6 +174,8 @@ class Database:
                 character.inventory.append(item)
             elif item_row["slot"] == STASH:
                 character.stash.append(item)
+            elif item_row["slot"] == POUCH:
+                character.pouch = item
             else:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
 
@@ -232,5 +235,6 @@ class Database:
             "INSERT INTO item (discord_id, class_path, slot) VALUES (?, ?, ?)",
             [(discord_id, class_path, slot) for class_path, slot in equipped]
             + [(discord_id, _class_path(item), None) for item in character.inventory]
-            + [(discord_id, _class_path(item), STASH) for item in character.stash],
+            + [(discord_id, _class_path(item), STASH) for item in character.stash]
+            + ([(discord_id, _class_path(character.pouch), POUCH)] if character.pouch is not None else []),
         )

@@ -361,6 +361,8 @@ class PlayerCharacter(Actor):
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
         self.stash: Inventory = Inventory()
         self.stash_currency: int = 0
+        # The secure pouch: one item, carried, that a death leaves on you. Filled from the backpack, anywhere.
+        self.pouch: Items.Equipment | None = None
         # What the last death took, phrased for a player, so whoever narrates it can say. Transient: not worth saving.
         self.last_death_loss: str = ""
         # Deaths so far. A player is revived the moment they die, so a fight watches this to know it's over.
@@ -383,7 +385,7 @@ class PlayerCharacter(Actor):
         self.pending_event = None
         was_out = not isinstance(self.location, GameSpace.Town)
         if not was_out:
-            self.raid_start = (self.currency, list(self.inventory), self.experience)
+            self.raid_start = (self.currency, self.carried, self.experience)
         responses = super().attempt_move(shift)
         # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
         if was_out and isinstance(self.location, GameSpace.Town) and self.raid_start is not None:
@@ -394,7 +396,7 @@ class PlayerCharacter(Actor):
         """End the raid in the town you're standing in and say what it brought home."""
         money, pack, experience = self.raid_start  # type: ignore[misc]
         self.raid_start = None
-        found = [str(item) for item in self.inventory if not any(item is had for had in pack)]
+        found = [str(item) for item in self.carried if not any(item is had for had in pack)]
         if self.currency > money:
             found.append(f"${self.currency - money}")
         if self.experience > experience:
@@ -534,9 +536,31 @@ class PlayerCharacter(Actor):
             moved.append(f"${money}")
         return ", ".join(moved)
 
+    @property
+    def carried(self) -> List[Items.Equipment]:
+        """The backpack and the pouch: what you'd bring home from a raid."""
+        return list(self.inventory) + ([self.pouch] if self.pouch is not None else [])
+
+    def pouch_swap(self, index: int | None = None) -> str:
+        """Move the backpack item at `index` into the pouch, and whatever was in it back to the backpack.
+        None just empties the pouch. Returns what moved, phrased for a player. Raises ValueError first."""
+        if index is not None and not 0 <= index < len(self.inventory):
+            raise ValueError(f"There's nothing at #{index}.")
+        out, self.pouch = self.pouch, self.inventory.pop(index) if index is not None else None
+        moved = []
+        if self.pouch is not None:
+            if self.pouch.is_equipped:  # a pouched item isn't in your hands, or a death would strip it
+                self.unequip(self.pouch)
+            moved.append(f"{self.pouch} into your pouch")
+        if out is not None:
+            self.inventory.append(out)
+            moved.append(f"{out} back into your pack")
+        return ", ".join(moved)
+
     def lose_carried(self) -> str:
         """Everything on you stays where you fell: money, backpack and what you were wearing. Back to bare
-        fists; the stash is untouched. Returns what was lost, phrased for a player, or "" if nothing was.
+        fists; the stash and the pouch are untouched. Returns what was lost, phrased for a player, or "" if
+        nothing was.
         """
         worn = [
             item

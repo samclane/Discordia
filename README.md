@@ -79,6 +79,9 @@ the bot syncs them.
         * Have your PC equip the item from your inventory with the specified index. 
     * `/inventory unequip` [`index`]
         * Remove the item from your equipment and put it back into your inventory.
+    * `/inventory pouch` [`index`]
+        * Move that item into your secure pouch (one slot, anywhere), which a death leaves on you. Whatever
+          was in it goes back to the backpack; no index just empties it.
 * `/attack` <`direction`>
     * Directions are (`north`, `east`, `south`, `west`) or (`up`, `down`, `left`, `right`), or valid in-betweens (e.x. `ne` for northeast, etc.)
     * Attack another player or an NPC with your currently equipped weapon. If no `direction` is specified, the user

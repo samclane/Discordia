@@ -617,7 +617,19 @@ class DiscordInterface(commands.Cog):
         else:
             for index, item in enumerate(character.inventory):
                 msg += f"\t#{index}\t{item}\n"
+        msg += f"\nPouch (kept if you die): {character.pouch or '(empty)'}"
         await _send(interaction, msg)
+
+    @inventory.command()
+    @requires_character()
+    async def pouch(self, interaction: discord.Interaction, index: Optional[int] = None):
+        """Keep the item at the given index safe from death (one at a time); no index empties the pouch"""
+        try:
+            moved = self._player(interaction).pouch_swap(index)
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, f"Moved {moved}." if moved else "Your pouch is already empty.", ephemeral=not moved)
 
     @inventory.command()
     @requires_character()

@@ -280,6 +280,8 @@ def _sheet(character: PlayerCharacter, news: list) -> dict:
         for item in [getattr(character.equipment_set, slot)]
     )
     inventory = "".join(_item_row(f"#{i}", item) for i, item in enumerate(list(character.inventory)))
+    if character.pouch is not None:
+        inventory += _item_row("pouch", character.pouch)
     pending = character.pending_event
     alert = (
         f'<p class="alert"><b>Someone is waiting on you.</b> {html.escape(pending.flavor_text)}</p>' if pending else ""

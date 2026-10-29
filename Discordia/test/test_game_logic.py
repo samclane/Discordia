@@ -1097,6 +1097,26 @@ def test_a_raid_death_is_not_an_extraction(adapter):
     assert player.raid_start is None  # back in town, but nothing was brought home
 
 
+def test_the_pouch_survives_a_raid_death(adapter):
+    player = adapter.get_player(1)
+    rifle, helmet = Weapons.Jezail(), Armor.Helmet()
+    player.inventory += [rifle, helmet]
+    player.equip(rifle)
+
+    assert player.pouch_swap(0) == f"{rifle} into your pouch"
+    assert not rifle.is_equipped and list(player.inventory) == [helmet]
+    player.location = adapter.world.wilds[0]
+    player.take_damage(player.hit_points_max)
+    assert player.pouch is rifle and list(player.inventory) == []
+    assert str(rifle) not in GameSpace.death_toll_text(player)
+
+    player.inventory.append(helmet)
+    assert player.pouch_swap(0) == f"{helmet} into your pouch, {rifle} back into your pack"
+    assert player.pouch_swap() == f"{helmet} back into your pack"
+    with pytest.raises(ValueError):
+        player.pouch_swap(5)
+
+
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     player = adapter.get_player(1)
     helmet = Armor.Helmet()

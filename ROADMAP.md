@@ -22,7 +22,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   untouched. Say exactly what was lost in the death message.
 - [x] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
   XP since leaving). Track `raid_start` loot on the character; nothing to save, a restart mid-raid just ends it.
-- [ ] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
+- [x] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
 - [ ] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
   for a while, for the owner to walk back and recover or for anyone else to loot. Needs an item container on `Space`.
 - [ ] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
@@ -102,6 +102,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [x] Armor rolls its coverage randomly and `base_value` is `10 * armor_count`, so a piece worth 0 is
   free from any store. Give every item a floor price.
+- [ ] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
+  it twice, as a slot row and a backpack row, and a restart hands back two.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
 
@@ -117,6 +119,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Secure pouch: `PlayerCharacter.pouch` holds one item that a raid death leaves on you, filled from
+  the backpack anywhere with `/inventory pouch <index>` (the old one goes back to the pack; no index empties it).
+  A pouched item is unequipped, so it can't be both worn and safe. Saved as an item row with `slot = 'pouch'`,
+  shown in `/inventory list` and `/me`, and counted in the extraction haul.
 
 - 2026-10-29 Extract: stepping from anywhere outside a town into one ends the raid and says what it brought home
   (new backpack items, money and XP since you last left a town). `PlayerCharacter.raid_start` is snapshotted on

@@ -32,6 +32,7 @@ EXPECTED = {
     "inventory list",
     "inventory equip",
     "inventory unequip",
+    "inventory pouch",
     "town status",
     "town inn",
     "town recruit",
