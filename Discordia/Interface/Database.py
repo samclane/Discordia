@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS character (
     experience      INTEGER NOT NULL DEFAULT 0,
     stash_currency  INTEGER NOT NULL DEFAULT 0,
     hideout_level   INTEGER NOT NULL DEFAULT 0,
+    raid_home_at    INTEGER,  -- PlayerCharacter.auto_raid's World.ticks to head home at; NULL when none is on
+    raid_depth      INTEGER,  -- and its depth
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -118,6 +120,8 @@ class Database:
             ("character", "experience", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "stash_currency", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "hideout_level", "INTEGER NOT NULL DEFAULT 0"),
+            ("character", "raid_home_at", "INTEGER"),
+            ("character", "raid_depth", "INTEGER"),
             ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
             ("world", "saved_at", "REAL"),
         ]
@@ -176,6 +180,8 @@ class Database:
         character.stash_currency = row["stash_currency"]
         character.hideout_level = row["hideout_level"]
         character.location = adapter.world.space_at(row["x"], row["y"])
+        if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
+            character.auto_raid = (row["raid_home_at"], character.deaths, row["raid_depth"])
 
         for item_row in self.connection.execute(
             "SELECT * FROM item WHERE discord_id = ?", (discord_id,)
@@ -189,6 +195,8 @@ class Database:
                 character.pouch = item
             else:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
+        if not isinstance(character.location, GameSpace.Town):  # mid-raid: the haul counts from the restart
+            character.raid_start = (character.currency, character.carried, character.experience)
 
     def save(self, adapter: WorldAdapter):
         """Full rewrite of the mutable state, in one transaction."""
@@ -224,7 +232,8 @@ class Database:
         # sits in SCHEMA.
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
-            " currency, experience, stash_currency, hideout_level, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " currency, experience, stash_currency, hideout_level, raid_home_at, raid_depth, x, y)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -235,6 +244,7 @@ class Database:
                 character.experience,
                 character.stash_currency,
                 character.hideout_level,
+                *((character.auto_raid[0], character.auto_raid[2]) if character.auto_raid else (None, None)),
                 character.location.x,
                 character.location.y,
             ),

@@ -227,6 +227,8 @@ class TestGeneral(unittest.TestCase):
         player.stash_currency = 77
         player.pouch = Weapons.MusketBalls()
         player.hideout_level = 3
+        player.deaths = 2
+        self.adapter.start_raid(player, 60, depth=4)
         self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
         for _ in self._move_randomly():
             pass
@@ -266,6 +268,9 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(restored.stash_currency, 77)
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
         self.assertEqual(restored.hideout_level, 3)
+        self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
+        # Out of town, the walk home still reports a haul: what's gained since the restart.
+        self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))
         self.assertEqual(adapter.guild_settings, {5: GuildSettings(channels=[11, 12], digest_channel=12)})
         self.assertEqual(
             (restored.location.x, restored.location.y),

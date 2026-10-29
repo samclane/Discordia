@@ -38,7 +38,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   cache and fights what it meets; when time is up it walks home. DM the result: extracted with X, or died at Y.
 - [x] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
   so the safe choice is boring but steady.
-- [ ] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
+- [x] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
 - [ ] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
 - [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
@@ -126,6 +126,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Auto-raid survives a restart: `auto_raid`'s home-at tick and depth are two migrated, nullable
+  `character` columns. Deaths aren't saved, so a loaded raid counts them from the load. The clock runs on by the
+  downtime, so a raid due home while the server was down heads home on the first tick. Anyone loaded outside a
+  town also gets a fresh `raid_start`, so the walk home still reports a haul (what's gained since the restart).
 
 - 2026-10-29 Raid risk knob: `/raid <minutes> [depth]` (default 1) only targets caches at or under that level
   and, with none known, explores out to that depth (`World.depth_at`, distance-only `danger_level`) and wanders
