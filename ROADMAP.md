@@ -61,6 +61,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [x] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
+- [ ] XP is slow now that a cleared wilds square can't be re-looted: over 3000 simulated ticks (seed 0) bots end
+  at level 1-5, where the same run gave 4-7 before. Re-looting dead enemies had been most of the XP. Watch real
+  players; if levels stall, raise kill XP (`PlayerCharacter.loot`) rather than bring the farm back.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
   (blocked: no town recruits `RaiderClass`, so nobody can be one, and every military base hands out the same
   `Soldier` with no East/West side, saved by class path alone. Decide how each faction is joined first.)
@@ -74,7 +77,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Town population: named NPCs that stay in town, give flavor text on `/town status`.
 - [ ] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
   from Kenney's people tiles, if towns feel empty; they'd need to be skipped by `World.attack` and the NPC tick.
-- [ ] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
+- [x] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
 
 ## Persistence
 
@@ -134,6 +137,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Wilds cooldown: after any real event a wilds square goes quiet for `WILDS_QUIET_TICKS` (an hour
+  at a 5-second tick), then restocks with fresh events. It also fixes a farm: `CombatEvent` re-ran `loot` on
+  enemies already dead from an earlier visit, paying their XP (and a kill) every step back onto the square.
+  `quiet_until` isn't saved, but neither are the events: a restart restocks every square on its next visit.
 
 - 2026-10-29 Town population (and the merchants-and-guards half of NPC types): every town has a shopkeeper,
   an innkeeper and a guard (`Town.residents`), each named and with a line from `TOWNSFOLK`, and `/town status`

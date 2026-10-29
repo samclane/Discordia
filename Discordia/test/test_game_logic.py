@@ -387,6 +387,20 @@ def test_a_quiet_wilds_reports_that_nothing_happened():
     assert wilds.run_event(character) == []
 
 
+def test_wilds_go_quiet_after_an_event_then_restock(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    wilds = Wilds(1, 1, "The Strip")
+    enemy = Actors.NPC(None, 1, "Mook")
+    wilds.add_event(Events.CombatEvent(1.0, "<test>", [enemy]))  # certain to happen
+    player.equip(Weapons.Hammer())
+    assert wilds.run_event(player) and enemy.is_dead
+    assert wilds.run_event(player) == []  # quiet: the body isn't there to loot twice
+    world.ticks += GameSpace.WILDS_QUIET_TICKS
+    wilds.level = 1
+    wilds.run_event(player)  # restocked: fresh events, not the old fight
+    assert all(enemy not in getattr(e, "enemies", []) for e in wilds.events)
+
+
 def test_combat_ends_with_the_enemies_dead_and_their_kit_looted(adapter):
     enemy = Actors.NPC(None, 1, "Mook")
     enemy.inventory.append(Armor.Helmet())

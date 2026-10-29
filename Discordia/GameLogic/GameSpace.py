@@ -135,6 +135,10 @@ NPC_SIGHT = 6
 # An auto-raid heads home early below this share of its hit points, as a player watching would.
 AUTO_RAID_RETREAT = 0.4
 
+# After something happens on a wilds square it goes quiet for this many world ticks (an hour at a 5-second tick),
+# then restocks with fresh events: no stepping back and forth on one square for fight after fight.
+WILDS_QUIET_TICKS = 720
+
 # How long what a raid death drops lies on the ground, in world ticks: an hour at the default 5-second tick.
 REMAINS_TICKS = 720
 
@@ -592,6 +596,9 @@ class Wilds(Space):
         self.null_event: Events.Event = Events.Event.null_event()
         self.events: List[Events.Event] = []
         self.events.append(self.null_event)
+        # World.ticks until which nothing happens here, after the last event; None if nothing has yet.
+        # ponytail: not saved, but neither are the events: a restart restocks every square on its next visit.
+        self.quiet_until: int | None = None
 
     def add_event(self, event: Events.Event):
         if event.probability > self.null_event.probability:
@@ -601,6 +608,12 @@ class Wilds(Space):
         assert self.null_event.probability >= 0
 
     def run_event(self, player) -> List[PlayerActionResponse]:
+        if self.quiet_until is not None:
+            if player.parent_world.ticks < self.quiet_until:
+                return []  # as the null event: nothing to narrate
+            # Back after a quiet spell: new faces, not the bodies of the last fight to loot again.
+            self.null_event, self.events, self.quiet_until = Events.Event.null_event(), [], None
+            self.events.append(self.null_event)
         if len(self.events) == 1:
             # Stocked on the first visit, not at generation: enemies and merchant stock are most of a
             # chunk's memory, and most wilds on a big map never see a player.
@@ -611,6 +624,8 @@ class Wilds(Space):
         results = chosen_event.run(player)
         if results is None:
             results = [PlayerActionResponse(source=player)]
+        if chosen_event is not self.null_event:
+            self.quiet_until = player.parent_world.ticks + WILDS_QUIET_TICKS
         return list(results)
 
     def populate(self, level: int):
