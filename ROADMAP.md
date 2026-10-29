@@ -31,7 +31,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   idle income.
 - [x] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
   instead of money so raids feed the idle side.
-- [ ] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
+- [x] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
 - [ ] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
   instead of never/restart (see ponytail note in `GameSpace.Cache`).
 - [ ] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
@@ -121,6 +121,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Idle numbers: `/equipment` and a new Hideout card on `/me` show income per hour, the stash's worth
+  (`PlayerCharacter.stash_value`: money plus item values) and the next level's price, worded once in
+  `WorldAdapter.hideout_text`. Per hour needs the tick length, which the running cog now hands the adapter
+  (`tick_seconds`). Also fixed `/me`'s money note, which still said a death costs a quarter.
 
 - 2026-10-29 Hideout pricing: level n costs `HIDEOUT_COST * 1.15 ** n`, except every 5th, which costs `n // 5`
   `Items.Salvage` and no money. No item a store sells could stand in (the dearest is $370, and buyable anyway), so

@@ -324,6 +324,7 @@ class DiscordInterface(commands.Cog):
     async def _setup_hook(self):
         self._loop = asyncio.get_running_loop()
         self.world_adapter.place_order = self.order_threadsafe
+        self.world_adapter.tick_seconds = self.tick_seconds
         self.world_adapter.guild_for_admin = self.guild_for_admin
         self.world_adapter.invite_url = discord.utils.oauth_url(
             cast(int, self.bot.application_id),  # login fetched it before this hook
@@ -451,6 +452,7 @@ class DiscordInterface(commands.Cog):
             f"{character.name}, level {character.level} {character.player_class} "
             f"({character.experience_to_next_level} XP to go), ${character.currency}\n"
             f"HP: {character.hit_points}/{character.hit_points_max}\n"
+            f"{self.world_adapter.hideout_text(character)}\n"
             f"Equipment: \n"
             f"---------- \n"
             f"{character.equipment_set}",

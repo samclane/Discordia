@@ -153,6 +153,8 @@ class WorldAdapter:
         self.guild_for_admin: Optional[Callable[[int, int], Optional[Tuple[str, List[Tuple[int, str]]]]]] = None
         # And Discord's "add this bot to a server" link, for the website's /invite.
         self.invite_url: Optional[str] = None
+        # Seconds per World.tick, set by the running bot; what turns per-tick income into per-hour.
+        self.tick_seconds: float = 5.0
         # ponytail: in memory, so a restart forgets it. Save it if anyone misses it.
         self._news: Dict[Actors.PlayerCharacter, Deque[Tuple[float, str]]] = {}
 
@@ -163,6 +165,22 @@ class WorldAdapter:
     def news(self, character: Actors.PlayerCharacter) -> List[Tuple[float, str]]:
         """(unix time, text) pairs, oldest first. A snapshot: safe to call off the bot loop."""
         return list(self._news.get(character, ()))
+
+    def income_per_hour(self, character: Actors.PlayerCharacter) -> int:
+        """What the hideout pays into the stash an hour, at this server's tick."""
+        ticks_an_hour = 3600 / self.tick_seconds
+        return int(Actors.HIDEOUT_INCOME * character.hideout_level * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
+
+    def hideout_text(self, character: Actors.PlayerCharacter) -> str:
+        """The idle side in a sentence, from Discord or the web alike."""
+        money, salvage = character.hideout_price
+        price = f"{salvage} salvage" if salvage else f"${money:,}"
+        if not character.hideout_level:
+            return f"No hideout yet: `/hideout build` in any town, for {price}, earns while you're away."
+        return (
+            f"Hideout level {character.hideout_level}: ${self.income_per_hour(character):,} an hour into your stash,"
+            f" which is worth ${character.stash_value:,}. The next level costs {price}."
+        )
 
     @property
     def width(self):

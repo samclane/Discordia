@@ -261,7 +261,7 @@ def _news_rows(news: list) -> str:
     return rows or '<li class="empty-slot"><span class="name">Quiet so far. Nothing has found you yet.</span></li>'
 
 
-def _sheet(character: PlayerCharacter, news: list) -> dict:
+def _sheet(character: PlayerCharacter, adapter) -> dict:
     """me.html's placeholders, for one character. Read off the HTTP thread, like _me_json."""
     loc = character.location
     if loc is None:
@@ -292,6 +292,7 @@ def _sheet(character: PlayerCharacter, news: list) -> dict:
         death_note = f"The last one cost you {character.last_death_loss}."
     else:
         death_note = "You had nothing on you to lose last time."
+    news = adapter.news(character)
     hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0
     return {
         "SPRITE": _sprite_url(character.sprite_path_string),
@@ -309,6 +310,8 @@ def _sheet(character: PlayerCharacter, news: list) -> dict:
         "XP_TO_NEXT": character.experience_to_next_level,
         "CURRENCY": f"{character.currency:,}",
         "DEATHS": character.deaths,
+        "INCOME": f"{adapter.income_per_hour(character):,}",
+        "HIDEOUT_NOTE": adapter.hideout_text(character),
         "DEATH_NOTE": death_note,
         "EQUIPMENT": Markup(equipment),
         "NEWS": Markup(_news_rows(news)),
@@ -431,7 +434,7 @@ class _Handler(BaseHTTPRequestHandler):
             if character is None:  # logged in, but nothing to show: the home page says how to make one
                 self._redirect("/#join")
             else:
-                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter.news(character)))
+                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter))
                 self._send(page, "text/html; charset=utf-8")
         elif ADMIN_ROUTE.fullmatch(path):
             guild_id = int(path.rsplit("/", 1)[1])

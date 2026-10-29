@@ -353,6 +353,7 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
     character.equip(Armor.SSh68())
     character.inventory.append(Weapons.FNMinimi())
     character.pending_event = SimpleNamespace(flavor_text="A <stranger> blocks the road.")
+    character.hideout_level = 2
     server = serve(adapter)
     base = f"http://127.0.0.1:{server.server_port}"
     cookie = f"session={LOGINS.redeem(LOGINS.new_link_token(3))}"
@@ -368,6 +369,7 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
         assert f"{helmet._armor_count:g} armor" in sheet
         assert '<span class="slot">#0</span>' in sheet, "inventory is numbered for /inventory equip"
         assert "A &lt;stranger&gt; blocks the road." in sheet
+        assert "$240<span> / hour</span>" in sheet  # two levels at the default 5-second tick
         assert "{{" not in sheet, "a placeholder went unfilled"
     finally:
         server.shutdown()

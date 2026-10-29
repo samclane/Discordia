@@ -1194,6 +1194,19 @@ def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
     assert player.hideout_price == (int(1000 * 1.15**5), 0)
 
 
+def test_the_idle_numbers_are_per_hour_at_the_servers_tick(adapter):
+    player = adapter.get_player(1)
+    assert "No hideout yet" in adapter.hideout_text(player)
+    player.hideout_level, player.stash_currency = 1, 100
+    player.stash.append(Items.Salvage())
+    adapter.tick_seconds = 5
+    assert adapter.income_per_hour(player) == 120
+    adapter.tick_seconds = 10  # a slower server pays less an hour
+    assert adapter.hideout_text(player) == (
+        "Hideout level 1: $60 an hour into your stash, which is worth $150. The next level costs $1,150."
+    )
+
+
 def test_a_cache_always_holds_salvage(adapter):
     player = adapter.get_player(1)
     cache = GameSpace.Cache(0, 0)

@@ -577,6 +577,11 @@ class PlayerCharacter(Actor):
             return 0, (self.hideout_level + 1) // HIDEOUT_SALVAGE_EVERY
         return int(HIDEOUT_COST * HIDEOUT_GROWTH**self.hideout_level), 0
 
+    @property
+    def stash_value(self) -> int:
+        """The stash's money plus what its items are worth: the idle side's score."""
+        return self.stash_currency + sum(int(item.base_value) for item in self.stash)
+
     def build_hideout(self) -> str:
         """Buy the next hideout level, from what's carried first and the stash after. Callers check the
         player is in a town. Returns what it bought, phrased for a player; raises ValueError if it can't."""
