@@ -387,6 +387,8 @@ class PlayerCharacter(Actor):
         if not was_out:
             self.raid_start = (self.currency, self.carried, self.experience)
         responses = super().attempt_move(shift)
+        if (found := self.parent_world.pick_up_remains(self)) is not None:
+            responses.append(found)
         # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
         if was_out and isinstance(self.location, GameSpace.Town) and self.raid_start is not None:
             responses.append(GameSpace.PlayerActionResponse(is_successful=True, source=self, text=self.extract()))
@@ -557,10 +559,9 @@ class PlayerCharacter(Actor):
             moved.append(f"{out} back into your pack")
         return ", ".join(moved)
 
-    def lose_carried(self) -> str:
-        """Everything on you stays where you fell: money, backpack and what you were wearing. Back to bare
-        fists; the stash and the pouch are untouched. Returns what was lost, phrased for a player, or "" if
-        nothing was.
+    def lose_carried(self) -> Tuple[List[Items.Equipment], int]:
+        """Strip everything on you: money, backpack and what you were wearing. Back to bare fists; the stash
+        and the pouch are untouched. Returns the (items, money) taken, for the world to leave where you fell.
         """
         worn = [
             item
@@ -569,13 +570,15 @@ class PlayerCharacter(Actor):
             and not isinstance(item, Weapons.Fist)
             and not any(item is carried for carried in self.inventory)
         ]
-        lost = ([f"${self.currency}"] if self.currency else []) + [str(item) for item in self.inventory + worn]
+        lost = list(self.inventory) + worn, self.currency
+        for item in self.equipment_set:
+            item.on_unequip(self)  # it's on the ground now, not on you
         self.currency = 0
         self.inventory = Inventory()
         self.equipment_set = Items.EquipmentSet()
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
-        return ", ".join(lost)
+        return lost
 
     def take_damage(self, damage: float):
         damage -= self.equipment_set.armor_count

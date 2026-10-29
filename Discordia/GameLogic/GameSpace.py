@@ -97,6 +97,9 @@ NPC_AWAKE_RADIUS = CHUNK_SIZE
 # player knows of one is its warning, while there's still room to run.
 NPC_SIGHT = 6
 
+# How long what a raid death drops lies on the ground, in world ticks: an hour at the default 5-second tick.
+REMAINS_TICKS = 720
+
 
 @contextmanager
 def _seeded(*key):
@@ -341,6 +344,9 @@ def concrete_industries() -> List[Type[IndustryType]]:
 
 
 class Space(ABC):
+    # What a raid death left here, if anything. A class default, so the million squares nobody died on
+    # don't each carry an empty pile.
+    remains: Remains | None = None
 
     def __init__(self, x: int, y: int, terrain: Terrain = NullTerrain()):
         if x < 0 or y < 0:
@@ -645,6 +651,19 @@ class PlayerActionResponse:
 
 
 @dataclass
+class Remains:
+    """What a raid death left on a square, for whoever steps on it first before World.ticks passes `expires`."""
+
+    owner: Actors.PlayerCharacter
+    items: List[Equipment]
+    currency: int
+    expires: int
+
+    def __str__(self):
+        return ", ".join(([f"${self.currency}"] if self.currency else []) + [str(item) for item in self.items])
+
+
+@dataclass
 class Stats:
     """What happened since the last digest (Interface.Alerts.digest). Not saved: a restart starts over."""
 
@@ -685,6 +704,7 @@ class World:
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
+        self.ticks: int = 0  # how many times tick() has run, as a clock for things that expire
         self.starting_town: Town = None  # type: ignore[assignment]  # chosen by _choose_spawn
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
@@ -1045,6 +1065,7 @@ class World:
         the world when a tick lands on them.
         """
         events: List[PlayerActionResponse] = []
+        self.ticks += 1
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
@@ -1087,13 +1108,42 @@ class World:
             )
         return events
 
+    def pick_up_remains(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
+        """Take whatever a raid death left on the square `player` stands on, if it hasn't rotted away."""
+        here = player.location
+        pile = here.remains
+        if pile is None:
+            return None
+        here.remains = None
+        if pile.expires < self.ticks:
+            return None
+        player.inventory += pile.items
+        player.currency += pile.currency
+        whose = "your own" if pile.owner is player else f"{pile.owner.name}'s"
+        return PlayerActionResponse(
+            is_successful=True, items=pile.items, currency=pile.currency, source=player,
+            text=f"You find {whose} things where they fell, and take {pile}.",
+        )
+
     def handle_player_death(self, player: Actors.PlayerCharacter):
         """Send a dead player home. Out past the towns that's a lost raid: whatever they carried stays there,
         and only the stash is safe. A town is safe, so a death in one costs nothing.
         """
         LOG.info(f"Player {player.name} has died")
         here = player.location
-        player.last_death_loss = "" if isinstance(here, Town) else player.lose_carried()
+        player.last_death_loss = ""
+        if not isinstance(here, Town):
+            items, currency = player.lose_carried()
+            # ponytail: on the Space, so a restart (which regenerates the map) loses every pile. Save them
+            # with the NPCs item on ROADMAP.md if that ever bites.
+            pile = here.remains
+            if pile is None or pile.expires < self.ticks:
+                pile = here.remains = Remains(player, [], 0, 0)
+            pile.items += items
+            pile.currency += currency
+            pile.expires = self.ticks + REMAINS_TICKS
+            if items or currency:
+                player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
         player.deaths += 1
         player.raid_start = None
         self.stats.deaths_by_level[here.level if isinstance(here, Wilds) else 0] += 1

@@ -1051,7 +1051,50 @@ def test_dying_on_a_raid_loses_everything_you_carried(adapter):
     player.take_damage(player.hit_points_max)
     assert (player.currency, list(player.inventory)) == (0, [])
     assert isinstance(player.weapon, Weapons.Fist)  # back to bare hands, not unarmed
-    assert GameSpace.death_toll_text(player) == f" You lost $400, {helmet}, {rifle}."
+    assert GameSpace.death_toll_text(player) == (
+        f" You lost $400, {helmet}, {rifle}, left where you fell at {adapter.world.wilds[0]}."
+    )
+
+
+def _die_beside_town(world, player):
+    """Kill `player` on the quiet square beside the starting town; returns the way back to that square."""
+    d = _quiet_step_out_of_town(world)
+    player.attempt_move(d)
+    player.take_damage(player.hit_points_max)
+    return d
+
+
+def test_a_raid_death_leaves_your_things_for_a_corpse_run(adapter):
+    player = adapter.get_player(1)
+    helmet = Armor.Helmet()
+    player.inventory.append(helmet)
+    player.equip(helmet)
+    player.currency = 400
+    d = _die_beside_town(adapter.world, player)
+    assert (player.currency, list(player.inventory)) == (0, [])
+
+    results = adapter.move_player(player, d)
+    assert "your own things" in results[-1].text
+    assert (player.currency, list(player.inventory)) == (400, [helmet])
+    assert not helmet.is_equipped  # picked up off the ground, not worn
+    assert player.location.remains is None  # picked clean, nothing to take twice
+
+
+def test_anyone_can_loot_remains_but_not_once_they_rot(adapter):
+    adapter.register_player(2, "Scavenger")
+    victim, scavenger = adapter.get_player(1), adapter.get_player(2)
+    victim.currency = 400
+    d = _die_beside_town(adapter.world, victim)
+
+    adapter.world.ticks += GameSpace.REMAINS_TICKS + 1
+    adapter.move_player(scavenger, d)
+    assert scavenger.currency == 1000  # what it started with: the pile had rotted
+
+    victim.currency = 50
+    _die_beside_town(adapter.world, victim)
+    adapter.move_player(scavenger, (-d[0], -d[1]))
+    results = adapter.move_player(scavenger, d)
+    assert f"{victim.name}'s things" in results[-1].text and scavenger.currency == 1050
 
 
 def test_dying_in_town_costs_nothing(adapter):

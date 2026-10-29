@@ -23,7 +23,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
   XP since leaving). Track `raid_start` loot on the character; nothing to save, a restart mid-raid just ends it.
 - [x] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
-- [ ] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
+- [x] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
   for a while, for the owner to walk back and recover or for anyone else to loot. Needs an item container on `Space`.
 - [ ] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
   money per tick into the stash, whether the player is online or not.
@@ -91,6 +91,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] Terrain names still say `sand`/`mountain` (`/look`, web map hover) though they're drawn as paving and rooftops.
 - [ ] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
 - [ ] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
+- [ ] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
 - [x] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
 
@@ -119,6 +120,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Corpse run: a raid death leaves what it stripped (`lose_carried` now returns the items and money)
+  on the square as `Space.remains`, for `REMAINS_TICKS` (an hour at a 5-second tick, counted by the new
+  `World.ticks`). Whoever steps on it first takes the lot, owner or not; a second death there adds to the pile.
+  The death message says where it fell. Dropped gear comes back unequipped. Not saved: a restart loses every pile.
 
 - 2026-10-29 Secure pouch: `PlayerCharacter.pouch` holds one item that a raid death leaves on you, filled from
   the backpack anywhere with `/inventory pouch <index>` (the old one goes back to the pack; no index empties it).
