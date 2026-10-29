@@ -9,7 +9,7 @@ The test is a short smoke run. For a long one to dig through:
 
 which prints a summary, writes one JSON line per bot per tick (load it with pandas.read_json(lines=True)), and
 draws the run as a standalone page: trails and deaths on the explored map, and level, money, range and deaths
-over time (sim_report.html is the template).
+over time (sim_template.html is the template).
 """
 
 import argparse
@@ -36,7 +36,7 @@ SLOW_ORDER = 1.0  # seconds; an order this slow is worth a look (CombatEvent can
 HANG = 300  # seconds for a whole run before faulthandler dumps every stack and exits
 # Anomalies already on ROADMAP.md, so the test stays green until they're fixed. Delete one when its fix lands.
 KNOWN: Tuple[str, ...] = ()
-REPORT_TEMPLATE = Path(__file__).with_name("sim_report.html")
+REPORT_TEMPLATE = Path(__file__).with_name("sim_template.html")
 MAP_PX = 4  # pixels a square on the report's map: ~10 chunks across fit a laptop screen
 
 
@@ -279,7 +279,7 @@ def simulate(
 
 
 def report(rows: List[dict], world: GameSpace.World, players: List[Bot], seed: int, path: Path):
-    """Fill in sim_report.html with this run: the explored map as a picture, and each bot's numbers by tick."""
+    """Fill in sim_template.html with this run: the explored map as a picture, and each bot's numbers by tick."""
     renderer = WindowRenderer(WorldAdapter(world))
     chunks = world.loaded_chunks()
     cx0, cy0 = min(c[0] for c in chunks), min(c[1] for c in chunks)
