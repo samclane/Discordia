@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 259 tests, ~30s, no token needed
+python -m pytest Discordia/test -q                     # 261 tests, ~30s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -58,7 +58,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - `test_server_simulation.py` is a Discord server simulator: members on two fake servers use the real slash commands
   (discord.py's checks and error handlers, a fake Discord behind them) and every message the bot sends is checked
   for spam, posts outside allowed channels, leaked links, mass pings and unanswered interactions. New rule: add it
-  in `Discord.post` or `_check_rates`. `python -m Discordia.test.test_server_simulation --ticks 500 --out s.jsonl`.
+  in `Discord.post` or `_check_rates`. `python -m Discordia.test.test_server_simulation --ticks 500 --out s.jsonl --html s.html`
+  (`--from s.jsonl --html s.html` redraws an old run; `server_template.html` is the dashboard template).
 - `# ponytail:` comments mark deliberate shortcuts and their upgrade path. Read them before "fixing" one.
 - Black formatting. Small diffs, no speculative abstractions.
 

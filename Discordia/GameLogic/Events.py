@@ -55,6 +55,10 @@ class CombatEvent(Event):
         fists = None  # what's left to fight with once the gun is dry and the pack has nothing for it
         for enemy in self.enemies:
             kill_response = GameSpace.PlayerActionResponse(source=player_character)
+            # Each round is still a response with its damage, but untold: a long fistfight is fifty rounds, and
+            # a line a blow ran /move past Discord's 2000 characters. One line per enemy sums the exchange up.
+            rounds = dealt = taken = 0
+            fled = False
 
             while not enemy.is_dead:
                 attack_response = GameSpace.PlayerActionResponse(
@@ -85,9 +89,8 @@ class CombatEvent(Event):
                 attack_response.is_successful = True
                 attack_response.damage = dmg
                 attack_response.target = enemy
-                attack_response.text = (
-                    f"{player_character.name} does {dmg} dmg to {enemy.name}."
-                )
+                rounds += 1
+                dealt += dmg
                 yield attack_response
 
                 defense_response = GameSpace.PlayerActionResponse(
@@ -97,19 +100,26 @@ class CombatEvent(Event):
                 if dmg is None:  # the enemy disengaged; on to the next one
                     defense_response.is_successful = True
                     defense_response.target = enemy
-                    defense_response.text = f"{enemy.name} flees the fight."
+                    fled = True
                     yield defense_response
                     break
                 defense_response.damage = dmg
                 defense_response.target = enemy
-                defense_response.text = (
-                    f"{player_character.name} takes {dmg} dmg from {enemy.name}."
-                )
+                taken += dmg
                 defense_response.is_successful = True
                 yield defense_response
                 if player_character.deaths != deaths:
                     break
 
+            if rounds:
+                yield GameSpace.PlayerActionResponse(
+                    is_successful=True,
+                    source=player_character,
+                    target=enemy,
+                    text=f"{player_character.name} fights {enemy.name}: "
+                    f"{rounds} round{'s' * (rounds != 1)}, deals {dealt} dmg, takes {taken}."
+                    + (f" {enemy.name} flees the fight." if fled else ""),
+                )
             if enemy.is_dead:
                 enemy.on_death()
                 drops = player_character.loot(enemy, kill_response)

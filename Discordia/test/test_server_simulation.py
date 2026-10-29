@@ -7,9 +7,11 @@ interactions left hanging.
 
 The test is a short run. For a longer one to dig through:
 
-    python -m Discordia.test.test_server_simulation --ticks 500 --out server.jsonl
+    python -m Discordia.test.test_server_simulation --ticks 500 --out server.jsonl --html server.html
 
-which prints a summary of every rule broken and writes every message the bot sent as JSON lines.
+which prints a summary of every rule broken, writes every message the bot sent as JSON lines (a "meta" line first,
+naming members and channels), and draws a dashboard of the run (server_template.html is the template). To draw one
+from a JSON lines file you already have: --from server.jsonl --html server.html.
 """
 
 import argparse
@@ -41,7 +43,25 @@ DM_STREAK = 6  # ticks in a row a player may be DM'd (30 seconds) before it's sp
 ACK_SECONDS = 3.0  # Discord's deadline to answer or defer an interaction
 SOMETHING_WRONG = "Something went wrong on the server."
 # Rules already on ROADMAP.md, so the test stays green until they're fixed. Delete one when its fix lands.
-KNOWN: Tuple[str, ...] = ("dm spam",)
+KNOWN: Tuple[str, ...] = ()
+REPORT_TEMPLATE = Path(__file__).with_name("server_template.html")
+# Every rule the run is checked against, by the name it's flagged under, as the dashboard explains it.
+RULES = {
+    "outside allowed channels": "Public replies only in the channels a server's admins picked (any, if none).",
+    "unprompted post": "Messages nobody asked for only as the welcome (system channel) or the digest (its channel).",
+    "rate limited": f"No more than {RATE} messages to one channel or DM in {TICK_SECONDS:g} seconds.",
+    "dm spam": f"Nobody DM'd every tick for more than {DM_STREAK} ticks running.",
+    "chatty": f"No command answers with more than {CHATTY} messages.",
+    "mass ping": "Nothing the bot sends can ping @everyone or @here.",
+    "leaked login link": "One-time login links only ever in private replies.",
+    "no answer": "Every command gets an answer.",
+    "too slow": f"Every command is answered or deferred within Discord's {ACK_SECONDS:g} seconds.",
+    "stuck thinking": "A deferred command always follows up.",
+    "unhandled error": "No command hits a bug and says 'Something went wrong'.",
+    "escaped exception": "No error escapes the cog's handler.",
+    "too long": f"No message over Discord's {LIMIT} characters.",
+    "empty message": "No empty messages.",
+}
 
 
 @dataclass
@@ -79,9 +99,11 @@ class Discord:
         self.problems: List[Problem] = []
         self.closed_dms: set = set()
         self.guilds: Dict[int, SimpleNamespace] = {}
+        self.members: List["Member"] = []
         self.channels: Dict[int, SimpleNamespace] = {}  # channel id -> its guild id, name, parent
 
     def flag(self, rule: str, detail: str):
+        assert rule in RULES, rule
         self.problems.append(Problem(self.tick, rule, detail))
 
     def add_guild(self, guild_id: int, name: str, channels: List[str], system: str):
@@ -123,6 +145,7 @@ class Discord:
         self.sent.append(sent)
 
     def _check_channel(self, sent: Sent):
+        assert sent.channel is not None
         channel = self.channels[sent.channel]
         settings = self.interface.world_adapter.guild_settings.get(channel.guild)
         guild = self.guilds[channel.guild]
@@ -294,7 +317,7 @@ async def _simulate(ticks: int, seed: int, size: int) -> Discord:
     bot: Any = interface.bot  # the fake stands in for Discord's caches and API behind the bot
     bot.get_user, bot.get_channel, bot.get_guild = discord_.get_user, discord_.get_channel, discord_.get_guild
 
-    members = cast_of_members(discord_)
+    members = discord_.members = cast_of_members(discord_)
     locked = discord_.guilds[1]
     adapter.guild_settings[1] = GuildSettings(
         channels=[locked.channels["play"].id], digest_channel=locked.channels["news"].id
@@ -355,6 +378,42 @@ def simulate(ticks: int = 120, seed: int = 0, size: int = 128) -> Discord:
     return asyncio.run(_simulate(ticks, seed, size))
 
 
+def meta(discord_: Discord, seed: int) -> dict:
+    """Names for the ids in the log, and what the run was checked against: the first JSON line."""
+    settings = discord_.interface.world_adapter.guild_settings
+    channels = {}
+    for channel in discord_.channels.values():
+        guild, picked = discord_.guilds[channel.guild], settings.get(channel.guild)
+        allowed = not picked or not picked.channels or bool({channel.id, channel.parent_id} & set(picked.channels))
+        channels[channel.id] = {"name": channel.name, "guild": guild.name, "allowed": allowed}
+    return {
+        "ticks": discord_.tick + 1,
+        "seed": seed,
+        "tick_seconds": TICK_SECONDS,
+        "members": {m.id: m.name for m in discord_.members},
+        "channels": channels,
+        "rules": RULES,
+    }
+
+
+def load(path: Path) -> Tuple[dict, List[dict], List[dict]]:
+    """(meta, sent, problems) back out of a JSON lines file this module wrote."""
+    info, sent, problems = {}, [], []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        info = row.get("meta", info)
+        sent += [row["sent"]] if "sent" in row else []
+        problems += [row["problem"]] if "problem" in row else []
+    return info, sent, problems
+
+
+def report(info: dict, sent: List[dict], problems: List[dict], path: Path):
+    """Fill in server_template.html: every message and problem, embedded, so the page stands alone."""
+    data = {"meta": info, "sent": sent, "problems": problems}
+    blob = json.dumps(data, separators=(",", ":")).replace("</", r"<\/")  # no early </script>
+    path.write_text(REPORT_TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", blob), encoding="utf-8")
+
+
 def summary(discord_: Discord) -> str:
     by_where = Counter(s.where for s in discord_.sent)
     lines = [f"{len(discord_.sent)} messages sent over {discord_.tick + 1} ticks: {dict(by_where)}"]
@@ -369,12 +428,23 @@ def summary(discord_: Discord) -> str:
     return "\n".join(lines)
 
 
-def test_the_bot_keeps_to_server_rules():
+def test_the_bot_keeps_to_server_rules(tmp_path):
     discord_ = simulate(ticks=60)
+    out = tmp_path / "server.jsonl"
+    write(discord_, 0, out)
+    report(*load(out), tmp_path / "server.html")  # the dashboard builds from what the run wrote
+    assert '"rules":' in (tmp_path / "server.html").read_text(encoding="utf-8")
     bad = [p for p in discord_.problems if not p.rule.startswith(KNOWN)]
     assert not bad, f"{len(bad)} problems\n{summary(discord_)}"
     assert any(s.where == "dm" for s in discord_.sent), "nobody was ever DM'd: the run is too tame to show anything"
     assert any(s.where == "channel" for s in discord_.sent), "no welcome or digest went out"
+
+
+def write(discord_: Discord, seed: int, path: Path):
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"meta": meta(discord_, seed)}) + "\n")
+        f.writelines(json.dumps({"sent": asdict(s)}) + "\n" for s in discord_.sent)
+        f.writelines(json.dumps({"problem": asdict(p)}) + "\n" for p in discord_.problems)
 
 
 if __name__ == "__main__":
@@ -382,12 +452,23 @@ if __name__ == "__main__":
     parser.add_argument("--ticks", type=int, default=500)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--size", type=int, default=128)
-    parser.add_argument("--out", help="write every message sent, then every problem, here as JSON lines")
+    parser.add_argument("--out", help="write the meta line, every message sent, then every problem, as JSON lines")
+    parser.add_argument("--html", help="draw a dashboard of the run here")
+    parser.add_argument("--from", dest="source", help="skip the run: draw --html from this JSON lines file")
     args = parser.parse_args()
+    if args.source:
+        source = Path(args.source)
+        report(*load(source), Path(args.html) if args.html else source.with_suffix(".html"))
+        raise SystemExit
     logging.getLogger("Discordia").setLevel(logging.ERROR)  # every refused command logs a warning otherwise
     result = simulate(args.ticks, args.seed, args.size)
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            f.writelines(json.dumps({"sent": asdict(s)}) + "\n" for s in result.sent)
-            f.writelines(json.dumps({"problem": asdict(p)}) + "\n" for p in result.problems)
+    out = Path(args.out) if args.out else None
+    if out:
+        write(result, args.seed, out)
+    if args.html:  # through the same JSON a file would hold, so both routes draw the same page
+        with tempfile.TemporaryDirectory() as scratch:
+            written = out or Path(scratch) / "run.jsonl"
+            if not out:
+                write(result, args.seed, written)
+            report(*load(written), Path(args.html))
     print(summary(result))

@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server Simulation</title>
+<!-- Filled in by test_server_simulation.report(): the run's data replaces the null below. No build step. -->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --q0: #f0efec; --q1: #b7d3f6; --q2: #6da7ec; --q3: #2a78d6; --q4: #184f95;
+  --good: #0ca30c; --critical: #d03b3b; --good-ink: #006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --q0: #232322; --q1: #184f95; --q2: #256abf; --q3: #3987e5; --q4: #86b6ef;
+    --good-ink: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --q0: #232322; --q1: #184f95; --q2: #256abf; --q3: #3987e5; --q4: #86b6ef;
+  --good-ink: #0ca30c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 2px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.sub { color: var(--ink-2); margin: 0 0 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; position: relative; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .label { color: var(--ink-2); font-size: 12px; }
+.tile .value { font-size: 24px; font-weight: 600; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; margin-bottom: 16px; }
+.two .card { margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 13px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+svg { display: block; width: 100%; height: auto; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.grid line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.seg { stroke: var(--surface); stroke-width: 1; }
+.hot { fill: transparent; }
+.hot:hover { fill: var(--ink); fill-opacity: 0.06; }
+.cell { stroke: var(--surface); stroke-width: 2; }
+.cell:hover { stroke: var(--ink); }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); visibility: hidden; min-width: 140px; z-index: 2; }
+.tip .head { color: var(--ink-2); margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 8px; }
+.tip .row b { font-variant-numeric: tabular-nums; min-width: 3ch; }
+.tip .row span:last-child { color: var(--ink-2); }
+.rules { display: grid; gap: 0; }
+.rule { border-bottom: 1px solid var(--grid); padding: 8px 0; }
+.rule:last-child { border-bottom: 0; }
+.rule summary, .rule .line { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: baseline; list-style: none; }
+.rule summary { cursor: pointer; }
+.rule summary::-webkit-details-marker { display: none; }
+.status { font-weight: 600; font-size: 13px; white-space: nowrap; }
+.status.pass { color: var(--good-ink); }
+.status.fail { color: var(--critical); }
+.rule .name { font-weight: 600; }
+.rule .desc { color: var(--ink-2); }
+.rule ol { margin: 8px 0 4px 108px; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+td.num, th.num { text-align: right; }
+th button { all: unset; cursor: pointer; font: inherit; color: inherit; }
+th button:hover, th button:focus-visible { color: var(--ink); text-decoration: underline; }
+th button::after { content: "↕"; color: var(--muted); font-size: 11px; margin-left: 4px; }
+th[aria-sort=ascending] button::after { content: "▲"; color: var(--ink); }
+th[aria-sort=descending] button::after { content: "▼"; color: var(--ink); }
+.scroll { overflow-x: auto; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
+.filters select, .filters input, button.more { font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px; }
+.filters input { flex: 1 1 180px; min-width: 0; }
+.count { color: var(--ink-2); font-size: 13px; }
+td.msg { white-space: pre-wrap; word-break: break-word; max-width: 520px; }
+.badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); margin-left: 4px; }
+button.more { cursor: pointer; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Server simulation</h1>
+  <p class="sub" id="sub"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>Rules</h2>
+    <div class="rules" id="rules"></div>
+  </div>
+
+  <div class="card">
+    <h2>Messages over time</h2>
+    <svg id="timeline"></svg>
+    <div class="legend" id="kinds"></div>
+    <div class="tip" id="timeline-tip"></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h2>DMs by member</h2>
+      <svg id="heat"></svg>
+      <div class="legend" id="heat-legend"></div>
+      <div class="tip" id="heat-tip"></div>
+    </div>
+    <div class="card">
+      <h2>Public replies by channel</h2>
+      <svg id="channels"></svg>
+      <div class="tip" id="channels-tip"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Commands</h2>
+    <div class="scroll"><table id="commands"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Every message</h2>
+    <div class="filters">
+      <select id="f-kind" aria-label="Kind"></select>
+      <select id="f-member" aria-label="Member"></select>
+      <select id="f-command" aria-label="Command"></select>
+      <input id="f-text" type="search" placeholder="Search messages" aria-label="Search messages">
+      <select id="f-sort" aria-label="Sort">
+        <option value="tick">Oldest first</option>
+        <option value="-tick">Newest first</option>
+        <option value="-length">Longest first</option>
+        <option value="length">Shortest first</option>
+      </select>
+      <span class="count" id="f-count"></span>
+    </div>
+    <div class="scroll"><table id="log"></table></div>
+    <button class="more" id="more" type="button">Show more</button>
+  </div>
+</main>
+<script>
+const DATA = /*DATA*/null;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const html = (tag, text, parent, cls) => {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (cls) node.className = cls;
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const meta = DATA.meta || {};
+const ticks = meta.ticks || Math.max(0, ...DATA.sent.map((s) => s.tick)) + 1;
+const members = meta.members || {};
+const channels = meta.channels || {};
+const who = (id) => members[id] || (id == null ? "" : `user ${id}`);
+const where = (s) => (s.where === "dm" ? `DM to ${who(s.user)}` : channels[s.channel] ? `#${channels[s.channel].name}` : `channel ${s.channel}`);
+
+// Four kinds of message, by who can see them: the one distinction a server admin cares about.
+const KINDS = [
+  ["public", "Public reply", "var(--s1)"],
+  ["private", "Private reply", "var(--s2)"],
+  ["dm", "DM", "var(--s3)"],
+  ["channel", "Channel post", "var(--s4)"],
+];
+const kindOf = (s) => (s.where === "dm" ? "dm" : s.where === "channel" ? "channel" : s.ephemeral ? "private" : "public");
+const sent = DATA.sent.map((s) => ({ ...s, kind: kindOf(s) }));
+const problems = DATA.problems;
+
+function placeTip(tip, card, x, y) {
+  tip.style.visibility = "visible";
+  tip.style.left = `${Math.max(8, Math.min(x + 14, card.clientWidth - tip.offsetWidth - 8))}px`;
+  tip.style.top = `${Math.max(8, y - tip.offsetHeight - 10)}px`;
+}
+function tipRow(tip, value, label, color) {
+  const row = html("div", undefined, tip, "row");
+  const key = html("i", undefined, row, "swatch");
+  key.style.background = color;
+  html("b", value, row);
+  html("span", label, row);
+}
+
+// --- Header and tiles ----------------------------------------------------------------------------
+document.getElementById("sub").textContent =
+  `${ticks.toLocaleString()} ticks (${Math.round((ticks * (meta.tick_seconds || 5)) / 60)} simulated minutes), ` +
+  `seed ${meta.seed ?? "?"}, ${Object.keys(members).length} members`;
+const count = (kind) => sent.filter((s) => s.kind === kind).length;
+const rules = meta.rules || Object.fromEntries(problems.map((p) => [p.rule, ""]));
+const broken = new Set(problems.map((p) => p.rule));
+const tiles = document.getElementById("tiles");
+for (const [label, value] of [
+  ["Messages sent", sent.length],
+  ["Public replies", count("public")],
+  ["Private replies", count("private")],
+  ["DMs", count("dm")],
+  ["Channel posts", count("channel")],
+  ["Rules broken", `${broken.size} of ${Object.keys(rules).length}`],
+]) {
+  const tile = html("div", undefined, tiles, "tile");
+  html("div", label, tile, "label");
+  html("div", typeof value === "number" ? value.toLocaleString() : value, tile, "value");
+}
+
+// --- Rules: every one, passed or broken, broken first -------------------------------------------
+const ruleBox = document.getElementById("rules");
+const byRule = {};
+for (const p of problems) (byRule[p.rule] ||= []).push(p);
+for (const name of Object.keys(rules).sort((a, b) => (byRule[b]?.length || 0) - (byRule[a]?.length || 0) || a.localeCompare(b))) {
+  const hits = byRule[name] || [];
+  const box = html(hits.length ? "details" : "div", undefined, ruleBox, "rule");
+  const line = html(hits.length ? "summary" : "div", undefined, box, hits.length ? "" : "line");
+  html("span", hits.length ? `✗ Broken ×${hits.length}` : "✓ Passed", line, `status ${hits.length ? "fail" : "pass"}`);
+  const text = html("span", undefined, line);
+  html("span", name, text, "name");
+  html("span", ` — ${rules[name]}`, text, "desc");
+  if (hits.length) {
+    const list = html("ol", undefined, box);
+    for (const p of hits.slice(0, 20)) html("li", `Tick ${p.tick}: ${p.detail}`, list);
+    if (hits.length > 20) html("li", `…and ${hits.length - 20} more`, list);
+  }
+}
+
+// --- Timeline: messages per stretch of ticks, stacked by kind, with problems marked below ----------
+const W = 1000, H = 260, M = { l: 70, r: 30, t: 10, b: 52 };
+const bins = Math.min(ticks, 100), per = Math.ceil(ticks / bins);
+const nb = Math.ceil(ticks / per);
+const stack = Array.from({ length: nb }, () => Object.fromEntries(KINDS.map(([k]) => [k, 0])));
+for (const s of sent) stack[Math.min(nb - 1, Math.floor(s.tick / per))][s.kind]++;
+const trouble = Array.from({ length: nb }, () => []);
+for (const p of problems) trouble[Math.min(nb - 1, Math.floor(p.tick / per))].push(p);
+
+function niceTicks(max, n = 4) {
+  if (max <= 0) return [0, 1];
+  const raw = max / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const out = [];
+  for (let v = 0; v < max + step * 0.999; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+{
+  const svg = document.getElementById("timeline");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Messages sent per stretch of ticks, by kind");
+  const plotB = H - M.b;
+  const totals = stack.map((b) => KINDS.reduce((n, [k]) => n + b[k], 0));
+  const yt = niceTicks(Math.max(...totals, 1));
+  const top = yt[yt.length - 1];
+  const ys = (v) => plotB - (v / top) * (plotB - M.t);
+  const bw = (W - M.l - M.r) / nb;
+  const grid = el("g", { class: "grid" }, svg);
+  for (const v of yt) {
+    if (v) el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v) }, grid);
+    el("text", { x: M.l - 6, y: ys(v) + 4, "text-anchor": "end" }, svg).textContent = v.toLocaleString();
+  }
+  stack.forEach((b, i) => {
+    let base = 0;
+    const x = M.l + i * bw + Math.min(1, bw * 0.15);
+    const w = Math.max(1, bw - Math.min(2, bw * 0.3));
+    for (const [k, , color] of KINDS) {
+      if (!b[k]) continue;
+      const r = el("rect", { x, y: ys(base + b[k]), width: w, height: ys(base) - ys(base + b[k]), class: "seg" }, svg);
+      r.style.fill = color;
+      base += b[k];
+    }
+    if (trouble[i].length) {
+      const mark = el("rect", { x, y: plotB + 8, width: w, height: 8, rx: 1 }, svg);
+      mark.style.fill = "var(--critical)";
+    }
+  });
+  el("line", { x1: M.l, x2: W - M.r, y1: plotB, y2: plotB, class: "baseline" }, svg);
+  el("text", { x: M.l - 6, y: plotB + 16, "text-anchor": "end" }, svg).textContent = "Problems";
+  for (const t of niceTicks(ticks, 6)) {
+    if (t > ticks) continue;
+    const x = M.l + (t / per) * bw;
+    el("text", { x, y: H - 8, "text-anchor": x > W - M.r - 30 ? "end" : "middle" }, svg).textContent = `tick ${t.toLocaleString()}`;
+  }
+  const tip = document.getElementById("timeline-tip");
+  stack.forEach((b, i) => {
+    const hot = el("rect", { x: M.l + i * bw, y: M.t, width: bw, height: plotB + 16 - M.t, class: "hot" }, svg);
+    hot.addEventListener("pointermove", (ev) => {
+      tip.replaceChildren();
+      const lo = i * per, hi = Math.min(ticks, lo + per) - 1;
+      html("div", lo === hi ? `Tick ${lo}` : `Ticks ${lo}–${hi}`, tip, "head");
+      for (const [k, label, color] of KINDS) tipRow(tip, b[k].toLocaleString(), label, color);
+      if (trouble[i].length) tipRow(tip, trouble[i].length, [...new Set(trouble[i].map((p) => p.rule))].join(", "), "var(--critical)");
+      const card = svg.parentElement, box = card.getBoundingClientRect();
+      placeTip(tip, card, ev.clientX - box.left, ev.clientY - box.top);
+    });
+    hot.addEventListener("pointerleave", () => (tip.style.visibility = "hidden"));
+  });
+  const legend = document.getElementById("kinds");
+  for (const [, label, color] of KINDS) {
+    const item = html("span", undefined, legend);
+    html("i", undefined, item, "swatch").style.background = color;
+    item.appendChild(document.createTextNode(label));
+  }
+  const item = html("span", undefined, legend);
+  html("i", undefined, item, "swatch").style.background = "var(--critical)";
+  item.appendChild(document.createTextNode("A rule broken in that stretch"));
+}
+
+// --- Heatmap: DMs per member per stretch of ticks. Spam shows as a hot run along one row ---------
+{
+  const svg = document.getElementById("heat");
+  const ids = Object.keys(members).length ? Object.keys(members) : [...new Set(sent.filter((s) => s.where === "dm").map((s) => String(s.user)))];
+  const cols = Math.min(nb, 50), cper = Math.ceil(ticks / cols), nc = Math.ceil(ticks / cper);
+  const grid = Object.fromEntries(ids.map((id) => [id, new Array(nc).fill(0)]));
+  for (const s of sent) if (s.where === "dm" && grid[s.user]) grid[s.user][Math.min(nc - 1, Math.floor(s.tick / cper))]++;
+  const max = Math.max(1, ...ids.flatMap((id) => grid[id]));
+  const step = (v) => (v === 0 ? 0 : Math.min(4, 1 + Math.floor(((v - 1) / max) * 4)));
+  const LW = 96, CW = 8, CH = 18, w = LW + nc * CW, h = ids.length * CH + 22;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "DMs each member received over time");
+  const tip = document.getElementById("heat-tip");
+  ids.forEach((id, r) => {
+    el("text", { x: LW - 6, y: r * CH + 13, "text-anchor": "end" }, svg).textContent = who(id).slice(0, 14);
+    grid[id].forEach((v, c) => {
+      const cell = el("rect", { x: LW + c * CW, y: r * CH, width: CW, height: CH, class: "cell", rx: 1 }, svg);
+      cell.style.fill = `var(--q${step(v)})`;
+      cell.addEventListener("pointermove", (ev) => {
+        tip.replaceChildren();
+        const lo = c * cper, hi = Math.min(ticks, lo + cper) - 1;
+        html("div", `${who(id)}, ticks ${lo}–${hi}`, tip, "head");
+        tipRow(tip, v, v === 1 ? "DM" : "DMs", `var(--q${Math.max(1, step(v))})`);
+        const card = svg.parentElement, box = card.getBoundingClientRect();
+        placeTip(tip, card, ev.clientX - box.left, ev.clientY - box.top);
+      });
+      cell.addEventListener("pointerleave", () => (tip.style.visibility = "hidden"));
+    });
+  });
+  el("text", { x: LW, y: h - 4 }, svg).textContent = "tick 0";
+  el("text", { x: w, y: h - 4, "text-anchor": "end" }, svg).textContent = `tick ${ticks - 1}`;
+  const legend = document.getElementById("heat-legend");
+  html("span", "Fewer", legend);
+  for (let q = 0; q <= 4; q++) html("i", undefined, legend, "swatch").style.background = `var(--q${q})`;
+  html("span", `More (up to ${max} per ${cper} ticks)`, legend);
+}
+
+// --- Public replies by channel: where everyone saw the bot answer a command. (The welcome and the digest
+// post where they're meant to; the "unprompted post" rule checks those.) -------------------------------
+{
+  const svg = document.getElementById("channels");
+  const counts = {};
+  for (const s of sent) if (s.kind === "public") counts[s.channel] = (counts[s.channel] || 0) + 1;
+  const ids = Object.keys(channels).length ? Object.keys(channels) : Object.keys(counts);
+  ids.sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
+  const LW = 150, BW = 170, RH = 26, w = LW + BW + 140, h = ids.length * RH + 4;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Public messages per channel");
+  const max = Math.max(1, ...Object.values(counts));
+  const tip = document.getElementById("channels-tip");
+  ids.forEach((id, r) => {
+    const c = channels[id] || { name: id, guild: "", allowed: true };
+    const n = counts[id] || 0;
+    const y = r * RH;
+    el("text", { x: LW - 8, y: y + 16, "text-anchor": "end" }, svg).textContent = `#${c.name} · ${c.guild}`.slice(0, 24);
+    const bar = el("rect", { x: LW, y: y + 5, width: Math.max(n ? 4 : 0, (n / max) * BW), height: RH - 10, rx: 4 }, svg);
+    const outside = n && !c.allowed;
+    bar.style.fill = outside ? "var(--critical)" : "var(--s1)";
+    const label = el("text", { x: LW + (n / max) * BW + 8, y: y + 16 }, svg);
+    label.textContent = `${n.toLocaleString()}${outside ? "  ✗ not allowed here" : c.allowed ? "" : "  · not allowed"}`;
+    if (outside) label.style.fill = "var(--critical)";
+    const hot = el("rect", { x: 0, y, width: w, height: RH, class: "hot" }, svg);
+    hot.addEventListener("pointermove", (ev) => {
+      tip.replaceChildren();
+      html("div", `#${c.name} in ${c.guild}`, tip, "head");
+      tipRow(tip, n.toLocaleString(), "public replies", outside ? "var(--critical)" : "var(--s1)");
+      html("div", c.allowed ? "The bot may play here." : "Outside the channels this server allows.", tip, "head");
+      const card = svg.parentElement, box = card.getBoundingClientRect();
+      placeTip(tip, card, ev.clientX - box.left, ev.clientY - box.top);
+    });
+    hot.addEventListener("pointerleave", () => (tip.style.visibility = "hidden"));
+  });
+}
+
+// --- A sortable table, shared by the commands view ------------------------------------------------
+function sortable(table, columns, rows, initial) {
+  const head = html("tr", undefined, html("thead", undefined, table));
+  const body = html("tbody", undefined, table);
+  let sort = initial;
+  const render = () => {
+    const sorted = [...rows].sort((a, b) => {
+      const x = a[sort.key], y = b[sort.key];
+      return (typeof x === "string" ? x.localeCompare(y) : x - y) * sort.dir;
+    });
+    body.replaceChildren();
+    for (const r of sorted) {
+      const tr = html("tr", undefined, body);
+      for (const [key, , num] of columns) html("td", num ? r[key].toLocaleString() : r[key], tr, num ? "num" : "");
+    }
+    head.querySelectorAll("th").forEach((th) =>
+      th.setAttribute("aria-sort", th.dataset.key === sort.key ? (sort.dir > 0 ? "ascending" : "descending") : "none"));
+  };
+  for (const [key, label, num] of columns) {
+    const th = html("th", undefined, head, num ? "num" : "");
+    th.dataset.key = key;
+    const button = html("button", label, th);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      sort = sort.key === key ? { key, dir: -sort.dir } : { key, dir: num ? -1 : 1 };
+      render();
+    });
+  }
+  render();
+}
+
+{
+  const by = {};
+  for (const s of sent) {
+    if (!s.command) continue;
+    const c = (by[s.command] ||= { command: `/${s.command}`, messages: 0, public: 0, private: 0, longest: 0, problems: 0 });
+    c.messages++;
+    c[s.kind === "private" ? "private" : "public"]++;
+    c.longest = Math.max(c.longest, s.content.length);
+  }
+  // A problem names its command as "/town store list ...": credit the longest command name that fits.
+  const names = Object.keys(by).sort((a, b) => b.length - a.length);
+  for (const p of problems) {
+    const name = names.find((n) => p.detail.startsWith(`/${n} `) || p.detail.startsWith(`/${n}:`) || p.detail.includes(` /${n} `));
+    if (name) by[name].problems++;
+  }
+  sortable(document.getElementById("commands"), [
+    ["command", "Command", false], ["messages", "Messages", true], ["public", "Public", true],
+    ["private", "Private", true], ["longest", "Longest (chars)", true], ["problems", "Problems", true],
+  ], Object.values(by), { key: "messages", dir: -1 });
+}
+
+// --- Every message: filter, search, page through --------------------------------------------------
+{
+  const PAGE = 100;
+  const kindSel = document.getElementById("f-kind"), memberSel = document.getElementById("f-member");
+  const commandSel = document.getElementById("f-command"), search = document.getElementById("f-text");
+  const fill = (select, all, options) => {
+    html("option", all, select).value = "";
+    for (const [value, label] of options) html("option", label, select).value = value;
+  };
+  fill(kindSel, "All kinds", KINDS.map(([k, label]) => [k, label]));
+  const memberIds = [...new Set(sent.map((s) => s.user).filter((u) => u != null))];
+  fill(memberSel, "All members", memberIds.map((id) => [String(id), who(id)]).sort((a, b) => a[1].localeCompare(b[1])));
+  fill(commandSel, "All commands", [...new Set(sent.map((s) => s.command).filter(Boolean))].sort().map((c) => [c, `/${c}`]));
+
+  const table = document.getElementById("log");
+  const head = html("tr", undefined, html("thead", undefined, table));
+  for (const [label, num] of [["Tick", 1], ["Kind", 0], ["Where", 0], ["Command", 0], ["Length", 1], ["Message", 0]]) html("th", label, head, num ? "num" : "");
+  const sortSel = document.getElementById("f-sort");
+  const body = html("tbody", undefined, table);
+  const more = document.getElementById("more");
+  const label = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
+  let shown = PAGE, matches = [];
+
+  const render = () => {
+    body.replaceChildren();
+    for (const s of matches.slice(0, shown)) {
+      const tr = html("tr", undefined, body);
+      html("td", s.tick, tr, "num");
+      html("td", label[s.kind], tr);
+      const at = html("td", where(s), tr);
+      if (s.where !== "dm" && s.user != null) html("span", who(s.user), at, "badge");
+      html("td", s.command ? `/${s.command}` : s.where === "channel" ? "(welcome or digest)" : "(world tick)", tr);
+      html("td", s.content.length.toLocaleString(), tr, "num");
+      const text = s.content.length > 400 ? `${s.content.slice(0, 400)}…` : s.content;
+      const cell = html("td", text, tr, "msg");
+      cell.title = s.content.length > 400 ? s.content : "";
+    }
+    document.getElementById("f-count").textContent = `Showing ${Math.min(shown, matches.length).toLocaleString()} of ${matches.length.toLocaleString()}`;
+    more.hidden = shown >= matches.length;
+  };
+  const filter = () => {
+    const kind = kindSel.value, member = memberSel.value, command = commandSel.value, q = search.value.trim().toLowerCase();
+    matches = sent.filter((s) =>
+      (!kind || s.kind === kind) && (!member || String(s.user) === member) && (!command || s.command === command) &&
+      (!q || s.content.toLowerCase().includes(q)));
+    // Ties keep the order they were sent in, so "longest first" still reads oldest to newest within a length.
+    const dir = sortSel.value.startsWith("-") ? -1 : 1;
+    const key = sortSel.value.replace("-", "") === "length" ? (s) => s.content.length : (s) => s.tick;
+    matches = matches.map((s, i) => [s, i]).sort((a, b) => (key(a[0]) - key(b[0])) * dir || a[1] - b[1]).map(([s]) => s);
+    shown = PAGE;
+    render();
+  };
+  for (const control of [kindSel, memberSel, commandSel, sortSel]) control.addEventListener("change", filter);
+  search.addEventListener("input", filter);
+  more.addEventListener("click", () => { shown += PAGE; render(); });
+  filter();
+}
+</script>
+</body>
+</html>

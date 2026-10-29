@@ -203,6 +203,8 @@ class DiscordInterface(commands.Cog):
         self._orders: Dict[
             Actors.PlayerCharacter, Tuple[Callable[[], Any], asyncio.Future]
         ] = {}
+        # Who hit whom last tick, and the target's death count then: a fight already under way isn't news.
+        self._fights: Dict[Actors.Actor, Tuple[set, int]] = {}
 
     def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
         """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
@@ -253,15 +255,24 @@ class DiscordInterface(commands.Cog):
             except Exception as exc:
                 future.set_exception(exc)
         # One DM per player per tick, however many NPCs piled on: Discord rate-limits, players tilt.
-        news: Dict[Actors.Actor, List[str]] = {}
+        news: Dict[Actors.Actor, List[PlayerActionResponse]] = {}
         for event in self.world_adapter.world.tick():
             if event.target is not None:
-                news.setdefault(event.target, []).append(event.text)
-        for character, lines in news.items():
-            text = "\n".join(lines)
-            if isinstance(character, Actors.PlayerCharacter):
-                self.world_adapter.add_news(character, text)
-            await self._dm(character, text)
+                news.setdefault(event.target, []).append(event)
+        fights, self._fights = self._fights, {}
+        for character, events in news.items():
+            if isinstance(character, Actors.PlayerCharacter):  # the website gets the blow-by-blow
+                self.world_adapter.add_news(character, "\n".join(e.text for e in events))
+            # A fight is two DMs, not one every tick: the first hit says it started, dying says how it ended.
+            # A phone buzzing every 5 seconds is how a player mutes the bot.
+            already, deaths = fights.get(character, (set(), None))
+            died = deaths is not None and getattr(character, "deaths", deaths) != deaths
+            fresh = [e.text for e in events if died or not e.damage or e.source not in already]
+            hitting = {e.source for e in events if e.damage}
+            if hitting and not died:
+                self._fights[character] = (hitting, getattr(character, "deaths", 0))
+            if fresh:
+                await self._dm(character, "\n".join(fresh))
 
     async def _dm(self, character: Actors.Actor, text: str):
         """Tell a player something that happened while they weren't looking. Best effort: DMs can be closed."""

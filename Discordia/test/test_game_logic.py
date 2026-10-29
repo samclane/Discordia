@@ -782,6 +782,23 @@ def test_an_empty_gun_with_nothing_to_load_fights_on_with_fists(adapter):
     assert any("Fists it is" in response.text for response in responses)
 
 
+def test_a_long_fight_is_told_in_one_line_not_one_a_blow(adapter):
+    """Fifty rounds of fists used to be a hundred lines, and /move split them over several messages."""
+    enemy = Actors.NPC(None, 100, "Brick")
+    Behavior.Aggressive.flee_at, flee_at = 0, Behavior.Aggressive.flee_at  # fight to the end
+    try:
+        character = adapter.get_player(1)
+        character.hit_points_max = character.hit_points = 1000
+        responses = list(Events.CombatEvent(1.0, "<test>", [enemy]).run(character))
+    finally:
+        Behavior.Aggressive.flee_at = flee_at
+    told = [r.text for r in responses if r.text]
+    assert enemy.is_dead
+    assert sum(r.damage for r in responses if r.target is enemy and r.source is character) >= 100  # rounds kept
+    assert len(told) == 3, told  # the exchange, the kill, the victory
+    assert told[0].startswith("Tester fights Brick: 50 rounds, deals 100 dmg")
+
+
 def test_a_weapon_that_does_no_damage_still_ends_the_fight(adapter):
     enemy = Actors.NPC(None, 5, "Mook")
     character = adapter.get_player(1)

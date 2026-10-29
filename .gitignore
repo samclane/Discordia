@@ -116,7 +116,9 @@ pylintrc
 Discordia/PlayerViews
 discordia.db
 
-# Simulator
+# Simulator Output
 sim.html
+server.html
+server.jsonl
 
 .vscode/

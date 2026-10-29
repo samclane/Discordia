@@ -287,6 +287,36 @@ def test_a_player_gets_dmd_about_what_happened_while_they_werent_looking():
     assert sent == ["A raider hits you."]
 
 
+class Body:
+    """Something a fight can be keyed on: hashable, unlike a SimpleNamespace."""
+
+    deaths = 0
+
+
+def test_a_fight_dms_its_first_hit_and_its_death_not_every_blow():
+    sent = []
+    raider, player = Body(), Body()
+    script = iter(["first", "second", "third", None, "again", "fourth", "you black out"])
+
+    def world_tick():
+        text = next(script)
+        if text == "you black out":
+            player.deaths += 1  # handle_player_death runs inside the world tick
+        return [GameSpace.PlayerActionResponse(damage=2, source=raider, target=player, text=text)] if text else []
+
+    interface = ticking_interface(on_world_tick=world_tick)
+    stub_user(interface, sent)
+    for _ in range(3):
+        asyncio.run(interface.tick())
+    assert sent == ["first"]  # one raider, one fight, one DM
+    asyncio.run(interface.tick())  # it let up
+    asyncio.run(interface.tick())
+    assert sent == ["first", "again"]  # a new fight is news again
+    asyncio.run(interface.tick())
+    asyncio.run(interface.tick())
+    assert sent == ["first", "again", "you black out"]  # and how it ended always is
+
+
 def test_a_tick_full_of_npcs_is_one_dm_not_ten():
     sent = []
     interface = ticking_interface(

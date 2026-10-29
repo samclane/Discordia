@@ -85,7 +85,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
-- [ ] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
+- [x] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
   DMs "X hits you for 2 damage." every tick (5s) until one of you leaves or dies, a phone notification each time.
   396 of 470 DMs in a 500-tick run. Options: DM only the first hit of a fight and the death (the rest still goes
   to `add_news` for `/me`), or batch a fight into one DM every N ticks.
@@ -125,6 +125,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Discord server simulator (`test_server_simulation.py`): members on two fake servers use the real slash
+  commands, and every message the bot sends is checked for spam, posts outside allowed channels, leaked links, mass
+  pings and unanswered interactions. It found two: a character named `@everyone` pinged the whole server (the bot
+  now sends with `AllowedMentions.none()`), and a raider on you DM'd every hit, every 5 seconds. Now a fight DMs its
+  first hit and its death; the blow-by-blow still goes to `/me`.
 
 - 2026-10-29 Idle numbers: `/equipment` and a new Hideout card on `/me` show income per hour, the stash's worth
   (`PlayerCharacter.stash_value`: money plus item values) and the next level's price, worded once in
