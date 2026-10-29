@@ -69,6 +69,7 @@ class Page:
                     if "error" in data:
                         raise RuntimeError(f"{method}: {data['error']}")
                     return data["result"]
+            raise RuntimeError(f"{method}: the browser closed the connection")
 
         return self._run(asyncio.wait_for(call(), 30))
 
@@ -332,7 +333,7 @@ def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
     adapter.register_player(97, "Pilot")
     orders = []
     swing = GameSpace.PlayerActionResponse(text="You swing at nothing.")
-    adapter.place_order = lambda character, action: orders.append(character.name) or swing
+    adapter.place_order = lambda character, _action: orders.append(character.name) or swing
     try:
         session = LOGINS.redeem(LOGINS.new_link_token(97))
         page.send("Network.setCookie", name="session", value=session, url=base_url)
