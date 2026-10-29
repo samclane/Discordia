@@ -693,6 +693,13 @@ class DiscordInterface(commands.Cog):
             return
         await _send(interaction, f"Unequipped {item.name}.")
 
+    @app_commands.command()
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def raid(self, interaction: discord.Interaction, minutes: app_commands.Range[int, 1, 24 * 60]):
+        """Send your character out alone to loot caches and fight, coming home after this many minutes"""
+        await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes))
+
     @town.command(name="status")
     @requires_character()
     async def town_status(self, interaction: discord.Interaction):

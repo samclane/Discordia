@@ -102,6 +102,9 @@ NPC_AWAKE_RADIUS = CHUNK_SIZE
 # player knows of one is its warning, while there's still room to run.
 NPC_SIGHT = 6
 
+# An auto-raid heads home early below this share of its hit points, as a player watching would.
+AUTO_RAID_RETREAT = 0.4
+
 # How long what a raid death drops lies on the ground, in world ticks: an hour at the default 5-second tick.
 REMAINS_TICKS = 720
 
@@ -705,6 +708,7 @@ class World:
         self._chunks: Dict[Tuple[int, int], List[List[Space]]] = {}
         self.towns: List[Town] = []  # in loaded chunks only, like wilds
         self.wilds: List[Wilds] = []
+        self.caches: List[Cache] = []
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
@@ -788,6 +792,8 @@ class World:
                     self.towns.append(space)
                 elif isinstance(space, Wilds):
                     self.wilds.append(space)
+                elif isinstance(space, Cache):
+                    self.caches.append(space)
         self._chunks[cx, cy] = (
             rows  # published whole: the web map reads this from another thread
         )
@@ -1062,6 +1068,53 @@ class World:
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
+    def _auto_raid_step(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
+        """One tick of an unattended raid: fight whatever shares the square, else walk to the nearest stocked
+        cache (or outward, exploring, if none is known), and once time is up or it's hurt, walk to the nearest
+        town. Returns the raid's result when it ends, for the player to be told; None while it goes on."""
+        home_at, deaths = player.auto_raid  # type: ignore[misc]
+        if player.deaths != deaths:  # killed since the last step, by an NPC's turn or a wilds fight
+            player.auto_raid = None
+            return PlayerActionResponse(
+                is_successful=False, target=player, source=player,
+                text="Your raid is over: you didn't make it back." + death_toll_text(player),
+            )
+        here = player.location
+        if any(npc.location == here for npc in self.npcs) and not isinstance(here, Town):
+            self.attack(player, (0, 0))
+            return None
+        going_home = self.ticks >= home_at or player.hit_points < player.hit_points_max * AUTO_RAID_RETREAT
+        if going_home:
+            if isinstance(here, Town):  # started in town and never left, or a manual move brought it home
+                player.auto_raid = None
+                return PlayerActionResponse(
+                    is_successful=True, target=player, source=player, text=f"Your raid is over, in {here.name}."
+                )
+            town = min(self.towns, key=here.distance)
+            results = player.step(town)
+        else:
+            stocked = [
+                c for c in self.caches
+                if c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS
+            ]
+            if stocked:
+                results = player.step(min(stocked, key=here.distance))
+            else:
+                results = player.step(min(self.towns, key=here.distance), toward=False)
+        if not results:  # boxed in: any way at all, and try again next tick
+            results = player.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
+        if player.deaths != deaths:
+            return self._auto_raid_step(player)  # reports the death
+        if going_home and isinstance(player.location, Town):
+            player.auto_raid = None
+            # The step's last word is PlayerCharacter.extract's haul.
+            # ponytail: a raid whose way to a cache crosses a town extracts there too, so this only counts
+            # the last leg. Keep a raid-long snapshot on auto_raid if anyone's haul looks short.
+            return PlayerActionResponse(
+                is_successful=True, target=player, source=player, text=f"Your raid is over. {results[-1].text}"
+            )
+        return None
+
     def advance(self, ticks: int):
         """Move the clock on `ticks`, paying every hideout once for each pay day passed. tick() moves it one;
         a load moves it however many ticks the server was down for, so a restart doesn't eat idle income."""
@@ -1078,6 +1131,9 @@ class World:
         """
         events: List[PlayerActionResponse] = []
         self.advance(1)
+        for p in self.players:
+            if p.auto_raid is not None and (event := self._auto_raid_step(p)) is not None:
+                events.append(event)
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))

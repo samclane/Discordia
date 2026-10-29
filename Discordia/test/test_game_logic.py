@@ -1257,6 +1257,33 @@ def test_an_emptied_cache_restocks_on_a_timer(adapter):
     assert "You find a cache" in cache.run_event(player)[0].text
 
 
+def test_an_auto_raid_goes_out_comes_back_and_says_how_it_went(adapter):
+    random.seed(3)
+    player = adapter.get_player(1)
+    player.equip(Weapons.Jezail())
+    adapter.start_raid(player, 1)  # 12 ticks out at 5 seconds a tick, then home
+    told, left = [], False
+    for _ in range(500):
+        told += [e.text for e in adapter.world.tick() if e.target is player and e.text.startswith("Your raid")]
+        left = left or not isinstance(player.location, GameSpace.Town)
+        if player.auto_raid is None:
+            break
+    assert left and player.auto_raid is None
+    assert len(told) == 1, told  # one message, at the end
+    assert isinstance(player.location, GameSpace.Town)  # extracted, or respawned
+
+
+def test_an_auto_raid_that_dies_says_so(adapter):
+    player = adapter.get_player(1)
+    adapter.start_raid(player, 60)
+    player.location = adapter.world.wilds[0]
+    player.currency = 300
+    player.take_damage(player.hit_points_max)
+    [event] = [e for e in adapter.world.tick() if e.target is player and e.text.startswith("Your raid")]
+    assert "didn't make it back" in event.text and "$300" in event.text
+    assert player.auto_raid is None
+
+
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     player = adapter.get_player(1)
     helmet = Armor.Helmet()

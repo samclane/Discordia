@@ -171,6 +171,14 @@ class WorldAdapter:
         ticks_an_hour = 3600 / self.tick_seconds
         return int(Actors.HIDEOUT_INCOME * character.hideout_level * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
 
+    def start_raid(self, character: Actors.PlayerCharacter, minutes: int) -> str:
+        """Send `character` out unattended for `minutes`; World.tick walks it and says how it went."""
+        character.auto_raid = (self.world.ticks + int(minutes * 60 / self.tick_seconds), character.deaths)
+        return (
+            f"{character.name} heads out for the caches. Back in {minutes} minutes, sooner if it goes badly:"
+            f" you'll get a message either way."
+        )
+
     def hideout_text(self, character: Actors.PlayerCharacter) -> str:
         """The idle side in a sentence, from Discord or the web alike."""
         money, salvage = character.hideout_price

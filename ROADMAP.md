@@ -34,10 +34,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
 - [x] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
   instead of never/restart (see ponytail note in `GameSpace.Cache`).
-- [ ] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
+- [x] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
   cache and fights what it meets; when time is up it walks home. DM the result: extracted with X, or died at Y.
 - [ ] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
-  so the safe choice is boring but steady.
+  so the safe choice is boring but steady. Today a level-1 auto-raid with a musket on a 256-square map dies 27
+  times in 40: it heads for the nearest cache whatever its danger.
+- [ ] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
 - [ ] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
 - [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
@@ -125,6 +127,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Auto-raid: `/raid <minutes>` (from a town) sets `PlayerCharacter.auto_raid`, and each `World.tick`
+  walks it (`_auto_raid_step`): attack an NPC on the square, else step for the nearest stocked cache (the new
+  `World.caches`) or outward if none is known, and for the nearest town once time is up or below
+  `AUTO_RAID_RETREAT` health. One event when it ends, so one DM: the extraction haul, or the death and where
+  things fell. `NPC.step` moved to `Actor` for it and now hands back the move's results.
 
 - 2026-10-29 Caches are raid targets: money already scaled with level; now the piece of kit is the dearest of
   `level` picks from a store's stock, and the salvage is 1 + `level // CACHE_LEVELS_PER_SALVAGE` pieces. `looted`

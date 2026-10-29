@@ -182,6 +182,25 @@ class Actor(AbstractActor, ABC):
     def on_death(self):
         return []
 
+    def step(self, space: GameSpace.Space, toward: bool = True) -> List[GameSpace.PlayerActionResponse]:
+        """One square closer to `space`, or further from it. Stays put, returning [], if no step helps;
+        otherwise returns what the move did."""
+        # ponytail: greedy, so a coastline between it and you stops it cold. A* would go round, but the
+        # pathfinder generates chunks as it searches: guard it to loaded chunks first.
+        here = self.location
+
+        def gap(d):
+            return (here.x + d[0] - space.x) ** 2 + (here.y + d[1] - space.y) ** 2
+
+        now = gap((0, 0))
+        steps = [d for d in GameSpace.DIRECTION_VECTORS.values() if (gap(d) < now if toward else gap(d) > now)]
+        random.shuffle(steps)  # equally good steps in any order, so it doesn't always favour one side
+        for shift in sorted(steps, key=gap, reverse=not toward):
+            results = self.attempt_move(shift)
+            if not results or not results[0].failed:  # a wilds event can move you and have nothing to say
+                return results or [GameSpace.PlayerActionResponse(is_successful=True, source=self)]
+        return []
+
     @property
     def sprite_path(self) -> str:
         return str(SPRITE_FOLDER / "Actors" / "null_actor.png")
@@ -199,22 +218,6 @@ class NPC(Actor):
         self.currency: int = 0  # what the killer pockets, alongside the inventory
         self.brain = Behavior.FiniteStateMachine(self, Behavior.Aggressive())
         self.quarry: PlayerCharacter | None = None  # who it last warned it's hunting
-
-    def step(self, space: GameSpace.Space, toward: bool = True):
-        """One square closer to `space`, or further from it. Stays put if no step helps."""
-        # ponytail: greedy, so a coastline between it and you stops it cold. A* would go round, but the
-        # pathfinder generates chunks as it searches: guard it to loaded chunks first.
-        here = self.location
-
-        def gap(d):
-            return (here.x + d[0] - space.x) ** 2 + (here.y + d[1] - space.y) ** 2
-
-        now = gap((0, 0))
-        steps = [d for d in GameSpace.DIRECTION_VECTORS.values() if (gap(d) < now if toward else gap(d) > now)]
-        random.shuffle(steps)  # equally good steps in any order, so it doesn't always favour one side
-        for shift in sorted(steps, key=gap, reverse=not toward):
-            if not self.attempt_move(shift)[0].failed:
-                return
 
     def on_death(self) -> Inventory:
         self.location = None  # type: ignore[assignment]  # despawns the NPC
@@ -384,6 +387,9 @@ class PlayerCharacter(Actor):
         # (money, backpack, experience) as you last stepped out of a town, or None when no raid is on.
         # Transient: a restart mid-raid just ends it, and a death throws it away.
         self.raid_start: Tuple[int, List[Items.Equipment], int] | None = None
+        # An unattended raid (World.tick walks it): (the World.ticks it heads home at, deaths when it set out).
+        # ponytail: not saved, so a restart leaves the character standing wherever it was. Save it if that bites.
+        self.auto_raid: Tuple[int, int] | None = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
