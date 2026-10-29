@@ -36,9 +36,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   instead of never/restart (see ponytail note in `GameSpace.Cache`).
 - [x] Auto-raid: `/raid <minutes>` sends the character out unattended. Each tick it walks toward the nearest unlooted
   cache and fights what it meets; when time is up it walks home. DM the result: extracted with X, or died at Y.
-- [ ] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
-  so the safe choice is boring but steady. Today a level-1 auto-raid with a musket on a 256-square map dies 27
-  times in 40: it heads for the nearest cache whatever its danger.
+- [x] Raid risk knob: auto-raids pick a depth (`/raid <minutes> <level>`); deeper pays more and kills more. Tune
+  so the safe choice is boring but steady.
 - [ ] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
 - [ ] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
@@ -127,6 +126,13 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Raid risk knob: `/raid <minutes> [depth]` (default 1) only targets caches at or under that level
+  and, with none known, explores out to that depth (`World.depth_at`, distance-only `danger_level`) and wanders
+  there, stepping back if it strays deeper. Measured, a level-1 musket with ammo on 30 seeds, 20-minute raids:
+  depth 1 never dies and brings home ~$84; depth 3 brings ~$224 and dies 11 in 30; depth 5 dies 23 in 30. No
+  tuning needed for safe-and-steady. Earlier "27 of 40 die" was mostly an empty musket fighting with fists.
+  Deeper only out-earns once a raid is long enough to spend time out there, not walking.
 
 - 2026-10-29 Auto-raid: `/raid <minutes>` (from a town) sets `PlayerCharacter.auto_raid`, and each `World.tick`
   walks it (`_auto_raid_step`): attack an NPC on the square, else step for the nearest stocked cache (the new

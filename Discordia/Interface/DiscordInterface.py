@@ -696,9 +696,14 @@ class DiscordInterface(commands.Cog):
     @app_commands.command()
     @requires_character()
     @requires_space(GameSpace.Town)
-    async def raid(self, interaction: discord.Interaction, minutes: app_commands.Range[int, 1, 24 * 60]):
-        """Send your character out alone to loot caches and fight, coming home after this many minutes"""
-        await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes))
+    async def raid(
+        self,
+        interaction: discord.Interaction,
+        minutes: app_commands.Range[int, 1, 24 * 60],
+        depth: app_commands.Range[int, 1, GameSpace.WILDS_MAX_LEVEL] = 1,
+    ):
+        """Send your character out alone for this many minutes, no deeper than `depth`: deeper pays and kills more"""
+        await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes, depth))
 
     @town.command(name="status")
     @requires_character()

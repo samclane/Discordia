@@ -910,6 +910,10 @@ class World:
         rows = self._chunks.get((cx, cy)) or self._load_chunk(cx, cy)
         return rows[y % CHUNK_SIZE][x % CHUNK_SIZE]
 
+    def depth_at(self, space: Space) -> int:
+        """danger_level without the roll: the level a square is meant to be, by distance from the spawn."""
+        return min(WILDS_MAX_LEVEL, 1 + int(self.starting_town.distance(space) / DANGER_TILES_PER_LEVEL))
+
     def danger_level(self, space: Space) -> int:
         """How rough the wilds are at `space`: 1 next to the starting town, one more per
         DANGER_TILES_PER_LEVEL squares out, up to WILDS_MAX_LEVEL. The roll adds a little local variety.
@@ -1070,9 +1074,9 @@ class World:
 
     def _auto_raid_step(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
         """One tick of an unattended raid: fight whatever shares the square, else walk to the nearest stocked
-        cache (or outward, exploring, if none is known), and once time is up or it's hurt, walk to the nearest
-        town. Returns the raid's result when it ends, for the player to be told; None while it goes on."""
-        home_at, deaths = player.auto_raid  # type: ignore[misc]
+        cache no deeper than `depth` (or explore out to that depth if none is known), and once time is up or
+        it's hurt, walk to the nearest town. Returns the raid's result when it ends, for the player to be told; None while it goes on."""
+        home_at, deaths, depth = player.auto_raid  # type: ignore[misc]
         if player.deaths != deaths:  # killed since the last step, by an NPC's turn or a wilds fight
             player.auto_raid = None
             return PlayerActionResponse(
@@ -1095,12 +1099,14 @@ class World:
         else:
             stocked = [
                 c for c in self.caches
-                if c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS
+                if c.level <= depth and (c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS)
             ]
             if stocked:
                 results = player.step(min(stocked, key=here.distance))
-            else:
-                results = player.step(min(self.towns, key=here.distance), toward=False)
+            elif (at := self.depth_at(here)) != depth:  # out to its depth, or back up from past it
+                results = player.step(self.starting_town, toward=at > depth)
+            else:  # as deep as it goes: wander the band, and find a cache if there's one
+                results = []
         if not results:  # boxed in: any way at all, and try again next tick
             results = player.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
         if player.deaths != deaths:

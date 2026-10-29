@@ -1273,6 +1273,33 @@ def test_an_auto_raid_goes_out_comes_back_and_says_how_it_went(adapter):
     assert isinstance(player.location, GameSpace.Town)  # extracted, or respawned
 
 
+def test_an_auto_raid_only_heads_for_caches_no_deeper_than_its_depth(adapter, monkeypatch):
+    world, player = adapter.world, adapter.get_player(1)
+    town = world.starting_town
+    near_but_deep, far_but_shallow = GameSpace.Cache(town.x + 2, town.y), GameSpace.Cache(town.x + 9, town.y)
+    near_but_deep.level, far_but_shallow.level = 5, 2
+    world.caches = [near_but_deep, far_but_shallow]
+    targets = []
+    monkeypatch.setattr(player, "step", lambda space, toward=True: targets.append(space) or [])
+    adapter.start_raid(player, 60, depth=2)
+    world.tick()
+    assert targets == [far_but_shallow]
+
+
+def test_an_auto_raid_with_no_cache_keeps_to_its_depth(adapter, monkeypatch):
+    monkeypatch.setattr(GameSpace, "DANGER_TILES_PER_LEVEL", 4)  # a level every 4 squares, on a small map
+    world, player = adapter.world, adapter.get_player(1)
+    world.caches = []
+    adapter.start_raid(player, 60, depth=2)
+    deepest = 0
+    for _ in range(150):
+        world.tick()
+        if player.deaths:
+            break
+        deepest = max(deepest, world.depth_at(player.location))
+    assert 2 <= deepest <= 3  # got there, and a wandering step past the edge is walked straight back
+
+
 def test_an_auto_raid_that_dies_says_so(adapter):
     player = adapter.get_player(1)
     adapter.start_raid(player, 60)

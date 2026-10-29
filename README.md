@@ -119,9 +119,9 @@ the bot syncs them.
         * Bank the inventory item at that index and/or that much money.
     * `/stash take` [`item`] [`money`]
         * Take the stashed item at that index and/or that much money back to carry.
-* `/raid` [`minutes`]
-    * From any town: send your character out alone. It walks to the nearest stocked cache, fights whatever it
-      meets, and heads for the nearest town when time is up or it's badly hurt. You get one message at the end:
+* `/raid` [`minutes`] [`depth`]
+    * From any town: send your character out alone, no deeper than danger `depth` (default 1: safe, small hauls;
+      deeper pays more and kills more). It walks to the nearest stocked cache in reach, fights whatever it meets, and heads for the nearest town when time is up or it's badly hurt. You get one message at the end:
       what it brought home, or what it lost.
 * `/hideout build`
     * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000

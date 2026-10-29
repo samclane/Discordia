@@ -387,9 +387,10 @@ class PlayerCharacter(Actor):
         # (money, backpack, experience) as you last stepped out of a town, or None when no raid is on.
         # Transient: a restart mid-raid just ends it, and a death throws it away.
         self.raid_start: Tuple[int, List[Items.Equipment], int] | None = None
-        # An unattended raid (World.tick walks it): (the World.ticks it heads home at, deaths when it set out).
+        # An unattended raid (World.tick walks it): (the World.ticks it heads home at, deaths when it set out,
+        # the deepest danger level it goes to).
         # ponytail: not saved, so a restart leaves the character standing wherever it was. Save it if that bites.
-        self.auto_raid: Tuple[int, int] | None = None
+        self.auto_raid: Tuple[int, int, int] | None = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
