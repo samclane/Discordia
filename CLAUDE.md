@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 255 tests, ~25s, no token needed
+python -m pytest Discordia/test -q                     # 257 tests, ~25s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.

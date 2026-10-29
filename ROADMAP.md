@@ -29,7 +29,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   money per tick into the stash, whether the player is online or not.
 - [x] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
   idle income.
-- [ ] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
+- [x] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
   instead of money so raids feed the idle side.
 - [ ] Show the idle numbers: income per hour and stash value on `/equipment` and `/me`.
 - [ ] Caches are the raid targets: their loot scales with `level` (distance), and `Cache.looted` resets on a timer
@@ -121,6 +121,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Hideout pricing: level n costs `HIDEOUT_COST * 1.15 ** n`, except every 5th, which costs `n // 5`
+  `Items.Salvage` and no money. No item a store sells could stand in (the dearest is $370, and buyable anyway), so
+  salvage is a barter item from the new `data/barter.json`, never stocked by stores and found in every cache.
 
 - 2026-10-29 Offline catch-up: the world table saves `World.ticks` and the save time, and `Database.load` runs the
   clock on by the downtime (`World.advance`, at `tick_seconds` a tick) so every hideout is paid each pay day it

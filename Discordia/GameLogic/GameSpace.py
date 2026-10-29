@@ -618,8 +618,8 @@ class Cache(Space):
         player.currency += response.currency
         found = [f"${response.currency}"]
         stock = Store.generate_store().inventory
-        if stock:
-            item = random.choice(stock)
+        # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
+        for item in ([random.choice(stock)] if stock else []) + [Items.Salvage()]:
             player.inventory.append(item)
             response.items.append(item)
             found.append(str(item))

@@ -120,8 +120,9 @@ the bot syncs them.
     * `/stash take` [`item`] [`money`]
         * Take the stashed item at that index and/or that much money back to carry.
 * `/hideout build`
-    * In any town: buy the next level of your hideout ($1000, from carried money then the stash). Each level pays
-      money into your stash every few minutes, whether you're playing or not.
+    * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000
+      and each after 15% more; every 5th costs salvage instead, which only caches out in the wilds hold. Each level
+      pays money into your stash every few minutes, whether you're playing or not.
             
 # Attributions
 

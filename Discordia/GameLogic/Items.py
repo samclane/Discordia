@@ -4,7 +4,7 @@ import logging
 from abc import ABC
 from typing import Dict, Tuple, Type
 
-from Discordia.GameLogic import Actors
+from Discordia.GameLogic import Actors, Data
 
 LOG = logging.getLogger("Discordia.GameLogic.Items")
 
@@ -75,6 +75,13 @@ class Ammo(Equipment):
 
     def __str__(self):
         return f"{self.name} ({self.quantity})"
+
+
+class Salvage(Data.FromData, Equipment):
+    """Parts worth hauling home: what a hideout's bigger levels are bartered for. Never stocked by a store
+    (not FullyImplemented), so the only way to get some is to go out and find it."""
+
+    STATS = Data.load(Data.DATA_FOLDER / "barter.json")
 
 
 class ArmorAbstract(Equipment, ABC):

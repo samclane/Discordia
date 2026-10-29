@@ -1162,9 +1162,9 @@ def test_the_pouch_survives_a_raid_death(adapter):
 
 def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_stash(adapter):
     player = adapter.get_player(1)
-    player.currency, player.stash_currency = 400, Actors.HIDEOUT_COST
+    player.currency, player.stash_currency = 400, Actors.HIDEOUT_COST - 400
     player.build_hideout()
-    assert (player.hideout_level, player.currency, player.stash_currency) == (1, 0, 400)
+    assert (player.hideout_level, player.currency, player.stash_currency) == (1, 0, 0)
     with pytest.raises(ValueError):
         player.build_hideout()
     assert player.hideout_level == 1
@@ -1172,7 +1172,33 @@ def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_s
     player.location = adapter.world.wilds[0]  # out on a raid, or not playing at all: it pays either way
     for _ in range(Actors.HIDEOUT_PAY_TICKS):
         adapter.world.tick()
-    assert player.stash_currency == 400 + Actors.HIDEOUT_INCOME
+    assert player.stash_currency == Actors.HIDEOUT_INCOME
+
+
+def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
+    player = adapter.get_player(1)
+    player.currency = 10**6
+    prices = []
+    for _ in range(Actors.HIDEOUT_SALVAGE_EVERY - 1):
+        prices.append(player.hideout_price[0])
+        player.build_hideout()
+    assert prices == [1000, 1150, 1322, 1520]  # HIDEOUT_COST * 1.15 ** level
+
+    assert player.hideout_price == (0, 1)  # the fifth is bartered, and money won't do
+    with pytest.raises(ValueError, match="salvage"):
+        player.build_hideout()
+    player.stash.append(Items.Salvage())
+    money = player.currency
+    player.build_hideout()
+    assert (player.hideout_level, player.currency, list(player.stash)) == (5, money, [])
+    assert player.hideout_price == (int(1000 * 1.15**5), 0)
+
+
+def test_a_cache_always_holds_salvage(adapter):
+    player = adapter.get_player(1)
+    cache = GameSpace.Cache(0, 0)
+    cache.run_event(player)
+    assert any(isinstance(item, Items.Salvage) for item in player.inventory)
 
 
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):

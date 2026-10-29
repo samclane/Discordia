@@ -603,7 +603,7 @@ class DiscordInterface(commands.Cog):
     @requires_character()
     @requires_space(GameSpace.Town)
     async def hideout_build(self, interaction: discord.Interaction):
-        """Buy the next hideout level, from carried money then the stash"""
+        """Buy the next hideout level (money, or salvage from raids), from what you carry then the stash"""
         try:
             await _send(interaction, self._player(interaction).build_hideout())
         except ValueError as exc:

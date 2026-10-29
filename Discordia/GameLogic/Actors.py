@@ -14,10 +14,13 @@ CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds leve
 HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
 EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, and so on
 HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
-# A hideout level costs HIDEOUT_COST and pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks:
-# $120 an hour at the default 5-second tick, so a level pays for itself in about eight hours away.
-# ponytail: flat price per level; the Cookie Clicker curve is the next item on ROADMAP.md.
+# Each hideout level pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks: $120 an hour at the
+# default 5-second tick. The first costs HIDEOUT_COST, about eight hours of what it pays, and each after costs
+# HIDEOUT_GROWTH times more (Cookie Clicker's curve), so every level takes a little longer to pay for itself.
+# Every HIDEOUT_SALVAGE_EVERY-th level is bartered for Items.Salvage instead, a piece more each time.
 HIDEOUT_COST = 1000
+HIDEOUT_GROWTH = 1.15
+HIDEOUT_SALVAGE_EVERY = 5
 HIDEOUT_INCOME = 10
 HIDEOUT_PAY_TICKS = 60
 
@@ -567,14 +570,27 @@ class PlayerCharacter(Actor):
             moved.append(f"{out} back into your pack")
         return ", ".join(moved)
 
+    @property
+    def hideout_price(self) -> Tuple[int, int]:
+        """(money, salvage) for the next hideout level: one or the other, never both."""
+        if (self.hideout_level + 1) % HIDEOUT_SALVAGE_EVERY == 0:
+            return 0, (self.hideout_level + 1) // HIDEOUT_SALVAGE_EVERY
+        return int(HIDEOUT_COST * HIDEOUT_GROWTH**self.hideout_level), 0
+
     def build_hideout(self) -> str:
-        """Buy the next hideout level, from carried money first and the stash after. Callers check the
+        """Buy the next hideout level, from what's carried first and the stash after. Callers check the
         player is in a town. Returns what it bought, phrased for a player; raises ValueError if it can't."""
-        if self.currency + self.stash_currency < HIDEOUT_COST:
-            raise ValueError(f"The next hideout level costs ${HIDEOUT_COST}, carried and stashed together.")
-        from_pocket = min(self.currency, HIDEOUT_COST)
+        money, salvage = self.hideout_price
+        parts = [item for item in self.inventory + self.stash if isinstance(item, Items.Salvage)][:salvage]
+        if self.currency + self.stash_currency < money or len(parts) < salvage:
+            cost = f"{salvage} {Items.Salvage().name.lower()}" if salvage else f"${money}"
+            raise ValueError(f"The next hideout level costs {cost}, carried and stashed together.")
+        from_pocket = min(self.currency, money)
         self.currency -= from_pocket
-        self.stash_currency -= HIDEOUT_COST - from_pocket
+        self.stash_currency -= money - from_pocket
+        for part in parts:
+            self.inventory.remove(part)  # Inventory.remove skips what isn't there
+            self.stash.remove(part)
         self.hideout_level += 1
         return (
             f"Your hideout is level {self.hideout_level}: ${HIDEOUT_INCOME * self.hideout_level} into your stash "
