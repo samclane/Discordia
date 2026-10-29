@@ -766,10 +766,11 @@ class DiscordInterface(commands.Cog):
     @town.command(name="status")
     @requires_character()
     async def town_status(self, interaction: discord.Interaction):
-        """Check if you're in a town."""
-        character = self._player(interaction)
-        if self.world_adapter.is_town(character.location):
-            await _send(interaction, f"You're currently in {character.location.name}.")
+        """Check if you're in a town, and who's about"""
+        town = self._player(interaction).location
+        if isinstance(town, GameSpace.Town):
+            people = "\n".join(f'{name}, the {role}: "{line}"' for role, name, line in town.residents)
+            await _send(interaction, f"You're in {town.name}, population {town.population}.\n{people}")
         else:
             await _send(interaction, "You're currently not in a town...")
 

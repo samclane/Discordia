@@ -1593,6 +1593,18 @@ def test_a_raider_that_spots_you_closes_in_and_warns_you_once(adapter, lone_raid
     assert news == ["Stalker hits you for 2 damage."]  # caught you standing still
 
 
+def test_a_towns_residents_are_the_same_every_visit_and_leave_the_game_rng_alone():
+    town = GameSpace.Town(3, 4, "Hub")
+    random.seed(1)
+    first = town.residents
+    after = random.random()
+    random.seed(1)
+    assert GameSpace.Town(3, 4, "Hub").residents == first  # the same people after a restart
+    assert random.random() == after
+    assert [role for role, _, _ in first] == list(GameSpace.TOWNSFOLK)
+    assert GameSpace.Town(5, 4, "Elsewhere").residents != first
+
+
 def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
     world, player = adapter.world, adapter.get_player(1)
     corner = _open_ground(world, GameSpace.NPC_SIGHT + 1)

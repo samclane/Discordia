@@ -21,7 +21,12 @@ from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
-from Discordia.GameLogic.StringGenerator import TownNameGenerator, WildsNameGenerator
+from Discordia.GameLogic.StringGenerator import (
+    FemaleNameGenerator,
+    MaleNameGenerator,
+    TownNameGenerator,
+    WildsNameGenerator,
+)
 
 LOG = logging.getLogger("Discordia.GameLogic.GameSpace")
 
@@ -41,6 +46,25 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 }
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
+
+# Who you meet in every town (Town.residents), and what each might say. Flavor only: they aren't on the map.
+TOWNSFOLK = {
+    "shopkeeper": [
+        "Cash only. Everything on these shelves has been somewhere before.",
+        "Bring back what you find out there. I'll give you a fair price. Fair-ish.",
+        "If it fires, I'll sell it. If it doesn't, I'll still sell it.",
+    ],
+    "innkeeper": [
+        "A bed and a bandage, on the house. Dying out there is bad for business.",
+        "Sit down before you fall down.",
+        "Half the beds are empty. The other half aren't coming back.",
+    ],
+    "guard": [
+        "Nobody brings a fight past this gate. Out there's your business.",
+        "Raiders don't come in. They wait for you to come out.",
+        "Keep your head down past the last streetlight.",
+    ],
+}
 
 
 def bearing(origin: Space, target: Space) -> str:
@@ -451,6 +475,16 @@ class Town(Space):
         self.industry: IndustryType = industry
         self.store: Store = store if store is not None else Store()
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
+
+    @property
+    def residents(self) -> List[Tuple[str, str, str]]:
+        """(role, name, what they say) for each of TOWNSFOLK. Rolled on its own seed from where the town stands,
+        not in generate_town: drawing there would shift the chunk's generation and move every existing map."""
+        with _seeded("residents", self.x, self.y):
+            return [
+                (role, random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name(), random.choice(lines))
+                for role, lines in TOWNSFOLK.items()
+            ]
 
     @classmethod
     def generate_town(cls, x, y, terrain):

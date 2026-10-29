@@ -101,7 +101,7 @@ the bot syncs them.
         * Buy the trader's item at that index (start typing its name to pick it). They are gone as soon as you
           move on.
 * `/town status`
-    * Calling `town` with no parameters is a debug command to check if you're inside a town or not.
+    * Which town you're in, its population, and who runs the place: the shopkeeper, innkeeper and guard.
     * `/town inn`
         * Run the events of the town's inn. Usually restores health/resources. 
     * `/town recruit`

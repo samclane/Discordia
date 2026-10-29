@@ -69,9 +69,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [x] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
 - [x] Non-Raider NPC types, first half: animals from `BodyType` with their own sprite.
-- [ ] Non-Raider NPC types, second half: merchants and guards in towns (overlaps Town population below).
+- [x] Non-Raider NPC types, second half: merchants and guards in towns (overlaps Town population below).
 - [x] NPCs chase players in sight instead of random walks (greedy steps, not A*: see `NPC.step`).
-- [ ] Town population: named NPCs that stay in town, give flavor text on `/town status`.
+- [x] Town population: named NPCs that stay in town, give flavor text on `/town status`.
+- [ ] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
+  from Kenney's people tiles, if towns feel empty; they'd need to be skipped by `World.attack` and the NPC tick.
 - [ ] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
 
 ## Persistence
@@ -132,6 +134,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Town population (and the merchants-and-guards half of NPC types): every town has a shopkeeper,
+  an innkeeper and a guard (`Town.residents`), each named and with a line from `TOWNSFOLK`, and `/town status`
+  introduces them along with the population. Rolled on their own seed from the town's position rather than in
+  `generate_town`, which would have shifted chunk generation and moved every saved map. Words only, not map NPCs.
 
 - 2026-10-29 Animals: `Actors.Animal` (a rat, stray dog, wild boar... on a `SmallAnimal`/`LargeAnimal`
   body) starts in `Behavior.Fleeing`, so it never hits and steps away from any player in sight with no new tick

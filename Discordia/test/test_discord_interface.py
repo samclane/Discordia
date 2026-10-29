@@ -620,6 +620,17 @@ def test_joining_a_server_says_where_to_start():
     assert len(sent) == 1
 
 
+def test_town_status_introduces_the_residents():
+    character = Actors.PlayerCharacter(parent_world=None, name="Visitor")
+    character.location = GameSpace.Town(0, 0, "Hub", population=40)
+    interface = loaded_cog(StubAdapter(character))
+    replies = Replies()
+    interaction = SimpleNamespace(command="town status", user=SimpleNamespace(id=1), response=replies)
+    asyncio.run(command_named(interface, "town status").callback(interface, interaction))  # type: ignore[arg-type]
+    [text] = replies.sent
+    assert text.startswith("You're in Hub, population 40.") and "the shopkeeper" in text and "the guard" in text
+
+
 def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():
     character = Actors.PlayerCharacter(parent_world=None, name="Gunner")
     character.inventory.append(Weapons.Ammo9mm())
