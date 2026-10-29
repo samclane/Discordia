@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 254 tests, ~25s, no token needed
+python -m pytest Discordia/test -q                     # 255 tests, ~25s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -27,7 +27,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - `Discordia/Interface/`
   - `WorldAdapter.py` the only thing Discord and renderers touch: discord member id <-> PlayerCharacter, move/attack/look.
   - `DiscordInterface.py` slash commands as a Cog. Commands queue an *order*; `tick()` runs them and `World.tick()` in lockstep on the bot loop (no locks). NPC hits are DM'd.
-  - `Database.py` SQLite save: world = seed + gen params (map is regenerated), characters + items by class path, `GuildSettings` per Discord server as JSON. NPCs and store stock are NOT saved.
+  - `Database.py` SQLite save: world = seed + gen params (map is regenerated) + clock (`World.ticks`, run on by the downtime at load), characters + items by class path, `GuildSettings` per Discord server as JSON. NPCs and store stock are NOT saved.
   - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
     Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
     `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Handler._page` at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.

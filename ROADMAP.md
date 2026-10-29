@@ -27,7 +27,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   for a while, for the owner to walk back and recover or for anyone else to loot. Needs an item container on `Space`.
 - [x] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
   money per tick into the stash, whether the player is online or not.
-- [ ] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
+- [x] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
   idle income.
 - [ ] Hideout upgrades priced Cookie Clicker style (`base * 1.15 ** level`), and some levels cost a loot item
   instead of money so raids feed the idle side.
@@ -121,6 +121,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Offline catch-up: the world table saves `World.ticks` and the save time, and `Database.load` runs the
+  clock on by the downtime (`World.advance`, at `tick_seconds` a tick) so every hideout is paid each pay day it
+  missed. Per world, not per hideout: they all share one pay schedule. `tick()` pays through `advance(1)` too.
+  `_migrate` now takes (table, column, type), since the world table needed columns as well.
 
 - 2026-10-29 Hideout income: `/hideout build` (in town) buys a level for a flat `HIDEOUT_COST` ($1000), carried
   money first and the stash after. Every `HIDEOUT_PAY_TICKS` world ticks each level pays `HIDEOUT_INCOME` into the

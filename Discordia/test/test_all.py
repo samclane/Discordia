@@ -284,6 +284,8 @@ class TestGeneral(unittest.TestCase):
         )  # put the file back the way an older build left it
         connection.execute("ALTER TABLE character DROP COLUMN experience")
         connection.execute("ALTER TABLE character DROP COLUMN hideout_level")
+        connection.execute("ALTER TABLE world DROP COLUMN ticks")
+        connection.execute("ALTER TABLE world DROP COLUMN saved_at")
         connection.commit()
         connection.close()
 
@@ -297,6 +299,22 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(adapter.get_player(0).experience, 0)
         self.assertEqual(adapter.get_player(0).level, 1)
         self.assertEqual(adapter.get_player(0).hideout_level, 0)
+
+    def test_loading_pays_hideouts_for_the_downtime(self):
+        """A restart moves the clock on by however long the save sat on disk, so idle income isn't lost."""
+        player = self.adapter.get_player(0)
+        player.hideout_level, player.stash_currency = 2, 0
+        path = Path(self.temp_dir.name) / "downtime.db"
+        database = Database(path)
+        database.save(self.adapter)
+        down = 3 * Actors.HIDEOUT_PAY_TICKS * 5  # three pay days, at the default 5 seconds a tick
+        database.connection.execute("UPDATE world SET ticks = 0, saved_at = saved_at - ?", (down,))
+        database.connection.commit()
+
+        adapter = database.load(tick_seconds=5)
+        database.close()
+        assert adapter is not None
+        self.assertEqual(adapter.get_player(0).stash_currency, 3 * 2 * Actors.HIDEOUT_INCOME)
 
     def test_database_starts_empty(self):
         """

@@ -35,7 +35,7 @@ def main():
     alerts = Alerts.install(ConfigParser.ALERT_WEBHOOK_URL) if ConfigParser.ALERT_WEBHOOK_URL else None
 
     database = Database(args.database)
-    adapter = database.load()
+    adapter = database.load(TICK_SECONDS)
     if adapter is None:
         LOG.info("No save found, generating a new world")
         adapter = WorldAdapter(GameSpace.World(ConfigParser.WORLD_NAME,

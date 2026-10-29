@@ -14,6 +14,7 @@ import json
 import logging
 import pydoc
 import sqlite3
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -33,7 +34,9 @@ CREATE TABLE IF NOT EXISTS world (
     width       INTEGER NOT NULL,
     height      INTEGER NOT NULL,
     seed        INTEGER NOT NULL,
-    gen_params  TEXT    NOT NULL  -- JSON dump of WorldGenerationParameters
+    gen_params  TEXT    NOT NULL,  -- JSON dump of WorldGenerationParameters
+    ticks       INTEGER NOT NULL DEFAULT 0,  -- World.ticks, so hideouts keep their pay day
+    saved_at    REAL  -- unix time of the save, to pay hideouts for the downtime; NULL in older saves
 );
 
 CREATE TABLE IF NOT EXISTS character (
@@ -111,23 +114,26 @@ class Database:
         """Add columns a save file predates. CREATE TABLE IF NOT EXISTS leaves an existing table alone,
         so a schema change reaches old worlds only if something adds the column by hand.
         """
-        columns = {
-            row["name"]
-            for row in self.connection.execute("PRAGMA table_info(character)")
-        }
-        for column in ("experience", "stash_currency", "hideout_level"):
+        added = [
+            ("character", "experience", "INTEGER NOT NULL DEFAULT 0"),
+            ("character", "stash_currency", "INTEGER NOT NULL DEFAULT 0"),
+            ("character", "hideout_level", "INTEGER NOT NULL DEFAULT 0"),
+            ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
+            ("world", "saved_at", "REAL"),
+        ]
+        for table, column, declaration in added:
+            columns = {row["name"] for row in self.connection.execute(f"PRAGMA table_info({table})")}
             if column not in columns:
-                LOG.info(f"Adding character.{column} to a save file that predates it")
+                LOG.info(f"Adding {table}.{column} to a save file that predates it")
                 with self.connection:
-                    self.connection.execute(
-                        f"ALTER TABLE character ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
-                    )
+                    self.connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
     def close(self):
         self.connection.close()
 
-    def load(self) -> WorldAdapter | None:
-        """Rebuild the server from disk, or None if this database has never been saved to."""
+    def load(self, tick_seconds: float = 5.0) -> WorldAdapter | None:
+        """Rebuild the server from disk, or None if this database has never been saved to. The world's clock
+        then runs on for however long it sat on disk, at `tick_seconds` a tick, paying hideouts as it goes."""
         row = self.connection.execute("SELECT * FROM world WHERE id = 0").fetchone()
         if row is None:
             return None
@@ -139,6 +145,7 @@ class Database:
             WorldGenerationParameters(**json.loads(row["gen_params"])),
             seed=row["seed"],
         )
+        world.ticks, saved_at = row["ticks"], row["saved_at"]
         adapter = WorldAdapter(world)
         for character_row in self.connection.execute("SELECT * FROM character"):
             self._load_character(adapter, character_row)
@@ -146,6 +153,8 @@ class Database:
             row["guild_id"]: GuildSettings(**json.loads(row["settings"]))
             for row in self.connection.execute("SELECT * FROM guild")
         }
+        if saved_at is not None:  # after the characters: it pays their hideouts
+            world.advance(max(0, int((time.time() - saved_at) / tick_seconds)))
         LOG.info(
             f"Loaded world '{world.name}' (seed {world.seed}) with {len(world.players)} characters"
         )
@@ -188,13 +197,16 @@ class Database:
         world = adapter.world
         with self.connection:
             self.connection.execute(
-                "INSERT OR REPLACE INTO world VALUES (0, ?, ?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO world (id, name, width, height, seed, gen_params, ticks, saved_at)"
+                " VALUES (0, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     world.name,
                     world.width,
                     world.height,
                     world.seed,
                     json.dumps(asdict(world.gen_params)),
+                    world.ticks,
+                    time.time(),
                 ),
             )
             self.connection.execute("DELETE FROM character")  # cascades to item

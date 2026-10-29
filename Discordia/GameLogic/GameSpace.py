@@ -1058,6 +1058,14 @@ class World:
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
+    def advance(self, ticks: int):
+        """Move the clock on `ticks`, paying every hideout once for each pay day passed. tick() moves it one;
+        a load moves it however many ticks the server was down for, so a restart doesn't eat idle income."""
+        paydays = (self.ticks + ticks) // Actors.HIDEOUT_PAY_TICKS - self.ticks // Actors.HIDEOUT_PAY_TICKS
+        self.ticks += ticks
+        for p in self.players:
+            p.stash_currency += Actors.HIDEOUT_INCOME * p.hideout_level * paydays
+
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
 
@@ -1065,10 +1073,7 @@ class World:
         the world when a tick lands on them.
         """
         events: List[PlayerActionResponse] = []
-        self.ticks += 1
-        if self.ticks % Actors.HIDEOUT_PAY_TICKS == 0:
-            for p in self.players:
-                p.stash_currency += Actors.HIDEOUT_INCOME * p.hideout_level
+        self.advance(1)
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
