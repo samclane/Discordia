@@ -702,7 +702,7 @@ class DiscordInterface(commands.Cog):
         minutes: app_commands.Range[int, 1, 24 * 60],
         depth: app_commands.Range[int, 1, GameSpace.WILDS_MAX_LEVEL] = 1,
     ):
-        """Send your character out alone for this many minutes, no deeper than `depth`: deeper pays and kills more"""
+        """Raid alone for this many minutes, no deeper than `depth`: deeper pays more and kills more"""
         await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes, depth))
 
     @town.command(name="status")
