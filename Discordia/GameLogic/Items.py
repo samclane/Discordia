@@ -46,6 +46,10 @@ class Equipment(ABC):
 
 
 class Ammo(Equipment):
+    """A box of rounds for one caliber, priced by what's left in it: a half-used box sells for half."""
+
+    # ponytail: saved by class path like any item, so a part-used box comes back full after a restart (as a
+    # loaded magazine does). Save `quantity` with the weapon-state item on ROADMAP.md if anyone farms it.
 
     def __init__(
         self,
@@ -60,6 +64,17 @@ class Ammo(Equipment):
         super().__init__(name, weight_lb, base_value, *args, **kwargs)
         self.caliber: int = caliber
         self.quantity: int = quantity
+
+    def take(self, rounds: int) -> int:
+        """Take up to `rounds` out of the box; returns how many came out."""
+        rounds = min(rounds, self.quantity)
+        if rounds:
+            self.base_value *= (self.quantity - rounds) / self.quantity
+            self.quantity -= rounds
+        return rounds
+
+    def __str__(self):
+        return f"{self.name} ({self.quantity})"
 
 
 class ArmorAbstract(Equipment, ABC):

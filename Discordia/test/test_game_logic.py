@@ -751,6 +751,87 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     )
 
 
+def _emptied(weapon):
+    while not weapon.is_empty:
+        weapon.on_damage()
+    return weapon
+
+
+def test_an_empty_gun_reloads_from_the_pack_mid_fight(adapter):
+    enemy = Actors.NPC(None, 5, "Mook")
+    character = adapter.get_player(1)
+    revolver = _emptied(Weapons.WeblyRevolver())
+    character.equip(revolver)
+    box = Weapons.Ammo9mm()
+    character.inventory.append(box)
+
+    list(Events.CombatEvent(1.0, "<test>", [enemy]).run(character))
+    assert enemy.is_dead
+    assert box.quantity < Weapons.Ammo9mm().quantity  # the rounds came out of the box
+
+
+def test_an_empty_gun_with_nothing_to_load_fights_on_with_fists(adapter):
+    enemy = Actors.NPC(None, 2, "Mook")  # one punch, before it can think of running
+    character = adapter.get_player(1)
+    revolver = _emptied(Weapons.WeblyRevolver())
+    character.equip(revolver)
+
+    responses = list(Events.CombatEvent(1.0, "<test>", [enemy]).run(character))
+    assert enemy.is_dead
+    assert revolver.current_capacity == 0  # never fired past empty
+    assert any("Fists it is" in response.text for response in responses)
+
+
+def test_a_weapon_that_does_no_damage_still_ends_the_fight(adapter):
+    enemy = Actors.NPC(None, 5, "Mook")
+    character = adapter.get_player(1)
+    feather = Weapons.Hammer()
+    feather._base_damage = 0
+    character.equip(feather)
+
+    responses = list(Events.CombatEvent(1.0, "<test>", [enemy]).run(character))
+    assert enemy.is_dead or isinstance(enemy.brain.current_state, Behavior.Fleeing)
+    assert responses[-1].is_successful
+
+
+def test_every_gun_has_ammo_a_store_can_stock():
+    boxes = {
+        cls().caliber
+        for cls in Items.FullyImplemented.__subclasses__()
+        if issubclass(cls, Items.Ammo)
+    }
+    guns = [
+        cls()
+        for cls in Items.FullyImplemented.__subclasses__()
+        if issubclass(cls, Weapons.ProjectileWeapon)
+    ]
+    assert guns
+    assert {gun.caliber for gun in guns} <= boxes
+
+
+def test_a_part_used_ammo_box_sells_for_what_is_left_in_it():
+    box = Weapons.Ammo9mm()  # 50 rounds
+    full = Store().get_price(box)
+    assert box.take(25) == 25
+    assert Store().get_price(box) == full // 2
+    assert box.take(999) == 25  # only what's left comes out
+    assert box.quantity == 0
+
+
+def test_spaces_that_are_equal_hash_equal():
+    grass, water = Space(3, 4, GrassTerrain()), Space(3, 4, WaterTerrain())
+    assert grass == water == (3, 4)
+    assert hash(grass) == hash(water) == hash((3, 4))
+    assert len({grass, water}) == 1
+
+
+def test_closest_returns_as_many_spaces_as_asked():
+    here = Space(0, 0)
+    spaces = [Space(5, 5), Space(1, 1), Space(3, 3)]
+    assert here.closest(spaces) == [Space(1, 1)]
+    assert here.closest(spaces, size=2) == [Space(1, 1), Space(3, 3)]
+
+
 def test_a_badly_hurt_npc_flees_instead_of_dying_and_keeps_its_kit():
     enemy = Actors.NPC(None, 100, "Coward")
     enemy.hit_points = 30  # one Hammer hit puts it under Aggressive.flee_at

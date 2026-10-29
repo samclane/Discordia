@@ -16,7 +16,7 @@ from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Database import Database
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
-from Discordia.GameLogic.Items import Equipment, EquipmentSet, OffHandEquipment
+from Discordia.GameLogic.Items import Ammo, Equipment, EquipmentSet, OffHandEquipment
 
 Armor.random()  # Keep Armor import; we need the namespace
 
@@ -164,6 +164,8 @@ class TestGeneral(unittest.TestCase):
                         index = random.randrange(len(town.store.inventory))
                         if town.store.sell_item(index, player):
                             item = player.inventory[-1]
+                            if isinstance(item, Ammo):
+                                continue  # nothing to wear: it loads itself
                             player.equip(item)
                             if isinstance(item, Weapons.Weapon):
                                 self.assertTrue(player.has_weapon_equipped)
@@ -221,6 +223,7 @@ class TestGeneral(unittest.TestCase):
         player.equip(Jezail())
         player.inventory.append(Armor.Helmet())
         player.stash.append(Jezail())
+        player.stash.append(Weapons.MusketBalls())
         player.stash_currency = 77
         self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
         for _ in self._move_randomly():
@@ -257,7 +260,7 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
         self.assertIsInstance(restored.weapon, Jezail)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
-        self.assertEqual([type(item) for item in restored.stash], [Jezail])
+        self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
         self.assertEqual(restored.stash_currency, 77)
         self.assertEqual(adapter.guild_settings, {5: GuildSettings(channels=[11, 12], digest_channel=12)})
         self.assertEqual(

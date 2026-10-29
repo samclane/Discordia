@@ -186,9 +186,7 @@ class ProjectileWeapon(RangedWeapon, ABC):
         for item in actor.inventory:
             if isinstance(item, Ammo) and item.caliber == self.caliber:
                 ammo_needed = self.capacity + self.chambered - self.current_capacity
-                ammo_to_load = min(ammo_needed, item.quantity, self.reload_size)
-                self._current_capacity += ammo_to_load
-                item.quantity -= ammo_to_load
+                self._current_capacity += item.take(min(ammo_needed, self.reload_size))
                 if item.quantity <= 0:
                     actor.inventory.remove(item)
                 return
@@ -653,3 +651,56 @@ class Type67(FromData, BeltFedMachineGun, FullyImplemented):
     """
     Based on the Type 67 general-purpose machine gun
     """
+
+
+# --- Ammo: a box per caliber, stat blocks in data/ammo.json. Reloading takes the first box that fits. ---
+
+AMMO_STATS = Data.load(DATA_FOLDER / "ammo.json", _ENUM_FIELDS)
+
+
+class AmmoFromData(Data.FromData):
+    STATS = AMMO_STATS
+
+
+class Ammo9mm(AmmoFromData, Ammo, FullyImplemented):
+    """Also fits .38: Caliber.MM_9 and IN_38 are the same round here."""
+
+
+class AmmoTokarev(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo45(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo556(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo762(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo8mm(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo303(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo88(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo792(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class Ammo577(AmmoFromData, Ammo, FullyImplemented):
+    pass
+
+
+class MusketBalls(AmmoFromData, Ammo, FullyImplemented):
+    pass

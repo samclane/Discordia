@@ -1,0 +1,79 @@
+{
+  "Ammo9mm": {
+    "name": "9mm rounds",
+    "caliber": "MM_9",
+    "quantity": 50,
+    "base_value": 25,
+    "weight_lb": 1.0
+  },
+  "AmmoTokarev": {
+    "name": "7.62x25mm Tokarev rounds",
+    "caliber": "IN_762",
+    "quantity": 50,
+    "base_value": 25,
+    "weight_lb": 1.0
+  },
+  "Ammo45": {
+    "name": ".45 ACP rounds",
+    "caliber": "IN_45",
+    "quantity": 50,
+    "base_value": 25,
+    "weight_lb": 1.0
+  },
+  "Ammo556": {
+    "name": "5.56mm rounds",
+    "caliber": "MM_556",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo762": {
+    "name": "7.62mm rounds",
+    "caliber": "MM_762",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo8mm": {
+    "name": "8mm Lebel rounds",
+    "caliber": "MM_8",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo303": {
+    "name": ".303 British rounds",
+    "caliber": "IN_303",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo88": {
+    "name": "Patrone 88 rounds",
+    "caliber": "M88",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo792": {
+    "name": "7.92mm Mauser rounds",
+    "caliber": "MM_792",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo577": {
+    "name": ".577/450 Martini-Henry rounds",
+    "caliber": "IN_577",
+    "quantity": 20,
+    "base_value": 20,
+    "weight_lb": 1.0
+  },
+  "MusketBalls": {
+    "name": "Musket balls and powder",
+    "caliber": "BB",
+    "quantity": 20,
+    "base_value": 10,
+    "weight_lb": 1.0
+  }
+}

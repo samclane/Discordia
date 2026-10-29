@@ -4,7 +4,7 @@ import random
 from abc import ABC
 from typing import List, Iterator, Type
 
-from Discordia.GameLogic import Actors, GameSpace, Items
+from Discordia.GameLogic import Actors, GameSpace, Items, Weapons
 from Discordia.GameLogic.Procedural import normal
 
 
@@ -52,24 +52,36 @@ class CombatEvent(Event):
         deaths = (
             player_character.deaths
         )  # death revives you in town, so watch the count, not is_dead
+        fists = None  # what's left to fight with once the gun is dry and the pack has nothing for it
         for enemy in self.enemies:
             kill_response = GameSpace.PlayerActionResponse(source=player_character)
 
             while not enemy.is_dead:
-                # WARN An infinite loop can appear here.
                 attack_response = GameSpace.PlayerActionResponse(
                     source=player_character
                 )
-                # Damage is always calculated at full power (min distance)
-                if player_character.weapon is None:
+                weapon = fists or player_character.weapon
+                if weapon is None:
                     attack_response.is_successful = False
                     attack_response.text = (
                         f"{player_character.name} has no weapon to attack with!"
                     )
                     yield attack_response
                     break
-                dmg = int(player_character.weapon.damage)
-                player_character.weapon.on_damage()
+                if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
+                    weapon.reload(player_character)
+                    if weapon.is_empty:
+                        yield GameSpace.PlayerActionResponse(
+                            is_successful=True,
+                            source=player_character,
+                            text=f"{player_character.name}'s {weapon.name} is empty, "
+                            f"with nothing to load. Fists it is.",
+                        )
+                        weapon = fists = Weapons.Fist()
+                # Damage is always calculated at full power (min distance). At least a point a round, so a
+                # weak weapon makes a long fight, never an endless one.
+                dmg = max(1, int(weapon.damage))
+                weapon.on_damage()
                 enemy.take_damage(dmg)
                 attack_response.is_successful = True
                 attack_response.damage = dmg

@@ -402,14 +402,15 @@ class Space(ABC):
         raise ValueError("Item should be either 0 or 1")
 
     def __hash__(self):
-        return hash(self.x) + (10 * hash(self.y)) + (100 * hash(self.terrain))
+        # Whatever __eq__ compares, and nothing else: a space equals its (x, y), so it hashes like one too.
+        return hash((self.x, self.y))
 
     def distance(self, other) -> float:
         return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
     def closest(self, space_list: List[Union[Space, Tuple[int, int]]], size=1):
-        """Returns a list of the closest spaces out of space_list, in decreasing order"""
-        return sorted(space_list, key=lambda o: self.distance(o))[0 : size - 1]
+        """The `size` spaces in space_list nearest this one, nearest first."""
+        return sorted(space_list, key=lambda o: self.distance(o))[:size]
 
 
 class Town(Space):
@@ -969,12 +970,14 @@ class World:
             response.text = "You have no weapon equipped!"
             return response
         loc: Space = player_character.location
+        if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
+            weapon.reload(player_character)  # from the pack, if it holds the right rounds
         dmg: int = int(
             weapon.damage
         )  # weapons compute in floats; a hit lands in whole points
         while dmg > 0:
             if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
-                response.text = "Your currently equipped weapon is empty!"
+                response.text = "Your weapon is empty, and you carry no rounds for it."
                 break
             targets: List[Actors.Actor] = [
                 actor

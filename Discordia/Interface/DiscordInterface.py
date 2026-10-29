@@ -629,7 +629,11 @@ class DiscordInterface(commands.Cog):
         except IndexError:
             await _send(interaction, f"Given index {index} is invalid.", ephemeral=True)
             return
-        character.equip(item)
+        try:
+            character.equip(item)
+        except ValueError:  # no slot takes it, like a box of rounds: those load themselves
+            await _send(interaction, f"{item.name} isn't something you wear or hold.", ephemeral=True)
+            return
         await _send(interaction, f"Equipped {item.name}.")
 
     @inventory.command()
@@ -642,7 +646,11 @@ class DiscordInterface(commands.Cog):
         except IndexError:
             await _send(interaction, f"Given index {index} is invalid.", ephemeral=True)
             return
-        character.unequip(item)
+        try:
+            character.unequip(item)
+        except ValueError:  # no slot takes it, like a box of rounds: those load themselves
+            await _send(interaction, f"{item.name} isn't something you wear or hold.", ephemeral=True)
+            return
         await _send(interaction, f"Unequipped {item.name}.")
 
     @town.command(name="status")

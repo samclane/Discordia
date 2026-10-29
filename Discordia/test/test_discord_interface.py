@@ -6,7 +6,7 @@ import discord
 import pytest
 from discord import app_commands
 
-from Discordia.GameLogic import Actors, GameSpace
+from Discordia.GameLogic import Actors, GameSpace, Weapons
 from Discordia.Interface.DiscordInterface import (
     SUPERSEDED,
     DiscordInterface,
@@ -543,3 +543,15 @@ def test_joining_a_server_says_where_to_start():
     guild.system_channel = None  # nowhere to say it
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
     assert len(sent) == 1
+
+
+def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():
+    character = Actors.PlayerCharacter(parent_world=None, name="Gunner")
+    character.inventory.append(Weapons.Ammo9mm())
+    interface = loaded_cog(StubAdapter(character))
+    replies = Replies()
+    interaction = SimpleNamespace(
+        command="inventory equip", user=SimpleNamespace(id=1), response=replies
+    )
+    asyncio.run(command_named(interface, "inventory equip").callback(interface, interaction, 0))  # type: ignore[arg-type]
+    assert replies.sent == ["9mm rounds isn't something you wear or hold."]

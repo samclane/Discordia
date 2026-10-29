@@ -53,11 +53,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] XP and levels on `PlayerCharacter`; wilds `level` and `NPC.generate(level)` already exist, hook them to player level.
 - [x] `EncounterEvent` is a stub (`{"<test>": "<test>"}`): make it a real choice (talk / rob / ignore) with outcomes.
 - [x] `MerchantEvent` is a stub with no items: sell a random `Store.generate_store()` slice at a markup.
-- [ ] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
-- [ ] `CombatEvent.run` never checks `ProjectileWeapon.is_empty`, so guns fire forever into negative ammo (found by
+- [x] `CombatEvent.run` can loop forever when player damage is 0 (see WARN comment): cap rounds or make a 0-damage weapon end the fight.
+- [x] `CombatEvent.run` never checks `ProjectileWeapon.is_empty`, so guns fire forever into negative ammo (found by
   `test_simulation.py`; drop its `KNOWN` entry once fixed). Decide what an empty gun does mid-fight: reload, fists, or flee.
-- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 20+ without going past danger 4, and most
-  deaths happen on open ground (roaming raiders), not in wilds fights. Tune XP or danger once Extract exists.
+- [ ] Levels outrun the map: in a 3000-tick simulation bots reach level 4-10 (20+ back when guns never ran dry)
+  without going past danger 4, and most deaths happen on open ground (roaming raiders), not in wilds fights. Tune
+  XP or danger once Extract exists.
 - [ ] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
 
@@ -73,7 +74,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [ ] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
 - [ ] Save store inventories and prices per town.
-- [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons.
+- [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
+  (`Items.Ammo.quantity`): both come back full after a restart today.
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
 
 ## Discord UX
@@ -99,23 +101,33 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 ## Cleanup
 
-- [ ] Armor rolls its coverage randomly and `base_value` is `10 * armor_count`, so a piece worth 0 is
+- [x] Armor rolls its coverage randomly and `base_value` is `10 * armor_count`, so a piece worth 0 is
   free from any store. Give every item a floor price.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
 
-- [ ] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
+- [x] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
   list. Nothing calls it; either fix the slice or delete it.
 
-- [ ] `Space.__eq__` ignores terrain but `Space.__hash__` includes it, so equal spaces can hash differently. Set
+- [x] `Space.__eq__` ignores terrain but `Space.__hash__` includes it, so equal spaces can hash differently. Set
   operations on spaces (`World.get_players_in_region`) are quietly relying on identity today.
 
 - [ ] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
 - [ ] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
-- [ ] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
+- [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-28 Ammo: guns had magazines and `reload`, but no `Items.Ammo` was ever made, so `CombatEvent` fired
+  forever into negative rounds and `/attack` went dead after one magazine. A box per caliber now lives in
+  `data/ammo.json` (`Weapons.Ammo9mm` ...), stocked by stores like any `FullyImplemented` item and priced by
+  rounds left. An empty gun reloads from the pack on `/attack` and mid-fight; with nothing to load, a wilds fight
+  goes on with fists. Every combat round deals at least 1, so a weak weapon can't loop a fight forever.
+  `/inventory equip` says no to an ammo box instead of raising. Also from the Cleanup list: `Space.__hash__` now
+  matches `__eq__` (x, y only), `Space.closest` returns `size` spaces, not `size - 1`. Two items were stale:
+  nothing a store stocks is priced $0 (cheapest is $10), and `World.add_actor` already sets every NPC's world;
+  event NPCs never join one.
 
 - 2026-10-22 Raid loss: dying anywhere but a town loses carried money, the backpack and worn gear
   (`PlayerCharacter.lose_carried`), leaving bare fists; `DEATH_TAX` is gone. A town death costs nothing. Every

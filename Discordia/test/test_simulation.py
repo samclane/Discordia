@@ -18,7 +18,7 @@ import time
 from collections import Counter
 from typing import Any, Callable, Dict, List, Tuple
 
-from Discordia.GameLogic import Actors, Events, GameSpace, Weapons
+from Discordia.GameLogic import Actors, Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import DIRECTION_VECTORS, Town
 from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
 
@@ -26,7 +26,7 @@ DIRECTIONS = [d for k, d in DIRECTION_VECTORS.items() if k]
 SLOW_ORDER = 1.0  # seconds; an order this slow is worth a look (CombatEvent can spin)
 HANG = 300  # seconds for a whole run before faulthandler dumps every stack and exits
 # Anomalies already on ROADMAP.md, so the test stays green until they're fixed. Delete one when its fix lands.
-KNOWN = ("weapon fired past empty",)
+KNOWN: Tuple[str, ...] = ()
 
 
 def _toward(here, there):
@@ -60,11 +60,16 @@ class Bot:
             self.heading = random.choice(DIRECTIONS)
             if c.hit_points < c.hit_points_max:
                 return "inn", lambda: [town.inn_event(c)]
-            if (
-                isinstance(c.weapon, Weapons.Fist)
-                and (buy := self._affordable_weapon(town)) is not None
+            if isinstance(c.weapon, Weapons.Fist):
+                wanted = Weapons.Weapon
+            elif isinstance(gun := c.weapon, Weapons.ProjectileWeapon) and not any(
+                isinstance(i, Items.Ammo) and i.caliber == gun.caliber for i in c.inventory
             ):
-                return f"buy {buy}", lambda: self._buy(town, buy)
+                wanted = lambda item: isinstance(item, Items.Ammo) and item.caliber == gun.caliber
+            else:
+                wanted = None
+            if wanted and (buy := self._cheapest(town, wanted)) is not None:
+                return f"buy {buy.name}", lambda: self._buy(town, buy)
             if c.currency > 100:
                 money = c.currency - 100  # bank all but walking-around money
                 return f"stash ${money}", lambda: c.stash_put(money=money)
@@ -77,22 +82,22 @@ class Bot:
         step = self.heading if random.random() < 0.7 else random.choice(DIRECTIONS)
         return "raid", lambda: self._step(step)
 
-    def _affordable_weapon(self, town: Town):
+    def _cheapest(self, town: Town, wanted):
+        """The cheapest affordable store item that is `wanted` (a class, or a predicate), or None."""
         store = town.store
-        weapons = [
-            i
-            for i, item in enumerate(store.inventory)
-            if isinstance(item, Weapons.Weapon)
-            and store.get_price(item) <= self.character.currency
+        test = (lambda item: isinstance(item, wanted)) if isinstance(wanted, type) else wanted
+        fits = [
+            item
+            for item in store.inventory
+            if test(item) and store.get_price(item) <= self.character.currency
         ]
-        return min(
-            weapons, key=lambda i: store.get_price(store.inventory[i]), default=None
-        )
+        return min(fits, key=store.get_price, default=None)
 
-    def _buy(self, town: Town, index: int):
+    def _buy(self, town: Town, item):
+        """Buy `item` if it's still there: another bot in the same town may have bought it first this tick."""
         c = self.character
-        item = town.store.inventory[index]
-        if town.store.sell_item(index, c):
+        index = next((i for i, x in enumerate(town.store.inventory) if x is item), None)
+        if index is not None and town.store.sell_item(index, c) and not isinstance(item, Items.Ammo):
             c.equip(item)
         return []
 
