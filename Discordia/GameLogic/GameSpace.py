@@ -77,7 +77,9 @@ WILDS_SPRITES = 8
 # Roaming raiders are capped at one per this many wilds squares. At one per square every step off the
 # road had a raider on it, hitting every tick, and a fresh character lasted a couple of minutes. At one
 # per 10 (about 9 a chunk) a player woke dozens at once; one per 40 is about 2 a chunk.
+# The cap counts animals too: ANIMAL_SHARE of what spawns is wildlife rather than raiders.
 WILDS_PER_RAIDER = 40
+ANIMAL_SHARE = 1 / 3
 
 # Caches: the map is cut into cells CACHE_CELL chunks a side, and each cell rolls CACHE_CHANCE for one cache in
 # one of its middle chunks (never an edge one, so two caches are always two chunks apart). Within that chunk it
@@ -1193,7 +1195,8 @@ class World:
                 events.append(event)
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
-            self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
+            kind = Actors.Animal if random.random() < ANIMAL_SHARE else Actors.Raider
+            self.add_actor(kind.generate(1), random.choice(self.wilds))
         for npc in self.npcs:
             if not self.near_a_player(npc.location):
                 continue  # the world holds still where nobody is

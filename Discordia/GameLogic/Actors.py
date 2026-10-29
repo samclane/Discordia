@@ -215,6 +215,8 @@ class Actor(AbstractActor, ABC):
 
 
 class NPC(Actor):
+    BODIES: Tuple[Type[BodyType], ...] = (Humanoid,)  # what generate() picks a body from
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.flavor_text: str = "<NONE>"
@@ -260,7 +262,7 @@ class NPC(Actor):
             None,
             hit_points,
             generator.generate_name(),
-            random.choice(BodyType.__subclasses__())(),
+            random.choice(cls.BODIES)(),
         )
         # A pistol costs ~100, so a level-1 kill is worth a few percent of one. Raise CURRENCY_PER_LEVEL
         # if the grind to a first real weapon drags.
@@ -283,6 +285,30 @@ class Raider(NPC):
     @property
     def sprite_path(self) -> str:
         return str(SPRITE_FOLDER / "Actors" / "raider_class.png")
+
+
+class Animal(NPC):
+    """Wildlife: keeps away from players and never fights back. Carries no money, but a kill is experience, and
+    running one down is how a fresh character with a gun levels without a raider shooting back."""
+
+    BODIES = (SmallAnimal, LargeAnimal)
+    KINDS = {SmallAnimal: ["rat", "feral cat", "crow", "fox"], LargeAnimal: ["stray dog", "wild boar", "deer"]}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flavor_text = "Something wild, and wary of you."
+        self.brain = Behavior.FiniteStateMachine(self, Behavior.Fleeing())  # never hits, steps away from you
+
+    @classmethod
+    def generate(cls, level) -> NPC:
+        animal = super().generate(level)
+        animal.name = f"a {random.choice(cls.KINDS[type(animal.body_type)])}"
+        animal.currency = 0
+        return animal
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "animal.png")
 
 
 class PlayerClass(ABC):

@@ -1593,6 +1593,26 @@ def test_a_raider_that_spots_you_closes_in_and_warns_you_once(adapter, lone_raid
     assert news == ["Stalker hits you for 2 damage."]  # caught you standing still
 
 
+def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
+    world, player = adapter.world, adapter.get_player(1)
+    corner = _open_ground(world, GameSpace.NPC_SIGHT + 1)
+    player.location = corner
+    animal = Actors.Animal.generate(1)
+    assert isinstance(animal.body_type, (Actors.SmallAnimal, Actors.LargeAnimal)) and animal.currency == 0
+    world.add_actor(animal, corner)
+    health = player.hit_points
+    for _ in range(3):
+        assert not [e for e in world.tick() if e.target is player]
+    assert player.hit_points == health
+    animal.location = world.space_at(corner.x + 2, corner.y)
+    world.tick()
+    assert animal.location.distance(player.location) > 2  # walked off
+
+
+def test_npcs_and_raiders_are_people():
+    assert all(isinstance(Actors.Raider.generate(1).body_type, Actors.Humanoid) for _ in range(20))
+
+
 def test_a_raider_does_not_see_past_its_sight(adapter, lone_raider):
     world = adapter.world
     player = adapter.get_player(1)

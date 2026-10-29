@@ -62,11 +62,14 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [x] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
+  (blocked: no town recruits `RaiderClass`, so nobody can be one, and every military base hands out the same
+  `Soldier` with no East/West side, saved by class path alone. Decide how each faction is joined first.)
 
 ## NPCs and world
 
 - [x] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
-- [ ] Non-Raider NPC types (animals from `BodyType`, merchants, guards in towns) with their own sprites.
+- [x] Non-Raider NPC types, first half: animals from `BodyType` with their own sprite.
+- [ ] Non-Raider NPC types, second half: merchants and guards in towns (overlaps Town population below).
 - [x] NPCs chase players in sight instead of random walks (greedy steps, not A*: see `NPC.step`).
 - [ ] Town population: named NPCs that stay in town, give flavor text on `/town status`.
 - [ ] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
@@ -129,6 +132,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Animals: `Actors.Animal` (a rat, stray dog, wild boar... on a `SmallAnimal`/`LargeAnimal`
+  body) starts in `Behavior.Fleeing`, so it never hits and steps away from any player in sight with no new tick
+  logic. No money, but a kill is experience. A third of tick spawns (`ANIMAL_SHARE`) are animals, under the same
+  cap. NPC bodies come from a per-class `BODIES`, so raiders and event strangers are always `Humanoid` (they used
+  to roll any body). Hand-drawn dog sprite `Sprites/Actors/animal.png`. Factions marked blocked.
 
 - 2026-10-29 Rest outside towns: `/camp` (not in a town; there the inn is free) sets
   `PlayerCharacter.camping`, and `World.advance` heals a camper `CAMP_HEAL_SHARE` (5%) of max every
