@@ -119,6 +119,9 @@ the bot syncs them.
         * Bank the inventory item at that index and/or that much money.
     * `/stash take` [`item`] [`money`]
         * Take the stashed item at that index and/or that much money back to carry.
+* `/hideout build`
+    * In any town: buy the next level of your hideout ($1000, from carried money then the stash). Each level pays
+      money into your stash every few minutes, whether you're playing or not.
             
 # Attributions
 

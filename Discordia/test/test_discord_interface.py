@@ -42,6 +42,7 @@ EXPECTED = {
     "stash list",
     "stash put",
     "stash take",
+    "hideout build",
     "weblogin",
     "settings",
 }
@@ -173,7 +174,7 @@ def test_space_check_rejects_character_outside_a_town():
         run_checks(command, interaction)
 
 
-@pytest.mark.parametrize("name", ["stash list", "stash put", "stash take"])
+@pytest.mark.parametrize("name", ["stash list", "stash put", "stash take", "hideout build"])
 def test_the_stash_is_only_reachable_from_a_town(name):
     wilds = GameSpace.Wilds(0, 0, "Nowhere")
     _, command, interaction = build(SimpleNamespace(registered=True, location=wilds), name)

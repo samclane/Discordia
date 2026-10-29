@@ -172,6 +172,7 @@ class DiscordInterface(commands.Cog):
     stash = app_commands.Group(
         name="stash", description="Bank items and money in town, safe from whatever kills you out there"
     )
+    hideout = app_commands.Group(name="hideout", description="Build up a hideout that earns while you're away")
 
     def __init__(
         self,
@@ -597,6 +598,16 @@ class DiscordInterface(commands.Cog):
     ):
         """Take the stashed item at the given index, and/or some money, to carry"""
         await self._stash_move(interaction, self._player(interaction).stash_take, item, money)
+
+    @hideout.command(name="build")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def hideout_build(self, interaction: discord.Interaction):
+        """Buy the next hideout level, from carried money then the stash"""
+        try:
+            await _send(interaction, self._player(interaction).build_hideout())
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
 
     async def _stash_move(self, interaction: discord.Interaction, move, item, money):
         try:

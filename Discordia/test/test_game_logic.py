@@ -1160,6 +1160,21 @@ def test_the_pouch_survives_a_raid_death(adapter):
         player.pouch_swap(5)
 
 
+def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_stash(adapter):
+    player = adapter.get_player(1)
+    player.currency, player.stash_currency = 400, Actors.HIDEOUT_COST
+    player.build_hideout()
+    assert (player.hideout_level, player.currency, player.stash_currency) == (1, 0, 400)
+    with pytest.raises(ValueError):
+        player.build_hideout()
+    assert player.hideout_level == 1
+
+    player.location = adapter.world.wilds[0]  # out on a raid, or not playing at all: it pays either way
+    for _ in range(Actors.HIDEOUT_PAY_TICKS):
+        adapter.world.tick()
+    assert player.stash_currency == 400 + Actors.HIDEOUT_INCOME
+
+
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     player = adapter.get_player(1)
     helmet = Armor.Helmet()

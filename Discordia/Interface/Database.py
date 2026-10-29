@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS character (
     currency        INTEGER NOT NULL,
     experience      INTEGER NOT NULL DEFAULT 0,
     stash_currency  INTEGER NOT NULL DEFAULT 0,
+    hideout_level   INTEGER NOT NULL DEFAULT 0,
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -114,7 +115,7 @@ class Database:
             row["name"]
             for row in self.connection.execute("PRAGMA table_info(character)")
         }
-        for column in ("experience", "stash_currency"):
+        for column in ("experience", "stash_currency", "hideout_level"):
             if column not in columns:
                 LOG.info(f"Adding character.{column} to a save file that predates it")
                 with self.connection:
@@ -164,6 +165,7 @@ class Database:
         character.hit_points = row["hit_points"]
         character.currency = row["currency"]
         character.stash_currency = row["stash_currency"]
+        character.hideout_level = row["hideout_level"]
         character.location = adapter.world.space_at(row["x"], row["y"])
 
         for item_row in self.connection.execute(
@@ -210,7 +212,7 @@ class Database:
         # sits in SCHEMA.
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
-            " currency, experience, stash_currency, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " currency, experience, stash_currency, hideout_level, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -220,6 +222,7 @@ class Database:
                 character.currency,
                 character.experience,
                 character.stash_currency,
+                character.hideout_level,
                 character.location.x,
                 character.location.y,
             ),

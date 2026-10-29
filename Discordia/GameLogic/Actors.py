@@ -14,6 +14,12 @@ CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds leve
 HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
 EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, and so on
 HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
+# A hideout level costs HIDEOUT_COST and pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks:
+# $120 an hour at the default 5-second tick, so a level pays for itself in about eight hours away.
+# ponytail: flat price per level; the Cookie Clicker curve is the next item on ROADMAP.md.
+HIDEOUT_COST = 1000
+HIDEOUT_INCOME = 10
+HIDEOUT_PAY_TICKS = 60
 
 
 class BodySize(Enum):
@@ -361,6 +367,8 @@ class PlayerCharacter(Actor):
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
         self.stash: Inventory = Inventory()
         self.stash_currency: int = 0
+        # Levels of hideout, which earn into the stash every so many ticks whether you're playing or not.
+        self.hideout_level: int = 0
         # The secure pouch: one item, carried, that a death leaves on you. Filled from the backpack, anywhere.
         self.pouch: Items.Equipment | None = None
         # What the last death took, phrased for a player, so whoever narrates it can say. Transient: not worth saving.
@@ -558,6 +566,20 @@ class PlayerCharacter(Actor):
             self.inventory.append(out)
             moved.append(f"{out} back into your pack")
         return ", ".join(moved)
+
+    def build_hideout(self) -> str:
+        """Buy the next hideout level, from carried money first and the stash after. Callers check the
+        player is in a town. Returns what it bought, phrased for a player; raises ValueError if it can't."""
+        if self.currency + self.stash_currency < HIDEOUT_COST:
+            raise ValueError(f"The next hideout level costs ${HIDEOUT_COST}, carried and stashed together.")
+        from_pocket = min(self.currency, HIDEOUT_COST)
+        self.currency -= from_pocket
+        self.stash_currency -= HIDEOUT_COST - from_pocket
+        self.hideout_level += 1
+        return (
+            f"Your hideout is level {self.hideout_level}: ${HIDEOUT_INCOME * self.hideout_level} into your stash "
+            f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not."
+        )
 
     def lose_carried(self) -> Tuple[List[Items.Equipment], int]:
         """Strip everything on you: money, backpack and what you were wearing. Back to bare fists; the stash

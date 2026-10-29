@@ -25,7 +25,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
 - [x] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
   for a while, for the owner to walk back and recover or for anyone else to loot. Needs an item container on `Space`.
-- [ ] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
+- [x] Hideout income: `Base`/`BaseLevel` already exist. `/hideout build` in town for money; each level pays
   money per tick into the stash, whether the player is online or not.
 - [ ] Offline catch-up: save `last_tick` on the hideout and pay the missed ticks on load, so a restart doesn't eat
   idle income.
@@ -105,6 +105,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   free from any store. Give every item a floor price.
 - [ ] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
   it twice, as a slot row and a backpack row, and a restart hands back two.
+- [ ] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
 
@@ -120,6 +121,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Hideout income: `/hideout build` (in town) buys a level for a flat `HIDEOUT_COST` ($1000), carried
+  money first and the stash after. Every `HIDEOUT_PAY_TICKS` world ticks each level pays `HIDEOUT_INCOME` into the
+  stash, $120 an hour at a 5-second tick, online or not. The hideout is a `hideout_level` on the character, like the
+  stash, not the unused `Base` map square. Saved as a migrated `character.hideout_level` column.
 
 - 2026-10-29 Corpse run: a raid death leaves what it stripped (`lose_carried` now returns the items and money)
   on the square as `Space.remains`, for `REMAINS_TICKS` (an hour at a 5-second tick, counted by the new

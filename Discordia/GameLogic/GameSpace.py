@@ -1066,6 +1066,9 @@ class World:
         """
         events: List[PlayerActionResponse] = []
         self.ticks += 1
+        if self.ticks % Actors.HIDEOUT_PAY_TICKS == 0:
+            for p in self.players:
+                p.stash_currency += Actors.HIDEOUT_INCOME * p.hideout_level
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             self.add_actor(Actors.Raider.generate(1), random.choice(self.wilds))
