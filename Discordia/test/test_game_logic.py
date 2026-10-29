@@ -1062,6 +1062,41 @@ def test_dying_in_town_costs_nothing(adapter):
     assert GameSpace.death_toll_text(player) == ""
 
 
+def _quiet_step_out_of_town(world):
+    """A direction from the starting town onto open ground that isn't a town and has no event waiting."""
+    town = world.starting_town
+    for d in DIRECTION_VECTORS.values():
+        s = world.space_at(town.x + d[0], town.y + d[1])
+        if world.is_space_valid(s) and type(s) is GameSpace.Space:
+            return d
+    pytest.skip("starting town has no plain ground next to it")
+
+
+def test_stepping_back_into_town_extracts_and_reports_the_haul(adapter):
+    player = adapter.get_player(1)
+    helmet, carried = Armor.Helmet(), Armor.Helmet()
+    player.inventory.append(carried)
+    d = _quiet_step_out_of_town(adapter.world)
+
+    adapter.move_player(player, d)
+    assert player.raid_start is not None
+    player.inventory.append(helmet)
+    player.currency += 250
+    player.gain_experience(40)
+
+    results = adapter.move_player(player, (-d[0], -d[1]))
+    assert player.location == adapter.world.starting_town
+    assert results[-1].text.endswith(f"you brought home: {helmet}, $250, 40 XP.")
+    assert player.raid_start is None
+
+
+def test_a_raid_death_is_not_an_extraction(adapter):
+    player = adapter.get_player(1)
+    adapter.move_player(player, _quiet_step_out_of_town(adapter.world))
+    player.take_damage(player.hit_points_max)
+    assert player.raid_start is None  # back in town, but nothing was brought home
+
+
 def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
     player = adapter.get_player(1)
     helmet = Armor.Helmet()

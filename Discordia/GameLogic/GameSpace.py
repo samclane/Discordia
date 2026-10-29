@@ -1095,6 +1095,7 @@ class World:
         here = player.location
         player.last_death_loss = "" if isinstance(here, Town) else player.lose_carried()
         player.deaths += 1
+        player.raid_start = None
         self.stats.deaths_by_level[here.level if isinstance(here, Wilds) else 0] += 1
         player.location = self.starting_town
         player.revive()

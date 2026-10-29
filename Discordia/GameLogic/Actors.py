@@ -368,6 +368,9 @@ class PlayerCharacter(Actor):
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
         self.pending_event = None
+        # (money, backpack, experience) as you last stepped out of a town, or None when no raid is on.
+        # Transient: a restart mid-raid just ends it, and a death throws it away.
+        self.raid_start: Tuple[int, List[Items.Equipment], int] | None = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
@@ -378,7 +381,26 @@ class PlayerCharacter(Actor):
         # Walking on is how you ignore a stranger. Cleared before the step, so an encounter raised by
         # the square you land on survives.
         self.pending_event = None
-        return super().attempt_move(shift)
+        was_out = not isinstance(self.location, GameSpace.Town)
+        if not was_out:
+            self.raid_start = (self.currency, list(self.inventory), self.experience)
+        responses = super().attempt_move(shift)
+        # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
+        if was_out and isinstance(self.location, GameSpace.Town) and self.raid_start is not None:
+            responses.append(GameSpace.PlayerActionResponse(is_successful=True, source=self, text=self.extract()))
+        return responses
+
+    def extract(self) -> str:
+        """End the raid in the town you're standing in and say what it brought home."""
+        money, pack, experience = self.raid_start  # type: ignore[misc]
+        self.raid_start = None
+        found = [str(item) for item in self.inventory if not any(item is had for had in pack)]
+        if self.currency > money:
+            found.append(f"${self.currency - money}")
+        if self.experience > experience:
+            found.append(f"{self.experience - experience} XP")
+        haul = ", ".join(found) if found else "nothing but the walk"
+        return f"You make it back to {self.location.name}. Raid over, you brought home: {haul}."
 
     @property
     def player_class(self):

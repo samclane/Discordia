@@ -20,7 +20,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   town). Saved in `Database` with a round-trip test. Carried and stashed are now two different things.
 - [x] Raid loss: dying out past the towns drops everything carried, not `DEATH_TAX` of the money. The stash is
   untouched. Say exactly what was lost in the death message.
-- [ ] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
+- [x] Extract: stepping into any town from the wilds ends the raid and reports the haul (items picked up, money,
   XP since leaving). Track `raid_start` loot on the character; nothing to save, a restart mid-raid just ends it.
 - [ ] Secure pouch: one item slot that survives death, so a raid is never a total wipe (Tarkov's secure container).
 - [ ] Corpse run: what a raid death drops (`PlayerCharacter.lose_carried`) just vanishes. Leave it on the square
@@ -117,6 +117,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-29 Extract: stepping from anywhere outside a town into one ends the raid and says what it brought home
+  (new backpack items, money and XP since you last left a town). `PlayerCharacter.raid_start` is snapshotted on
+  every step out of a town and thrown away by a death, so dying never reads as an extraction. Not saved: a restart
+  mid-raid just ends it quietly.
 
 - 2026-10-29 "Roaming raiders" weren't the problem: the simulator credited each death to the square the bot stood on
   *before* its fatal move, so wilds fights read as open-ground deaths. It now records where each death happened and
