@@ -219,9 +219,9 @@ def test_buy_autocomplete_only_suggests_in_a_town():
     town = GameSpace.Town(0, 0, "Testville", store=_little_store())
     for location, expected in [(town, 1), (GameSpace.Wilds(0, 0, "Nowhere"), 0)]:
         interface, _, interaction = build(SimpleNamespace(location=location), "town store buy")
-        assert len(asyncio.run(interface._buy_choices(interaction, "ham"))) == expected
+        assert len(asyncio.run(cast(Any, interface)._buy_choices(interaction, "ham"))) == expected
     interface, _, interaction = build(None, "town store buy")  # not registered
-    assert asyncio.run(interface._buy_choices(interaction, "ham")) == []
+    assert asyncio.run(cast(Any, interface)._buy_choices(interaction, "ham")) == []
 
 
 def test_space_check_passes_inside_a_town():
@@ -337,7 +337,7 @@ class Body:
 
 def test_a_fight_dms_its_first_hit_and_its_death_not_every_blow():
     sent = []
-    raider, player = Body(), Body()
+    raider, player = cast(Any, Body()), cast(Any, Body())  # stand-ins for Actors
     script = iter(["first", "second", "third", None, "again", "fourth", "you black out"])
 
     def world_tick():

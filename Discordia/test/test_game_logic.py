@@ -467,7 +467,7 @@ def test_caches_sit_far_from_towns_and_each_other_and_pay_out_once():
     caches = [
         space
         for chunk in world.loaded_chunks()
-        for row in world.loaded_chunk(*chunk)
+        for row in world.loaded_chunk(*chunk) or []
         for space in row
         if isinstance(space, GameSpace.Cache)
     ]
@@ -812,16 +812,9 @@ def test_a_weapon_that_does_no_damage_still_ends_the_fight(adapter):
 
 
 def test_every_gun_has_ammo_a_store_can_stock():
-    boxes = {
-        cls().caliber
-        for cls in Items.FullyImplemented.__subclasses__()
-        if issubclass(cls, Items.Ammo)
-    }
-    guns = [
-        cls()
-        for cls in Items.FullyImplemented.__subclasses__()
-        if issubclass(cls, Weapons.ProjectileWeapon)
-    ]
+    items = [cls() for cls in Items.FullyImplemented.__subclasses__()]
+    boxes = {item.caliber for item in items if isinstance(item, Items.Ammo)}
+    guns = [item for item in items if isinstance(item, Weapons.ProjectileWeapon)]
     assert guns
     assert {gun.caliber for gun in guns} <= boxes
 

@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from collections import Counter
 from itertools import product
-from typing import List, Tuple, Dict, Iterator, Set, Type, Union
+from typing import List, Tuple, Dict, Iterator, Sequence, Set, Type, Union
 
 import math
 import numpy as np
@@ -422,7 +422,7 @@ class Space(ABC):
     def distance(self, other) -> float:
         return sqrt(abs(self.x - other[0]) ** 2 + abs(self.y - other[1]) ** 2)
 
-    def closest(self, space_list: List[Union[Space, Tuple[int, int]]], size=1):
+    def closest(self, space_list: Sequence[Union[Space, Tuple[int, int]]], size=1):
         """The `size` spaces in space_list nearest this one, nearest first."""
         return sorted(space_list, key=lambda o: self.distance(o))[:size]
 

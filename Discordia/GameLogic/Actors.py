@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Type, Union
+from typing import Any, Tuple, List, Type, Union
 from enum import Enum, auto
 
 from Discordia import SPRITE_FOLDER
@@ -383,7 +383,7 @@ class PlayerCharacter(Actor):
         self.deaths: int = 0
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
-        self.pending_event = None
+        self.pending_event: Any = None
         # (money, backpack, experience) as you last stepped out of a town, or None when no raid is on.
         # Transient: a restart mid-raid just ends it, and a death throws it away.
         self.raid_start: Tuple[int, List[Items.Equipment], int] | None = None
@@ -635,7 +635,8 @@ class PlayerCharacter(Actor):
         self.hit_points -= damage
 
     def on_death(self):
-        return self.parent_world.handle_player_death(self)
+        self.parent_world.handle_player_death(self)
+        return []  # nothing drops where they fell: handle_player_death deals with their gear
 
     @property
     def sprite_path(self) -> str:

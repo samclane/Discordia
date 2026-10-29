@@ -289,6 +289,7 @@ def test_weblogins_keep_only_digests_and_let_links_lapse():
     assert logins.redeem(token) is None
 
     session = logins.redeem(logins.new_link_token(42))
+    assert session is not None
     assert logins.member_id(session) == 42
     assert session not in repr(vars(logins))
     now[0] += SESSION_SECONDS + 1
@@ -387,6 +388,7 @@ def test_logging_out_ends_the_session_for_good():
     adapter = WorldAdapter(GameSpace.World("Exitland", 40, 40, seed=7))
     server = serve(adapter)
     session = LOGINS.redeem(LOGINS.new_link_token(9))
+    assert session is not None
     conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
     try:
         conn.request("POST", "/logout", headers={"Cookie": f"session={session}", "Content-Length": "0"})
@@ -410,7 +412,7 @@ def act(port, order, cookie=None, content_type="application/json"):
     response = conn.getresponse()
     data = response.read()
     conn.close()
-    return response.status, (json.loads(data)["text"] if response.status != 415 else None)
+    return response.status, (json.loads(data)["text"] if response.status != 415 else "")
 
 
 def playing(name="Player"):
@@ -517,7 +519,7 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
     server = serve(adapter)
     conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
 
-    def request(method, path, body=None, cookie=COOKIE, **headers):
+    def request(method, path, body=None, cookie: str | None = COOKIE, **headers):
         if cookie:
             headers["Cookie"] = cookie
         if body is not None:

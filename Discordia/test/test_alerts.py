@@ -69,6 +69,7 @@ def test_the_digest_sums_up_the_day_and_starts_over():
     world.stats.deaths_by_level.update({2: 5, 1: 2})
 
     text = Alerts.digest(world)
+    assert text is not None
     assert "1 players active · 31 kills · 7 deaths" in text
     assert "Deaths by danger level: L1 2 · L2 5" in text
     assert "Tester L1 $1,240" in text
