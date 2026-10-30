@@ -6,6 +6,7 @@ test_all.py already drives a full 100x100 world; these stay small and fast on pu
 """
 
 import random
+from pathlib import Path
 
 import pytest
 
@@ -1668,6 +1669,13 @@ def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
     animal.location = world.space_at(corner.x + 2, corner.y)
     world.tick()
     assert animal.location.distance(player.location) > 2  # walked off
+
+
+def test_a_small_animal_and_a_large_one_look_different():
+    rat = Actors.Animal(None, 5, "a rat", Actors.SmallAnimal())
+    boar = Actors.Animal(None, 40, "a wild boar", Actors.LargeAnimal())
+    assert rat.sprite_path != boar.sprite_path
+    assert all(Path(a.sprite_path).is_file() for a in (rat, boar))
 
 
 def test_npcs_and_raiders_are_people():

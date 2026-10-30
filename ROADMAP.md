@@ -112,8 +112,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 ## Rendering
 
 - [x] Terrain names still say `sand`/`mountain` (`/look`, web map hover) though they're drawn as paving and rooftops.
-- [ ] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
-- [ ] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
+- [x] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
+  (stale: side by side, the raider, soldier and wanderer sprites already are those characters in the sheet's
+  palette, recoloured with helmets and hard hats. Only the unused `null_actor.png` placeholder isn't.)
+- [x] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
 - [ ] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
 - [ ] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
   a player where the nearest one is. A bearing to it in `/look`, like `/choose talk`'s directions to a town.
@@ -146,6 +148,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Sprites by body size: a small animal (rat, feral cat, crow, fox) draws as a new hand-drawn rat,
+  `Sprites/Actors/small_animal.png`; large ones keep the dog. "NPCs all share null_npc.png" was stale: raiders
+  and animals have their own, and plain NPCs only live inside wilds events, never on the map. Also closed the
+  Kenney actor-sprites item as stale.
 
 - 2026-10-30 Terrain labels: `Terrain.label` is what players read, matching the city art (paving, park, canal,
   rooftops), in `/look` and the web map's hover. `name` stays the internal key the generator, autotiler and

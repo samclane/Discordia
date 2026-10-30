@@ -52,7 +52,6 @@ class BodyType(ABC):
         return self.__class__.__name__
 
 
-# TODO Random sprite generation (base templates on BodySize)
 class SmallAnimal(BodyType):
     pass
 
@@ -308,7 +307,9 @@ class Animal(NPC):
 
     @property
     def sprite_path(self) -> str:
-        return str(SPRITE_FOLDER / "Actors" / "animal.png")
+        # By size: a rat and a wild boar shouldn't look alike. People are drawn by what they are (Raider, a class).
+        small = isinstance(self.body_type, SmallAnimal)
+        return str(SPRITE_FOLDER / "Actors" / ("small_animal.png" if small else "animal.png"))
 
 
 class PlayerClass(ABC):
