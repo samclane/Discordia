@@ -111,7 +111,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 ## Rendering
 
-- [ ] Terrain names still say `sand`/`mountain` (`/look`, web map hover) though they're drawn as paving and rooftops.
+- [x] Terrain names still say `sand`/`mountain` (`/look`, web map hover) though they're drawn as paving and rooftops.
 - [ ] Actor sprites are the old style; the Kenney sheet has matching characters (tiles 23-26, 185, 266, 347, 428).
 - [ ] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
 - [ ] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
@@ -146,6 +146,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Terrain labels: `Terrain.label` is what players read, matching the city art (paving, park, canal,
+  rooftops), in `/look` and the web map's hover. `name` stays the internal key the generator, autotiler and
+  `BLOCKS` go by. `ART_VERSION` 5, so browsers refetch chunk JSON with the new words.
 
 - 2026-10-30 Channel announcements: `World.announcements` collects a player's raid deaths (where, how
   dangerous, and what lies there for anyone to loot) and extractions that brought something home; the cog

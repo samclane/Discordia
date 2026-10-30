@@ -285,7 +285,7 @@ class WorldAdapter:
     def look_text(self, character: Actors.PlayerCharacter) -> str:
         """Where `character` stands, how rough it is, and who's in view, nearest first with a bearing to each."""
         here = character.location
-        text = f"You're at {here}, on {here.terrain.name}."
+        text = f"You're at {here}, on {here.terrain.label}."
         if isinstance(here, Town):
             text += f" You're in {here.name}: safe ground."
         elif isinstance(here, Wilds):

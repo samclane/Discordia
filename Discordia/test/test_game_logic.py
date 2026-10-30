@@ -1648,6 +1648,7 @@ def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_r
     adapter.register_player(2, "Pal")
     adapter.get_player(2).location = world.space_at(corner.x + 1, corner.y)
     text = adapter.look_text(player)
+    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops")
     danger = corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
     assert f"danger {danger}." in text.splitlines()[0]
     assert text.endswith("In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east.")

@@ -58,7 +58,7 @@ HOME_HTML = Path(__file__).with_name("home.html")
 ME_HTML = Path(__file__).with_name("me.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
-ART_VERSION = 4
+ART_VERSION = 5
 ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
@@ -192,7 +192,7 @@ def _chunk_json(rows: list) -> bytes:
     """What the client needs to say what's under the cursor: terrain names, and which squares are wilds."""
     return json.dumps(
         {
-            "terrain": [[space.terrain.name for space in row] for row in rows],
+            "terrain": [[space.terrain.label for space in row] for row in rows],  # read on hover
             "wilds": [
                 {"x": space.x, "y": space.y, "name": space.name}
                 for row in rows

@@ -167,6 +167,9 @@ class Terrain(ABC):
     # Which of the eight neighbours are the same terrain, as bits in NEIGHBOURS order. Set at generation;
     # the renderer draws coastlines and kerbs from it.
     neighbours: int = 0
+    # What a player reads (/look, the map's hover). `name` is the key the generator and renderer go by, and
+    # predates the city art: sand is drawn as paving, mountains as rooftops.
+    label: str = "nowhere"
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -223,6 +226,8 @@ class NullTerrain(Terrain):
 
 
 class SandTerrain(Terrain):
+    label = "paving"
+
     @property
     def walkable(self) -> bool:
         return True
@@ -245,6 +250,8 @@ class SandTerrain(Terrain):
 
 
 class GrassTerrain(Terrain):
+    label = "park"
+
     @property
     def walkable(self) -> bool:
         return True
@@ -267,6 +274,8 @@ class GrassTerrain(Terrain):
 
 
 class WaterTerrain(Terrain):
+    label = "canal"
+
     @property
     def walkable(self) -> bool:
         return True
@@ -289,6 +298,8 @@ class WaterTerrain(Terrain):
 
 
 class MountainTerrain(Terrain):
+    label = "rooftops"
+
     @property
     def walkable(self) -> bool:
         return True
