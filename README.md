@@ -120,7 +120,10 @@ the bot syncs them.
     * `/town inn`
         * Rest at the inn: back to full health, free.
     * `/town recruit`
-        * Change your player class to the one offered by the town.
+        * Change your player class to the one the town trains (`/town status` says which). Military bases train
+          Soldiers (75 HP). Mining towns train Scavengers (a cache gives one more salvage), farming towns Medics
+          (camping heals twice as fast), woodworking towns Scouts (see a square further), smithing towns Fixers
+          (stores pay a quarter more when you sell).
     * `/town store list` [`kind`]
         * What the town's store sells, grouped into weapons, armor, ammo and other, cheapest first, with each
           item's damage, armor or rounds. ✗ marks what you can't afford. `kind` shows just one group.

@@ -32,7 +32,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER, VERSION
 from Discordia.GameLogic import Events, GameSpace
-from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, PlayerCharacter, Soldier, WandererClass
+from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, Fixer, Medic, PlayerCharacter, Scavenger, Scout, Soldier, WandererClass
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
 from Discordia.GameLogic.Weapons import Weapon
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
@@ -254,6 +254,18 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
             }
         )
     return json.dumps({"actors": actors}).encode()
+
+
+# The trades' classes, for the home page: (class, the kind of town that trains it).
+TOWN_CLASSES = [(Scavenger, "mining"), (Medic, "farming"), (Scout, "woodworking"), (Fixer, "smithing")]
+
+
+def _class_card(player_class, town: str) -> str:
+    return (
+        f'<div class="card class"><img class="px" src="{_sprite_url(player_class.sprite_path)}" alt="">'
+        f'<div><h3>{player_class.name} <span class="tag">{player_class.hit_points_max_base} HP</span></h3>'
+        f"<p>Trained in {town} towns. {html.escape(player_class.perk)}</p></div></div>"
+    )
 
 
 SLOT_LABELS = {"head": "Head", "chest": "Chest", "legs": "Legs", "feet": "Feet", "main_hand": "Main hand",
@@ -688,6 +700,7 @@ class _Handler(BaseHTTPRequestHandler):
             NAME=name,
             WANDERER_HP=WandererClass().hit_points_max_base,
             SOLDIER_HP=Soldier().hit_points_max_base,
+            TOWN_CLASSES=Markup("".join(_class_card(c(), town) for c, town in TOWN_CLASSES)),
         )
 
     def _page(self, title: str, body: str, **values) -> bytes:

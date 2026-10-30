@@ -648,13 +648,14 @@ def test_joining_a_server_says_where_to_start():
 
 def test_town_status_introduces_the_residents():
     character = Actors.PlayerCharacter(parent_world=None, name="Visitor")
-    character.location = GameSpace.Town(0, 0, "Hub", population=40)
+    character.location = GameSpace.Town(0, 0, "Hub", population=40, industry=GameSpace.MiningIndustry())
     interface = loaded_cog(StubAdapter(character))
     replies = Replies()
     interaction = SimpleNamespace(command="town status", user=SimpleNamespace(id=1), response=replies)
     asyncio.run(command_named(interface, "town status").callback(interface, interaction))  # type: ignore[arg-type]
     [text] = replies.sent
-    assert text.startswith("You're in Hub, population 40.") and "the shopkeeper" in text and "the guard" in text
+    assert text.startswith("You're in Hub, population 40. It trains Scavengers: Every cache gives you one more")
+    assert "the shopkeeper" in text and "the guard" in text
 
 
 def test_help_lists_every_command_privately_starting_with_register():

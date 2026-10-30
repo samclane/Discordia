@@ -342,11 +342,19 @@ class MiningIndustry(IndustryType):
     def name(self) -> str:
         return "Mining"
 
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.Scavenger()
+
 
 class FarmingIndustry(IndustryType):
     @property
     def name(self) -> str:
         return "Farming"
+
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.Medic()
 
 
 class SmithingIndustry(IndustryType):
@@ -354,11 +362,19 @@ class SmithingIndustry(IndustryType):
     def name(self) -> str:
         return "Smithing"
 
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.Fixer()
+
 
 class WoodworkingIndustry(IndustryType):
     @property
     def name(self) -> str:
         return "Woodworking"
+
+    @property
+    def recruitment_class(self) -> Actors.PlayerClass:
+        return Actors.Scout()
 
 
 class MilitaryBase(IndustryType, ABC):
@@ -531,7 +547,7 @@ class Town(Space):
             character.player_class = _class
             resp = PlayerActionResponse(
                 is_successful=True,
-                text=f"Class was successfully changed to {_class.name}",
+                text=f"You're a {_class.name} now. {_class.perk}".rstrip(),
             )
         else:
             resp = PlayerActionResponse(
@@ -644,7 +660,8 @@ class Cache(Space):
         stock = Store.generate_store().inventory
         kit = [max(random.sample(stock, min(level, len(stock))), key=lambda i: i.base_value)] if stock else []
         # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
-        salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE)]
+        extra = isinstance(player.player_class, Actors.Scavenger)
+        salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE + extra)]
         for item in kit + salvage:
             player.inventory.append(item)
             response.items.append(item)
@@ -1348,7 +1365,7 @@ class Store:
     ) -> int:
         self.inventory.append(item)
         self.traded = True
-        price = int(item.base_value / self.price_ratio)
+        price = int(item.base_value / self.price_ratio * (1.25 if isinstance(player_character.player_class, Actors.Fixer) else 1))
         player_character.currency += price
         player_character.inventory.remove(item)
         return price

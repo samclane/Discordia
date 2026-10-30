@@ -315,9 +315,58 @@ def test_recruiting_promotes_you_once():
 
 
 def test_a_wanderer_town_cannot_promote_a_wanderer():
-    town = Town(1, 1, "Sleepy Hollow", industry=GameSpace.FarmingIndustry())
+    town = Town(1, 1, "Sleepy Hollow", industry=GameSpace.NullIndustry())  # no trade, so nothing to learn
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     assert town.recruit(character).failed
+
+
+@pytest.mark.parametrize(
+    "industry, trained",
+    [
+        (GameSpace.MiningIndustry, Actors.Scavenger),
+        (GameSpace.FarmingIndustry, Actors.Medic),
+        (GameSpace.WoodworkingIndustry, Actors.Scout),
+        (GameSpace.SmithingIndustry, Actors.Fixer),
+    ],
+)
+def test_each_trade_town_trains_its_own_class(industry, trained):
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    told = Town(1, 1, "T", industry=industry()).recruit(character)
+    assert isinstance(character.player_class, trained) and told.text.endswith(trained.perk)
+    assert Path(character.player_class.sprite_path).is_file()
+
+
+def test_a_scavenger_finds_one_more_salvage(adapter):
+    player = adapter.get_player(1)
+
+    def salvage():
+        player.inventory = Actors.Inventory()
+        GameSpace.Cache(0, 0).run_event(player)
+        return sum(isinstance(i, Items.Salvage) for i in player.inventory)
+
+    plain = salvage()
+    player.player_class = Actors.Scavenger()
+    assert salvage() == plain + 1
+
+
+def test_a_medic_camps_twice_as_fast_and_a_scout_sees_further():
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    sight = character.fov
+    character.player_class = Actors.Medic()
+    assert character.camp_heal == 2 * max(1, round(character.hit_points_max * Actors.CAMP_HEAL_SHARE))
+    character.player_class = Actors.Scout()
+    assert character.fov == sight + 1
+
+
+def test_a_fixer_sells_for_a_quarter_more():
+    def sale(player_class):
+        character = Actors.PlayerCharacter(parent_world=None, name="Seller")
+        character.player_class = player_class
+        rifle = Weapons.AK47()
+        character.inventory.append(rifle)
+        return Store().buy_item(rifle, character)
+
+    assert sale(Actors.Fixer()) == int(sale(Actors.WandererClass()) * 1.25)
 
 
 def test_store_price_follows_the_price_ratio():

@@ -338,6 +338,7 @@ def test_the_home_page_is_public_and_its_art_loads(base_url):
     page = public_home(base_url)
     assert "<h1>Testland</h1>" in page and "/weblogin" in page and 'href="/#join">Log in' in page
     assert "{{" not in page, "a placeholder went unfilled"
+    assert all(name in page for name in ("Scavenger", "Medic", "Scout", "Fixer"))  # each trade's class has a card
     for sprite in set(re.findall(r'src="(/sprites/[^"]+)"', page)):
         with urllib.request.build_opener().open(base_url + sprite) as response:
             assert response.read().startswith(b"\x89PNG")

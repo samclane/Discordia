@@ -313,6 +313,8 @@ class Animal(NPC):
 
 
 class PlayerClass(ABC):
+    # What the class does for you, in a sentence for a player. The rules that make it true live where they apply.
+    perk: str = ""
 
     @property
     def name(self) -> str:
@@ -394,6 +396,94 @@ class RaiderClass(PlayerClass):
         return str(SPRITE_FOLDER / "Actors" / "raider_class.png")
 
 
+class Scavenger(PlayerClass):
+    """Trained in a mining town to strip a place bare."""
+
+    perk = "Every cache gives you one more salvage."
+
+    @property
+    def name(self) -> str:
+        return "Scavenger"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 60
+
+    @property
+    def tier(self) -> int:
+        return 1
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "scavenger_class.png")
+
+
+class Medic(PlayerClass):
+    """A farming town's healer."""
+
+    perk = "Camping heals you twice as fast."
+
+    @property
+    def name(self) -> str:
+        return "Medic"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 55
+
+    @property
+    def tier(self) -> int:
+        return 1
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "medic_class.png")
+
+
+class Scout(PlayerClass):
+    """A woodworking town's lookout."""
+
+    perk = "You see a square further, in /look and on the map."
+
+    @property
+    def name(self) -> str:
+        return "Scout"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 55
+
+    @property
+    def tier(self) -> int:
+        return 1
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "scout_class.png")
+
+
+class Fixer(PlayerClass):
+    """A smithing town's dealer."""
+
+    perk = "Stores pay you a quarter more for what you sell."
+
+    @property
+    def name(self) -> str:
+        return "Fixer"
+
+    @property
+    def hit_points_max_base(self) -> int:
+        return 60
+
+    @property
+    def tier(self) -> int:
+        return 1
+
+    @property
+    def sprite_path(self) -> str:
+        return str(SPRITE_FOLDER / "Actors" / "fixer_class.png")
+
+
 class PlayerCharacter(Actor):
 
     def __init__(self, *args, **kwargs):
@@ -403,7 +493,6 @@ class PlayerCharacter(Actor):
         self.experience: int = 0
         self._hit_points = self.hit_points_max = self._player_class.hit_points_max_base
         self.equipment_set: Items.EquipmentSet = Items.EquipmentSet()
-        self.fov: int = self.fov_default
         self.inventory: Inventory = Inventory()
         self.currency: int = 1000
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
@@ -571,8 +660,13 @@ class PlayerCharacter(Actor):
 
     @property
     def camp_heal(self) -> int:
-        """Hit points a camp gives back every CAMP_HEAL_TICKS."""
-        return max(1, round(self.hit_points_max * CAMP_HEAL_SHARE))
+        """Hit points a camp gives back every CAMP_HEAL_TICKS: twice that for a Medic."""
+        return max(1, round(self.hit_points_max * CAMP_HEAL_SHARE)) * (2 if isinstance(self.player_class, Medic) else 1)
+
+    @property
+    def fov(self) -> int:
+        """How many squares you see either way: one more for a Scout."""
+        return self.fov_default + isinstance(self.player_class, Scout)
 
     def stash_put(self, index: int | None = None, money: int = 0) -> str:
         """Bank the carried item at `index` and/or `money`. Callers check the player is in a town."""

@@ -66,6 +66,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   at level 1-5, where the same run gave 4-7 before. Re-looting dead enemies had been most of the XP. Decided
   2026-10-30: extracting with a haul pays 10 XP per danger level of the deepest square reached on that raid
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
+- [x] More classes: each trade town trains one, with one perk (`PlayerClass.perk`).
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [ ] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
@@ -159,6 +160,13 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 More classes: mining towns train Scavengers (60 HP, a cache gives one more salvage), farming towns
+  Medics (55, camping heals twice as fast), woodworking towns Scouts (55, `fov` + 1 for `/look` and the map view),
+  smithing towns Fixers (60, stores pay 25% more when you sell). All tier 1 beside Soldier, so you can switch
+  between them; only a town with no trade still trains Wanderers. Each perk lives where it applies, worded once in
+  `PlayerClass.perk` for `/town recruit`, `/town status` ("It trains Scavengers: ...") and the home page's class
+  cards. Sprites cut from the Kenney sheet's people. Saved by class path, so nothing new in `Database`.
 
 - 2026-10-30 README: documents `-W PORT` and `--database` (and how to run the tests), `/settings`, the DMs a
   player gets (spotted, a fight's first hit and its end, auto-raid results), the inn and store sell as they are,

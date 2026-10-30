@@ -785,7 +785,9 @@ class DiscordInterface(commands.Cog):
         town = self._player(interaction).location
         if isinstance(town, GameSpace.Town):
             people = "\n".join(f'{name}, the {role}: "{line}"' for role, name, line in town.residents)
-            await _send(interaction, f"You're in {town.name}, population {town.population}.\n{people}")
+            trains = town.industry.recruitment_class
+            training = f" It trains {trains.name}s: {trains.perk}" if trains.perk else ""
+            await _send(interaction, f"You're in {town.name}, population {town.population}.{training}\n{people}")
         else:
             await _send(interaction, "You're currently not in a town...")
 
