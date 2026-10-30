@@ -276,7 +276,7 @@ class Database:
                 ),
             )
             self.connection.execute("DELETE FROM character")  # cascades to item
-            for discord_id, character in getattr(adapter, "players").items():
+            for discord_id, character in adapter.iter_registered():
                 self._save_character(discord_id, character)
             self.connection.execute("DELETE FROM npc")
             self.connection.executemany(

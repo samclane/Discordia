@@ -220,12 +220,14 @@ class TestGeneral(unittest.TestCase):
         player.currency = 4321
         player.gain_experience(250)
         player.hit_points -= 7
-        player.equip(Jezail())
-        player.weapon.fire()  # a single shot, now empty
+        jezail = Jezail()
+        player.equip(jezail)
+        jezail.fire()  # a single shot, now empty
         player.inventory.append(Armor.Helmet())
         player.stash.append(Jezail())
-        player.stash.append(Weapons.MusketBalls())
-        player.stash[-1].take(3)
+        balls = Weapons.MusketBalls()
+        balls.take(3)
+        player.stash.append(balls)
         player.stash_currency = 77
         player.pouch = Weapons.MusketBalls()
         player.hideout_level = 3
@@ -267,7 +269,9 @@ class TestGeneral(unittest.TestCase):
             [str(space.terrain) for space in self.adapter.iter_spaces()],
         )
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
-        self.assertEqual([type(item) for item in adapter.world.space_at(*self.world.starting_town).store.inventory], stock)
+        town = adapter.world.space_at(*self.world.starting_town)
+        assert isinstance(town, GameSpace.Town)
+        self.assertEqual([type(item) for item in town.store.inventory], stock)
 
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
@@ -277,13 +281,12 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(restored.hit_points_max, player.hit_points_max)
         self.assertEqual(restored.hit_points, player.hit_points)
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
-        self.assertIsInstance(restored.weapon, Jezail)
+        assert isinstance(restored.weapon, Jezail)
         self.assertTrue(restored.weapon.is_empty)  # not reloaded by the restart
-        self.assertEqual(
-            (restored.stash[1].quantity, restored.stash[1].base_value),
-            (player.stash[1].quantity, player.stash[1].base_value),
-        )
-        self.assertEqual(restored.stash[1].quantity, Weapons.MusketBalls().quantity - 3)
+        box = restored.stash[1]
+        assert isinstance(box, Weapons.MusketBalls)
+        self.assertEqual((box.quantity, box.base_value), (balls.quantity, balls.base_value))
+        self.assertEqual(box.quantity, Weapons.MusketBalls().quantity - 3)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
         self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
         self.assertEqual(restored.stash_currency, 77)
@@ -295,6 +298,7 @@ class TestGeneral(unittest.TestCase):
             [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in self.world.npcs],
         )
         self.assertIsInstance(adapter.world.npcs[1].brain.current_state, Behavior.Fleeing)  # still an animal
+        assert player.auto_raid is not None
         self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.
         self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))

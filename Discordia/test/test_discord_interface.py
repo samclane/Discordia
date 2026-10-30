@@ -458,7 +458,7 @@ def test_a_failing_job_keeps_ticking():
 
 if __name__ == "__main__":
     test_slash_commands_registered()
-    test_every_command_but_register_and_settings_requires_a_character()
+    test_every_command_but_register_settings_and_help_requires_a_character()
     test_check_rejects_unregistered()
     test_check_rejects_unspawned()
     test_check_passes_for_spawned_character()
