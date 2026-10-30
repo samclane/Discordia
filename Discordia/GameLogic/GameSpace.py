@@ -1337,6 +1337,8 @@ class Store:
         self.price_ratio: float = (
             1.0  # Lower means better buy/sell prices, higher means worse
         )
+        # Bought from or sold to since generation. Only these are saved: an untouched store regenerates as it was.
+        self.traded: bool = False
 
     @classmethod
     def generate_store(cls):
@@ -1360,6 +1362,7 @@ class Store:
         if player_character.currency < price:
             return False
         self.inventory.remove(item)
+        self.traded = True
         player_character.currency -= price
         player_character.inventory.append(item)
         return True
@@ -1368,6 +1371,7 @@ class Store:
         self, item: Equipment, player_character: Actors.PlayerCharacter
     ) -> int:
         self.inventory.append(item)
+        self.traded = True
         price = int(item.base_value / self.price_ratio)
         player_character.currency += price
         player_character.inventory.remove(item)

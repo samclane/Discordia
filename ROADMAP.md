@@ -82,7 +82,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 ## Persistence
 
 - [x] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
-- [ ] Save store inventories and prices per town.
+- [x] Save store inventories and prices per town.
 - [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
   (`Items.Ammo.quantity`): both come back full after a restart today.
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
@@ -137,6 +137,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Store stock is saved: a store that's been bought from or sold to (`Store.traded`) gets a row
+  in the new `store` table, its shelf as a JSON list of class paths in order (players buy by #). Untouched stores
+  regenerate from the seed as they were, so they cost nothing. Prices weren't saved: a town's `price_ratio` never
+  changes from 1.0.
 
 - 2026-10-30 Save NPCs: a new `npc` table holds each roaming NPC's class (Raider, Animal), body, name, hit
   points, money and square, restored through `_resolve` like items. A wounded raider comes back wounded, an animal

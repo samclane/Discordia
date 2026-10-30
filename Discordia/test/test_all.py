@@ -238,6 +238,12 @@ class TestGeneral(unittest.TestCase):
         wounded.hit_points -= 3
         self.world.add_actor(wounded, self.world.wilds[0])
         self.world.add_actor(Actors.Animal.generate(1), self.world.wilds[1])
+        shopper, store = self.adapter.get_player(1), self.world.starting_town.store
+        shopper.currency = 10**6
+        self.assertTrue(store.sell_item(0, shopper))  # the shelf is one short
+        store.buy_item(shopper.inventory[-1], shopper)  # and it's back, at the end of the shelf
+        store.sell_item(0, shopper)
+        stock = [type(item) for item in store.inventory]
 
         path = Path(self.temp_dir.name) / "roundtrip.db"
         database = Database(path)
@@ -259,6 +265,7 @@ class TestGeneral(unittest.TestCase):
             [str(space.terrain) for space in self.adapter.iter_spaces()],
         )
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
+        self.assertEqual([type(item) for item in adapter.world.space_at(*self.world.starting_town).store.inventory], stock)
 
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)

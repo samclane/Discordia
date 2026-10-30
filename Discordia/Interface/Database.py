@@ -76,6 +76,13 @@ CREATE TABLE IF NOT EXISTS npc (
     y               INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS store (
+    x           INTEGER NOT NULL,  -- the town's square
+    y           INTEGER NOT NULL,
+    items       TEXT    NOT NULL,  -- JSON list of class paths, in shelf order (the # a player buys by)
+    PRIMARY KEY (x, y)
+);
+
 CREATE TABLE IF NOT EXISTS guild (
     guild_id    INTEGER PRIMARY KEY,  -- a Discord server
     settings    TEXT    NOT NULL  -- JSON dump of GuildSettings
@@ -174,6 +181,11 @@ class Database:
             )
             npc.hit_points, npc.currency = npc_row["hit_points"], npc_row["currency"]
             world.add_actor(npc, world.space_at(npc_row["x"], npc_row["y"]))
+        for store_row in self.connection.execute("SELECT * FROM store"):
+            town = world.space_at(store_row["x"], store_row["y"])
+            if isinstance(town, GameSpace.Town):  # always, unless the map generator changed under the save
+                town.store.inventory = [_resolve(path, Equipment)() for path in json.loads(store_row["items"])]
+                town.store.traded = True
         adapter.guild_settings = {
             row["guild_id"]: GuildSettings(**json.loads(row["settings"]))
             for row in self.connection.execute("SELECT * FROM guild")
@@ -253,6 +265,15 @@ class Database:
                     )
                     for npc in world.npcs
                     if not npc.is_dead  # a kill despawns it, but it stays listed until the next tick
+                ],
+            )
+            self.connection.execute("DELETE FROM store")
+            self.connection.executemany(
+                "INSERT INTO store VALUES (?, ?, ?)",
+                [
+                    (town.x, town.y, json.dumps([_class_path(item) for item in town.store.inventory]))
+                    for town in list(world.towns)
+                    if town.store.traded
                 ],
             )
             self.connection.execute("DELETE FROM guild")
