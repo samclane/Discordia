@@ -108,6 +108,7 @@ async function loadChunkData(key, cx, cy) {
     const data = await (await fetch(`/chunk/${cx}/${cy}.json`)).json();
     chunkData.set(key, data);
     for (const w of data.wilds) structures.set(`${w.x},${w.y}`, { kind: "Wilds", ...w });
+    for (const p of data.places) structures.set(`${p.x},${p.y}`, p); // extraction points and caches
     // Whoever asked was shown a placeholder; fill it in.
     renderInfo();
     if (hover) showHover(hover);
@@ -435,6 +436,8 @@ function clearSelection() {
   markSelectedTown();
 }
 
+const PLACES = { Extract: "a ride to the nearest town, raid over", Cache: "loot, restocked every few hours" };
+
 function describeActor(a) {
   if (a.kind === "remains") return `<b>${esc(a.name)}</b> <span class="dim">&mdash; dropped on death, free to take</span><br>${esc(a.contents)}`;
   const what = a.kind === "player" ? `Level ${a.level} ${esc(a.class)}` : "NPC";
@@ -467,7 +470,7 @@ function renderInfo() {
     lines.unshift(
       here.kind === "Town"
         ? `<b>${esc(here.name)}</b> <span class="dim">&mdash; town, pop. ${here.population}, ${esc(here.industry)}</span>`
-        : `<b>${esc(here.name)}</b> <span class="dim">&mdash; wilds</span>`
+        : `<b>${esc(here.name)}</b> <span class="dim">&mdash; ${PLACES[here.kind] ?? "wilds"}</span>`
     );
   }
   lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(terrainAt(x, y))}</span>`);

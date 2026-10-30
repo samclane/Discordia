@@ -117,7 +117,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   palette, recoloured with helmets and hard hats. Only the unused `null_actor.png` placeholder isn't.)
 - [x] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
 - [x] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
-- [ ] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
+- [x] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
   a player where the nearest one is. A bearing to it in `/look`, like `/choose talk`'s directions to a town.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
 - [x] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
@@ -148,6 +148,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Naming the way out: `/look` outside a town says the nearest way out, a town by name or an
+  extraction point, with squares and bearing. The web map's hover and click now name extraction points and caches
+  (a `places` list in chunk JSON) and say what they're for. `ART_VERSION` 6.
 
 - 2026-10-30 Piles on the map: `World.piles` remembers where raid deaths left things and `live_piles()` keeps
   the ones still there (not picked up, not rotted, not empty). `/look` lists a pile in view like anyone else

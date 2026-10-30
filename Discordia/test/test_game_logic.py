@@ -1640,6 +1640,19 @@ def test_a_towns_residents_are_the_same_every_visit_and_leave_the_game_rng_alone
     assert GameSpace.Town(5, 4, "Elsewhere").residents != first
 
 
+def test_look_points_out_of_the_wilds_to_the_nearest_town_or_extraction_point(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    town = world.starting_town
+    player.location = world.space_at(town.x + 6, town.y)
+    world.extracts = []
+    nearest = min(world.towns, key=player.location.distance)
+    assert f"Nearest way out: {nearest.name}, " in adapter.look_text(player)
+    world.extracts = [GameSpace.Extract(town.x + 8, town.y)]
+    assert "Nearest way out: an extraction point, 2 squares east." in adapter.look_text(player)
+    player.location = town
+    assert "Nearest way out" not in adapter.look_text(player)  # already out
+
+
 def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_raider):
     world, player = adapter.world, adapter.get_player(1)
     corner = _open_ground(world, 3)

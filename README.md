@@ -64,7 +64,7 @@ the bot syncs them.
 * `/help`
     * Every command and what it does, privately.
 * `/look`
-    * Where you are and how dangerous it is, who's in sight (raiders, animals, players: how many squares away and
+    * Where you are, how dangerous it is and the nearest way out (a town or an extraction point), who's in sight (raiders, animals, players: how many squares away and
       which way), and a picture of your surroundings, as far as your `FOV` can see.
 * `/weblogin`
     * Get a private, one-time link (10 minutes) that logs you in to the website. The map then follows your

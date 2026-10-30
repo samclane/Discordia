@@ -23,7 +23,7 @@ from PIL import Image
 
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
-from Discordia.Interface.Rendering.WebApp import ART_VERSION, _Handler
+from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json, _Handler
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter
@@ -89,6 +89,11 @@ def test_explored_chunks_are_pngs(base_url):
     terrain = json.loads(get(base_url + f"/chunk/{cx}/{cy}.json")[2])["terrain"]
     assert len(terrain) == 12 and len(terrain[0]) == GameSpace.CHUNK_SIZE  # clipped to the map
     assert {t for row in terrain for t in row} <= {"paving", "park", "canal", "rooftops"}  # what the art shows
+
+
+def test_hovering_names_extraction_points_and_caches():
+    places = json.loads(_chunk_json([[GameSpace.Extract(0, 0), GameSpace.Cache(1, 0), GameSpace.Space(2, 0)]]))["places"]
+    assert [(p["x"], p["kind"], p["name"]) for p in places] == [(0, "Extract", "an extraction point"), (1, "Cache", "a cache")]
 
 
 def test_zoomed_out_map_gets_a_small_overview(base_url):

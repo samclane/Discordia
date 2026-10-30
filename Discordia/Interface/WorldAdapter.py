@@ -293,6 +293,11 @@ class WorldAdapter:
             text += f" You're in the wilds, {here.name}, danger {here.level}."
         else:
             text += f" Out here is danger {self.world.depth_at(here)}."
+        if not isinstance(here, Town):  # where a raid ends: a town, or a ride to one (towns and extracts load as explored)
+            out = min(self.world.towns + self.world.extracts, key=here.distance)
+            squares = max(abs(out.x - here.x), abs(out.y - here.y))
+            where = out.name if isinstance(out, Town) else "an extraction point"
+            text += f" Nearest way out: {where}, {squares} square{'s' * (squares != 1)} {bearing(here, out)}."
         seen: List[Tuple[str, Space]] = []
         for actor in self.get_nearby_npcs(character) + self.get_nearby_players(character):
             if actor is not character:
