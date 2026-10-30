@@ -83,8 +83,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [x] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
 - [x] Save store inventories and prices per town.
-- [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
+- [x] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
   (`Items.Ammo.quantity`): both come back full after a restart today.
+- [ ] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
+  after a restart. Save `_item_state` per shelf item too if anyone farms it (ponytail note on `Items.Ammo`).
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
 
 ## Discord UX
@@ -137,6 +139,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Weapon state: each item row has a migrated JSON `state` column with what changes in play
+  (`Database.ITEM_STATE`: rounds loaded, the Sten's jam, the Garand's ping, a belt's ramp) and an ammo box's
+  `quantity`, which is restored by draining a fresh box through `Ammo.take` so its price drops with it. An empty
+  gun stays empty and a half box stays half through a restart, worn, carried, stashed or pouched.
 
 - 2026-10-30 Store stock is saved: a store that's been bought from or sold to (`Store.traded`) gets a row
   in the new `store` table, its shelf as a JSON list of class paths in order (players buy by #). Untouched stores

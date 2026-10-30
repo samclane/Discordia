@@ -221,9 +221,11 @@ class TestGeneral(unittest.TestCase):
         player.gain_experience(250)
         player.hit_points -= 7
         player.equip(Jezail())
+        player.weapon.fire()  # a single shot, now empty
         player.inventory.append(Armor.Helmet())
         player.stash.append(Jezail())
         player.stash.append(Weapons.MusketBalls())
+        player.stash[-1].take(3)
         player.stash_currency = 77
         player.pouch = Weapons.MusketBalls()
         player.hideout_level = 3
@@ -276,6 +278,12 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(restored.hit_points, player.hit_points)
         self.assertIsInstance(restored.player_class, Actors.RaiderClass)
         self.assertIsInstance(restored.weapon, Jezail)
+        self.assertTrue(restored.weapon.is_empty)  # not reloaded by the restart
+        self.assertEqual(
+            (restored.stash[1].quantity, restored.stash[1].base_value),
+            (player.stash[1].quantity, player.stash[1].base_value),
+        )
+        self.assertEqual(restored.stash[1].quantity, Weapons.MusketBalls().quantity - 3)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
         self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
         self.assertEqual(restored.stash_currency, 77)

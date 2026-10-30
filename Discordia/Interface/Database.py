@@ -20,7 +20,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.GameLogic.Items import Equipment, EquipmentSet
+from Discordia.GameLogic.Items import Ammo, Equipment, EquipmentSet
 from Discordia.GameLogic.Procedural import WorldGenerationParameters
 from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 
@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS item (
     id          INTEGER PRIMARY KEY,
     discord_id  INTEGER NOT NULL REFERENCES character (discord_id) ON DELETE CASCADE,
     class_path  TEXT    NOT NULL,
-    slot        TEXT  -- an EquipmentSet slot name, STASH, POUCH, or NULL for "in the backpack"
+    slot        TEXT,  -- an EquipmentSet slot name, STASH, POUCH, or NULL for "in the backpack"
+    state       TEXT  -- JSON of what changes in play (see _item_state), or NULL
 );
 
 CREATE TABLE IF NOT EXISTS npc (
@@ -105,6 +106,28 @@ STASH = "stash"  # item.slot for what's banked in town rather than carried
 POUCH = "pouch"  # item.slot for the one carried item a death leaves alone
 
 
+# What an item changes in play, as it's set on the instance: rounds loaded, a jam, a pinged clip, a belt's ramp.
+# The rest comes back from the item's stat block.
+ITEM_STATE = ("_current_capacity", "_jammed", "_pinged", "_consecutive_fires")
+
+
+def _item_state(item: Equipment) -> str | None:
+    state = {key: value for key, value in vars(item).items() if key in ITEM_STATE}
+    if isinstance(item, Ammo):
+        state["quantity"] = item.quantity
+    return json.dumps(state) if state else None
+
+
+def _restore_item(class_path: str, state: str | None) -> Equipment:
+    item = _resolve(class_path, Equipment)()
+    for key, value in json.loads(state or "{}").items():
+        if key == "quantity":  # drained through take(), which prices a part-used box down too
+            item.take(max(0, item.quantity - value))  # type: ignore[attr-defined]
+        elif key in ITEM_STATE:
+            setattr(item, key, value)
+    return item
+
+
 def _class_path(obj) -> str:
     return f"{type(obj).__module__}.{type(obj).__name__}"
 
@@ -144,6 +167,7 @@ class Database:
             ("character", "raid_home_at", "INTEGER"),
             ("character", "raid_depth", "INTEGER"),
             ("character", "camping", "INTEGER NOT NULL DEFAULT 0"),
+            ("item", "state", "TEXT"),
             ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
             ("world", "saved_at", "REAL"),
         ]
@@ -220,7 +244,7 @@ class Database:
         for item_row in self.connection.execute(
             "SELECT * FROM item WHERE discord_id = ?", (discord_id,)
         ):
-            item = _resolve(item_row["class_path"], Equipment)()
+            item = _restore_item(item_row["class_path"], item_row["state"])
             if item_row["slot"] is None:
                 character.inventory.append(item)
             elif item_row["slot"] == STASH:
@@ -308,15 +332,18 @@ class Database:
         )
 
         equipped = [
-            (_class_path(item), slot)
+            (item, slot)
             for slot in EquipmentSet.SLOTS
             for item in [getattr(character.equipment_set, slot)]
             if type(item) not in EquipmentSet.SLOTS.values()
         ]  # the bare base classes are empty slots
         self.connection.executemany(
-            "INSERT INTO item (discord_id, class_path, slot) VALUES (?, ?, ?)",
-            [(discord_id, class_path, slot) for class_path, slot in equipped]
-            + [(discord_id, _class_path(item), None) for item in character.inventory]
-            + [(discord_id, _class_path(item), STASH) for item in character.stash]
-            + ([(discord_id, _class_path(character.pouch), POUCH)] if character.pouch is not None else []),
+            "INSERT INTO item (discord_id, class_path, slot, state) VALUES (?, ?, ?, ?)",
+            [
+                (discord_id, _class_path(item), slot, _item_state(item))
+                for item, slot in equipped
+                + [(item, None) for item in character.inventory]
+                + [(item, STASH) for item in character.stash]
+                + ([(character.pouch, POUCH)] if character.pouch is not None else [])
+            ],
         )
