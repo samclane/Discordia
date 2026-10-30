@@ -97,7 +97,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   characters, under Discord's 2000. An embed would be cosmetic.)
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [x] `/help` command generated from the Cog's command descriptions.
-- [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
+- [x] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
+- [ ] Refusals from deferred commands (`/move`, `/attack`, `/choose`, `/look`) still show to the whole channel:
+  Discord gives the first followup after a public defer the defer's visibility, whatever `ephemeral` says.
+  Try `interaction.delete_original_response()` then an ephemeral followup in `cog_app_command_error`, checked
+  against real Discord (the simulator's fake honours `ephemeral` on that followup, so it can't tell).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
 - [x] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
   DMs "X hits you for 2 damage." every tick (5s) until one of you leaves or dies, a phone notification each time.
@@ -141,6 +145,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Ephemeral errors: the refusals that still went to the whole channel are now private: a
+  purchase you can't afford (it said "Not enough money." even for a bad index), a store-less town in list, buy
+  and sell, and a `/town recruit` that doesn't take. Successes and plain information stay public. Deferred
+  commands are the exception, noted as a follow-up.
 
 - 2026-10-30 `/help`: every slash command with its description, `/register` first, read from the command
   tree so a new command lists itself. One ephemeral embed: the list alone is near the 2000-character message

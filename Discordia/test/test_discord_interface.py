@@ -648,6 +648,22 @@ def test_help_lists_every_command_privately_starting_with_register():
     assert {line.split("`")[1][1:] for line in lines} >= EXPECTED
 
 
+def test_a_refused_purchase_is_only_shown_to_the_buyer():
+    character = Actors.PlayerCharacter(parent_world=None, name="Broke")
+    character.location = GameSpace.Town(0, 0, "Hub", store=_little_store())
+    character.currency = 0
+    interface = loaded_cog(StubAdapter(character))
+    sent = []
+
+    async def send_message(content, **kwargs):
+        sent.append((content, kwargs.get("ephemeral", False)))
+
+    response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
+    interaction = SimpleNamespace(command="town store buy", user=SimpleNamespace(id=1), response=response)
+    asyncio.run(command_named(interface, "town store buy").callback(interface, interaction, 0))  # type: ignore[arg-type]
+    assert sent == [("You can't afford that, or there's nothing at that index.", True)]
+
+
 def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():
     character = Actors.PlayerCharacter(parent_world=None, name="Gunner")
     character.inventory.append(Weapons.Ammo9mm())

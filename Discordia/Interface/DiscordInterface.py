@@ -781,7 +781,7 @@ class DiscordInterface(commands.Cog):
         """Change your player class to the one offered by the town."""
         character = self._player(interaction)
         resp: PlayerActionResponse = _town_of(character).recruit(character)
-        await _send(interaction, resp.text)
+        await _send(interaction, resp.text, ephemeral=resp.failed)
 
     @store.command(name="list")
     @requires_character()
@@ -793,7 +793,7 @@ class DiscordInterface(commands.Cog):
         character = self._player(interaction)
         store = _town_of(character).store
         if store is None:
-            await _send(interaction, NO_STORE)
+            await _send(interaction, NO_STORE, ephemeral=True)
         elif not store.inventory:
             await _send(
                 interaction,
@@ -810,11 +810,11 @@ class DiscordInterface(commands.Cog):
         character = self._player(interaction)
         store = _town_of(character).store
         if store is None:
-            await _send(interaction, NO_STORE)
+            await _send(interaction, NO_STORE, ephemeral=True)
         elif store.sell_item(index, character):
             await _send(interaction, "Item successfully bought.")
         else:
-            await _send(interaction, "Not enough money.")
+            await _send(interaction, "You can't afford that, or there's nothing at that index.", ephemeral=True)
 
     @buy.autocomplete("index")
     async def _buy_choices(self, interaction: discord.Interaction, current: str):
@@ -833,7 +833,7 @@ class DiscordInterface(commands.Cog):
         character = self._player(interaction)
         store = _town_of(character).store
         if store is None:
-            await _send(interaction, NO_STORE)
+            await _send(interaction, NO_STORE, ephemeral=True)
             return
         try:
             item: Equipment = character.inventory[index]
