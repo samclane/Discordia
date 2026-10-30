@@ -1003,16 +1003,9 @@ class World:
         return False
 
     def is_space_buildable(self, space: Space) -> bool:
-        # FIXME Ugly function
-        if space.terrain.buildable:
-            if (
-                not self.is_space_valid(space)
-                or space in self.towns
-                or space in self.wilds
-            ):
-                return False
-            return True
-        return False
+        """Open ground a town could go on: not already a town, wilds, cache or extraction point, and dry land.
+        Every generated square is on the map, and buildable terrain is walkable."""
+        return type(space) is Space and space.terrain.buildable
 
     def get_adjacent_spaces(self, space: Space, sq_range: int = 1) -> List[Space]:
         fov = list(range(-sq_range, sq_range + 1))

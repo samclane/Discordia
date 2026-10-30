@@ -143,7 +143,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   operations on spaces (`World.get_players_in_region`) are quietly relying on identity today.
 
 - [x] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
-- [ ] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
+- [x] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
 - [ ] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
   reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decide whether stores (or
   caches, as the only chest armor) should carry it.
@@ -151,6 +151,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 The `FIXME Ugly function` was `World.is_space_buildable`, used only to plant a town when a map
+  rolls none. It's now one line, `type(space) is Space and space.terrain.buildable`: no more list scans of every
+  town and wilds per square, and it no longer lets that fallback town pave over a cache or extraction point.
 
 - 2026-10-30 `FullyImplemented` is gone: stores stock `Data.stocked()`, every gear class with a stat block in
   `data/`, minus blocks saying `"store": false` (fists, salvage, and the 6B45 that was never stocked). Same

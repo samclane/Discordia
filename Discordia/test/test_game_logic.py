@@ -454,6 +454,16 @@ def test_a_world_too_small_to_roll_a_town_still_gets_one():
     assert world.starting_town in world.towns
 
 
+def test_a_planted_town_only_goes_on_open_dry_ground():
+    world = GameSpace.World("Pebble", 8, 8, seed=7)
+    grass = GameSpace.GrassTerrain()
+    assert world.is_space_buildable(GameSpace.Space(1, 1, grass))
+    taken = [GameSpace.Town(1, 1, "T", terrain=grass), GameSpace.Wilds(1, 1, "W", grass),
+             GameSpace.Cache(1, 1, grass), GameSpace.Extract(1, 1, grass)]
+    assert not any(map(world.is_space_buildable, taken))  # a fallback town never paves over a cache or exit
+    assert not world.is_space_buildable(GameSpace.Space(1, 1, WaterTerrain()))
+
+
 def _describe(world, cx, cy):
     rows = world.loaded_chunk(cx, cy)
     return [
