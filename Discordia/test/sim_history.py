@@ -31,7 +31,8 @@ def _git(*args: str) -> str:
 
 def record(kind: str, params: Dict, metrics: Dict[str, float], path: Path = HISTORY) -> Dict:
     """Append one run. `kind` is "game" or "server"; `params` are the settings that make runs comparable."""
-    dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))  # numbers from uncommitted code
+    # Numbers from uncommitted code. The history itself doesn't count: the first of several runs dirties it.
+    dirty = bool(_git("status", "--porcelain", "--untracked-files=no", "--", ".", f":!{path.resolve().relative_to(REPO).as_posix()}"))
     row = {
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "commit": (_git("rev-parse", "--short", "HEAD") or "unknown") + ("+dirty" if dirty else ""),
