@@ -68,6 +68,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
 - [x] More classes: each trade town trains one, with one perk (`PlayerClass.perk`).
 - [x] More tile types: ruins (cover) and plazas (exposed), carved out of paving.
+- [ ] Ruins and plazas made raids deadlier in simulation (374c68f): deaths 16 -> 17 (seed 0) and 18 -> 25 (seed 1),
+  mean worth 592 -> 468 and 864 -> 768. Simulator bots don't know to cut through ruins or skirt plazas, so they only
+  meet the downside; real players can. Teach the bots that first, then see if plazas need to be 1.5x, not 2x.
 - [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
