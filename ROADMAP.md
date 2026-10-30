@@ -81,7 +81,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 ## Persistence
 
-- [ ] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
+- [x] Save NPCs (position, hp, type) so a restart does not wipe the world's population.
 - [ ] Save store inventories and prices per town.
 - [ ] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
   (`Items.Ammo.quantity`): both come back full after a restart today.
@@ -137,6 +137,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Save NPCs: a new `npc` table holds each roaming NPC's class (Raider, Animal), body, name, hit
+  points, money and square, restored through `_resolve` like items. A wounded raider comes back wounded, an animal
+  still flees. Event NPCs aren't saved: wilds events restock on a square's next visit anyway.
 
 - 2026-10-29 Wilds cooldown: after any real event a wilds square goes quiet for `WILDS_QUIET_TICKS` (an hour
   at a 5-second tick), then restocks with fresh events. It also fixes a farm: `CombatEvent` re-ran `loot` on

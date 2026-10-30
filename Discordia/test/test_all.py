@@ -9,7 +9,7 @@ from typing import Iterator, List
 
 from PIL import Image
 
-from Discordia.GameLogic import GameSpace, Actors, Weapons, Armor
+from Discordia.GameLogic import Behavior, GameSpace, Actors, Weapons, Armor
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
@@ -233,6 +233,11 @@ class TestGeneral(unittest.TestCase):
         for _ in self._move_randomly():
             pass
         player.camping = True  # after the moves, which break camp
+        self.world.npcs = []
+        wounded = Actors.Raider.generate(2)
+        wounded.hit_points -= 3
+        self.world.add_actor(wounded, self.world.wilds[0])
+        self.world.add_actor(Actors.Animal.generate(1), self.world.wilds[1])
 
         path = Path(self.temp_dir.name) / "roundtrip.db"
         database = Database(path)
@@ -270,6 +275,11 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
         self.assertEqual(restored.hideout_level, 3)
         self.assertTrue(restored.camping)
+        self.assertEqual(
+            [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in adapter.world.npcs],
+            [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in self.world.npcs],
+        )
+        self.assertIsInstance(adapter.world.npcs[1].brain.current_state, Behavior.Fleeing)  # still an animal
         self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.
         self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))

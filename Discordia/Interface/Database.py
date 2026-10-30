@@ -5,7 +5,8 @@ The map is *not* stored: a World is fully reproducible from its seed, so the wor
 generation parameters and `load()` re-generates an identical map. Only the state that can't be re-derived --
 characters, where they're standing, what they're carrying, each Discord server's settings -- gets rows.
 
-NPCs are deliberately not persisted; they're spawned by Events and despawn on death.
+The NPCs roaming the map are saved (who, where, how hurt); the ones inside wilds events aren't, since the events
+themselves restock on a square's next visit.
 """
 
 from __future__ import annotations
@@ -61,6 +62,18 @@ CREATE TABLE IF NOT EXISTS item (
     discord_id  INTEGER NOT NULL REFERENCES character (discord_id) ON DELETE CASCADE,
     class_path  TEXT    NOT NULL,
     slot        TEXT  -- an EquipmentSet slot name, STASH, POUCH, or NULL for "in the backpack"
+);
+
+CREATE TABLE IF NOT EXISTS npc (
+    id              INTEGER PRIMARY KEY,
+    class_path      TEXT    NOT NULL,  -- Raider, Animal...
+    body_path       TEXT    NOT NULL,  -- its BodyType
+    name            TEXT    NOT NULL,
+    hit_points      REAL    NOT NULL,
+    hit_points_max  INTEGER NOT NULL,
+    currency        INTEGER NOT NULL,
+    x               INTEGER NOT NULL,
+    y               INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS guild (
@@ -155,6 +168,12 @@ class Database:
         adapter = WorldAdapter(world)
         for character_row in self.connection.execute("SELECT * FROM character"):
             self._load_character(adapter, character_row)
+        for npc_row in self.connection.execute("SELECT * FROM npc"):
+            npc = _resolve(npc_row["class_path"], Actors.NPC)(
+                None, npc_row["hit_points_max"], npc_row["name"], _resolve(npc_row["body_path"], Actors.BodyType)()
+            )
+            npc.hit_points, npc.currency = npc_row["hit_points"], npc_row["currency"]
+            world.add_actor(npc, world.space_at(npc_row["x"], npc_row["y"]))
         adapter.guild_settings = {
             row["guild_id"]: GuildSettings(**json.loads(row["settings"]))
             for row in self.connection.execute("SELECT * FROM guild")
@@ -223,6 +242,19 @@ class Database:
             self.connection.execute("DELETE FROM character")  # cascades to item
             for discord_id, character in adapter.iter_registered():
                 self._save_character(discord_id, character)
+            self.connection.execute("DELETE FROM npc")
+            self.connection.executemany(
+                "INSERT INTO npc (class_path, body_path, name, hit_points, hit_points_max, currency, x, y)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        _class_path(npc), _class_path(npc.body_type), npc.name, npc.hit_points, npc.hit_points_max,
+                        npc.currency, npc.location.x, npc.location.y,
+                    )
+                    for npc in world.npcs
+                    if not npc.is_dead  # a kill despawns it, but it stays listed until the next tick
+                ],
+            )
             self.connection.execute("DELETE FROM guild")
             self.connection.executemany(
                 "INSERT INTO guild VALUES (?, ?)",
