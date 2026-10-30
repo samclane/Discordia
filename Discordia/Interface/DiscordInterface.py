@@ -518,25 +518,7 @@ class DiscordInterface(commands.Cog):
         """Describes your character's surroundings"""
         await _defer(interaction)
         character = self._player(interaction)
-        msg = f"Your coordinates are {character.location}. The terrain is {character.location.terrain.name}-y. "
-        if self.world_adapter.is_town(character.location):
-            msg += f"You are also in a town, {character.location.name}. "
-        if self.world_adapter.is_wilds(character.location):
-            msg += f"You are also in the wilds, {character.location.name}. "
-        nearby_npcs = self.world_adapter.get_nearby_npcs(character)
-        if nearby_npcs:
-            msg += "There are some NPCs nearby: \n" + ", ".join(
-                [str(npc) for npc in nearby_npcs]
-            )
-        nearby_players = self.world_adapter.get_nearby_players(character)
-        if len(nearby_players) > 1:
-            msg += "\nThere are also some Players nearby: \n" + ", ".join(
-                [
-                    player.name
-                    for player in nearby_players
-                    if player.name != character.name
-                ]
-            )
+        msg = self.world_adapter.look_text(character)
         screenshot_path = self.world_adapter.get_player_screenshot(character)
         files = [discord.File(screenshot_path)] if screenshot_path else []
         await _send(interaction, msg, files=files)

@@ -1619,6 +1619,23 @@ def test_a_towns_residents_are_the_same_every_visit_and_leave_the_game_rng_alone
     assert GameSpace.Town(5, 4, "Elsewhere").residents != first
 
 
+def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_raider):
+    world, player = adapter.world, adapter.get_player(1)
+    corner = _open_ground(world, 3)
+    player.location = corner
+    assert adapter.look_text(player).endswith("Nobody else in sight.")
+    world.npcs = []
+    raider, animal = Actors.Raider(world, 50, "Vex"), Actors.Animal(world, 10, "a rat")
+    world.add_actor(raider, world.space_at(corner.x + 2, corner.y))
+    world.add_actor(animal, corner)
+    adapter.register_player(2, "Pal")
+    adapter.get_player(2).location = world.space_at(corner.x + 1, corner.y)
+    text = adapter.look_text(player)
+    danger = corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
+    assert f"danger {danger}." in text.splitlines()[0]
+    assert text.endswith("In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east.")
+
+
 def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
     world, player = adapter.world, adapter.get_player(1)
     corner = _open_ground(world, GameSpace.NPC_SIGHT + 1)

@@ -62,7 +62,8 @@ the bot syncs them.
 * `/register` [`name`]
     * Create a new player character and spawn into the game world.
 * `/look`
-    * Get your grid location, and a picture of your surroundings, as far as your `FOV` can see.
+    * Where you are and how dangerous it is, who's in sight (raiders, animals, players: how many squares away and
+      which way), and a picture of your surroundings, as far as your `FOV` can see.
 * `/weblogin`
     * Get a private, one-time link (10 minutes) that logs you in to the website. The map then follows your
       character, with a pad to move, attack and answer encounters from the browser (keys 1-9 like a numpad, T to

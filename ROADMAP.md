@@ -91,7 +91,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 ## Discord UX
 
-- [ ] `/look` should list visible NPCs and players by direction, not only render the image. `Wilds.level` now exists, so it can also say how rough the place you are standing in is.
+- [x] `/look` should list visible NPCs and players by direction, not only render the image. `Wilds.level` now exists, so it can also say how rough the place you are standing in is.
 - [ ] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order.
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [ ] `/help` command generated from the Cog's command descriptions.
@@ -139,6 +139,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 `/look` lists who's in sight, nearest first: name (raider/player tagged), squares away and
+  compass bearing ("Vex (raider), 2 squares east"), and says how rough the square is: wilds by their level,
+  open ground by `World.depth_at`, a town as safe. Worded once in `WorldAdapter.look_text`.
 
 - 2026-10-30 Weapon state: each item row has a migrated JSON `state` column with what changes in play
   (`Database.ITEM_STATE`: rounds loaded, the Sten's jam, the Garand's ping, a belt's ramp) and an ammo box's

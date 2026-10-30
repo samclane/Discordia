@@ -16,6 +16,7 @@ from Discordia.GameLogic.GameSpace import (
     Wilds,
     Direction,
     PlayerActionResponse,
+    bearing,
 )
 from Discordia.Interface.WebLogins import WebLogins
 
@@ -279,6 +280,34 @@ class WorldAdapter:
             self.world.get_adjacent_spaces(location, fov)
         )
         return npcs
+
+    def look_text(self, character: Actors.PlayerCharacter) -> str:
+        """Where `character` stands, how rough it is, and who's in view, nearest first with a bearing to each."""
+        here = character.location
+        text = f"You're at {here}, on {here.terrain.name}."
+        if isinstance(here, Town):
+            text += f" You're in {here.name}: safe ground."
+        elif isinstance(here, Wilds):
+            text += f" You're in the wilds, {here.name}, danger {here.level}."
+        else:
+            text += f" Out here is danger {self.world.depth_at(here)}."
+        others = [a for a in self.get_nearby_npcs(character) + self.get_nearby_players(character) if a is not character]
+        if not others:
+            return text + " Nobody else in sight."
+
+        def sighting(actor: Actors.Actor) -> str:
+            label = actor.name
+            if isinstance(actor, Actors.Raider):
+                label += " (raider)"
+            elif isinstance(actor, Actors.PlayerCharacter):
+                label += " (player)"
+            squares = max(abs(actor.location.x - here.x), abs(actor.location.y - here.y))
+            if not squares:
+                return f"{label}, right here"
+            return f"{label}, {squares} square{'s' * (squares != 1)} {bearing(here, actor.location)}"
+
+        others.sort(key=lambda a: here.distance(a.location))
+        return text + "\nIn sight: " + "; ".join(map(sighting, others)) + "."
 
     def get_nearby_players(
         self, character: Actors.PlayerCharacter
