@@ -14,6 +14,26 @@ always go up at home; the wilds are where you gamble them.
 When choosing between items, prefer the one that tightens that loop: risk out there, safety and growth at home,
 and a reason to check in on Discord a few times a day rather than grind for hours.
 
+## Theme: the Soviet-Afghan War
+
+The setting is the Soviet-Afghan War (1979-1989): dry mountains, mud-walled villages, passes that change hands
+by the hour, and a war nobody is winning. It is the skin over the loop above, not a history lesson. Places and
+people are invented; the period, kit and landscape are real.
+
+- Towns are what holds: walled villages (kishlaks), bazaars, and the two military bases. Eastern is a Soviet
+  garrison, Western a mujahideen camp supplied from over the border. Both sides are people trying to get home.
+- The wilds are mountains, dry riverbeds (wadis), poppy fields and roads where convoys get ambushed. Danger rises
+  with altitude and distance from a garrison.
+- Raiders are bandits and deserters from either side, not a faction anyone can join on purpose.
+- Caches are weapon dumps, wrecked convoys and caravans; extraction points are helicopter landing zones and
+  friendly checkpoints.
+- Kit is period: AK-47/AKM/AK-74, Lee-Enfield, Makarov, RPG-7, DShK, afghanka uniforms, flak vests. Money is
+  afghanis; barter goods are tea, tinned meat, cigarettes, batteries, medicine.
+- Tone is Tarkov's: grim and practical, no heroes. Don't make civilians targets or jokes, and don't take a side.
+
+When naming or flavoring something new (an item, a tile, an NPC, an event line), fit it to this setting. Rename
+existing things to it when an item touches them anyway, not as a sweep.
+
 ## Extraction idle loop (the core)
 
 - [x] Stash: a per-player store of items and money kept in town (`/stash put|take|list`, only while standing in a
