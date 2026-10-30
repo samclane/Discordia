@@ -67,6 +67,8 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   2026-10-30: extracting with a haul pays 10 XP per danger level of the deepest square reached on that raid
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
 - [x] More classes: each trade town trains one, with one perk (`PlayerClass.perk`).
+- [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
+  Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [ ] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
