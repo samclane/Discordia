@@ -41,9 +41,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
 - [x] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
-- [ ] Prestige / wipe: reset hideout and stash for a permanent income multiplier (Cookie Clicker ascension,
-  Tarkov wipe). Only once hideout income visibly plateaus. (blocked: needs live numbers showing the plateau, and
-  a call on the multiplier and on what a wipe resets: level, gear, the pouch?)
+- [ ] Prestige / wipe: `/hideout prestige` (in town, hideout level 15+) resets the hideout to 0 and empties the
+  stash (money and items) for a permanent +10% hideout income per prestige. Character level, worn gear, the
+  backpack and the pouch are kept. Saved as a migrated `character.prestige` count. (Decided 2026-10-30: by level
+  15 a new level takes ~3 days of income to pay for itself, where the curve flattens.)
 
 ## Gameplay loop (make it a game)
 
@@ -62,11 +63,14 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [x] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
 - [ ] XP is slow now that a cleared wilds square can't be re-looted: over 3000 simulated ticks (seed 0) bots end
-  at level 1-5, where the same run gave 4-7 before. Re-looting dead enemies had been most of the XP. Watch real
-  players; if levels stall, raise kill XP (`PlayerCharacter.loot`) rather than bring the farm back.
-- [ ] Faction consequences: Soldier (East/West) vs Raider should change NPC hostility and store prices somewhere.
-  (blocked: no town recruits `RaiderClass`, so nobody can be one, and every military base hands out the same
-  `Soldier` with no East/West side, saved by class path alone. Decide how each faction is joined first.)
+  at level 1-5, where the same run gave 4-7 before. Re-looting dead enemies had been most of the XP. Decided
+  2026-10-30: extracting with a haul pays 10 XP per danger level of the deepest square reached on that raid
+  (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
+- [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
+  - [ ] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
+    military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
+  - [ ] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
+  - [ ] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
 
 ## NPCs and world
 
@@ -103,6 +107,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   Try `interaction.delete_original_response()` then an ephemeral followup in `cog_app_command_error`, checked
   against real Discord (the simulator's fake honours `ephemeral` on that followup, so it can't tell).
   (blocked: needs a live Discord server to check what that followup does; the loop has none)
+- [ ] Decided 2026-10-30, the part that needs no live test: refuse what can be known before the tick (moving into
+  water or off the map, `/choose` with no stranger waiting, `/trade` with no trader) privately, before deferring.
+  Only refusals that depend on the tick itself stay public.
 - [x] Channel announcements for deaths and town arrivals instead of only DMs.
 - [x] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
   DMs "X hits you for 2 damage." every tick (5s) until one of you leaves or dies, a phone notification each time.
@@ -145,8 +152,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
 - [x] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
 - [ ] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
-  reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decide whether stores (or
-  caches, as the only chest armor) should carry it. (blocked: a design call on what the game sells)
+  reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decided 2026-10-30: make it
+  cache-only loot, so deep raids are where chest armor comes from. Caches pick from store stock today
+  (`Cache.run_event`), so give them a small extra pool of `"store": false` gear, salvage aside.
 - [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
