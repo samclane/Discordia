@@ -11,7 +11,8 @@ The test is a short run. For a longer one to dig through:
 
 which prints a summary of every rule broken, writes every message the bot sent as JSON lines (a "meta" line first,
 naming members and channels), and draws a dashboard of the run (server_template.html is the template). To draw one
-from a JSON lines file you already have: --from server.jsonl --html server.html.
+from a JSON lines file you already have: --from server.jsonl --html server.html. A run also appends its headline
+numbers to sim_history.jsonl (skip with --no-record); `python -m Discordia.test.sim_history` draws them over time.
 """
 
 import argparse
@@ -20,6 +21,7 @@ import json
 import logging
 import random
 import tempfile
+import time
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -34,6 +36,7 @@ from Discordia.GameLogic import Events, GameSpace
 from Discordia.Interface import Alerts
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, GuildSettings, WorldAdapter
+from Discordia.test import sim_history
 
 TICK_SECONDS = 5.0  # simulated seconds a tick, as main.py runs it
 LIMIT = 2000  # characters Discord takes in one message
@@ -428,6 +431,19 @@ def summary(discord_: Discord) -> str:
     return "\n".join(lines)
 
 
+def metrics(discord_: Discord) -> Dict[str, float]:
+    """The run's headline numbers, for sim_history: how much the bot said, where, and which rules it broke."""
+    where = Counter(s.where for s in discord_.sent)
+    return {
+        "messages sent": len(discord_.sent),
+        "command answers (reply + followup)": where["reply"] + where["followup"],
+        "DMs": where["dm"],
+        "channel posts (welcome, digest)": where["channel"],
+        "problems": len(discord_.problems),
+        "rules broken": len({p.rule for p in discord_.problems}),
+    }
+
+
 def test_the_bot_keeps_to_server_rules(tmp_path):
     discord_ = simulate(ticks=60)
     out = tmp_path / "server.jsonl"
@@ -455,13 +471,18 @@ if __name__ == "__main__":
     parser.add_argument("--out", help="write the meta line, every message sent, then every problem, as JSON lines")
     parser.add_argument("--html", help="draw a dashboard of the run here")
     parser.add_argument("--from", dest="source", help="skip the run: draw --html from this JSON lines file")
+    parser.add_argument("--no-record", action="store_true", help="leave sim_history.jsonl alone")
     args = parser.parse_args()
     if args.source:
         source = Path(args.source)
         report(*load(source), Path(args.html) if args.html else source.with_suffix(".html"))
         raise SystemExit
     logging.getLogger("Discordia").setLevel(logging.ERROR)  # every refused command logs a warning otherwise
+    began = time.perf_counter()
     result = simulate(args.ticks, args.seed, args.size)
+    if not args.no_record:
+        params = {"ticks": args.ticks, "seed": args.seed, "size": args.size}
+        sim_history.record("server", params, {**metrics(result), "run time (s)": round(time.perf_counter() - began, 1)})
     out = Path(args.out) if args.out else None
     if out:
         write(result, args.seed, out)

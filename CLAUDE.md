@@ -60,6 +60,10 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   for spam, posts outside allowed channels, leaked links, mass pings and unanswered interactions. New rule: add it
   in `Discord.post` or `_check_rates`. `python -m Discordia.test.test_server_simulation --ticks 500 --out s.jsonl --html s.html`
   (`--from s.jsonl --html s.html` redraws an old run; `server_template.html` is the dashboard template).
+- Both simulators' command lines append the run's headline numbers to `Discordia/test/sim_history.jsonl` (commit,
+  time, settings, metrics; `--no-record` skips it, pytest never records). `python -m Discordia.test.sim_history
+  --html history.html` charts every metric across runs, one line per settings combination, to catch drift.
+  Commit new history lines with the change that moved them. A new metric goes in the simulator's `metrics()`.
 - `# ponytail:` comments mark deliberate shortcuts and their upgrade path. Read them before "fixing" one.
 - Black formatting. Small diffs, no speculative abstractions.
 

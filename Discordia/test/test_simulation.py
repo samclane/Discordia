@@ -9,7 +9,8 @@ The test is a short smoke run. For a long one to dig through:
 
 which prints a summary, writes one JSON line per bot per tick (load it with pandas.read_json(lines=True)), and
 draws the run as a standalone page: trails and deaths on the explored map, and level, money, range and deaths
-over time (sim_template.html is the template).
+over time (sim_template.html is the template). It also appends the run's headline numbers to sim_history.jsonl
+(skip with --no-record); `python -m Discordia.test.sim_history` draws those across runs, to spot drift.
 """
 
 import argparse
@@ -21,6 +22,7 @@ import math
 import random
 import time
 from collections import Counter
+from statistics import mean
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -30,6 +32,7 @@ from Discordia.GameLogic import Actors, Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import DIRECTION_VECTORS, Town
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
 from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
+from Discordia.test import sim_history
 
 DIRECTIONS = [d for k, d in DIRECTION_VECTORS.items() if k]
 SLOW_ORDER = 1.0  # seconds; an order this slow is worth a look (CombatEvent can spin)
@@ -359,6 +362,37 @@ def summary(rows: List[dict]) -> str:
     return "\n".join(lines)
 
 
+def metrics(rows: List[dict]) -> Dict[str, float]:
+    """The run's headline numbers, for sim_history: where the bots ended up, and what went wrong on the way."""
+    last = list({r["name"]: r for r in rows}.values())
+    furthest = [max(x["town_distance"] for x in rows if x["name"] == r["name"]) for r in last]
+    return {
+        "mean level": round(mean(r["level"] for r in last), 2),
+        "top level": max(r["level"] for r in last),
+        "deaths": sum(r["deaths"] for r in last),
+        "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
+        "mean furthest from town (squares)": round(mean(furthest), 1),
+        "max danger reached": max(r["danger"] for r in rows),
+        "errors": sum(1 for r in rows if r["error"]),
+        "anomalies": sum(len(r["anomalies"]) for r in rows),
+        "npcs at the end": rows[-1]["npcs"],
+        "chunks explored": rows[-1]["chunks"],
+        "slowest order (s)": round(max(r["order_seconds"] for r in rows), 3),
+    }
+
+
+def test_a_run_is_recorded_and_drawn(tmp_path):
+    history = tmp_path / "history.jsonl"
+    rows = simulate(ticks=20, bots=2)
+    sim_history.record("game", {"ticks": 20}, metrics(rows), history)
+    sim_history.record("server", {"ticks": 20}, {"messages sent": 3}, history)
+    runs = sim_history.load(history)
+    assert [r["kind"] for r in runs] == ["game", "server"] and "mean level" in runs[0]["metrics"]
+    assert runs[0]["at"] and runs[0]["commit"]
+    sim_history.report(runs, tmp_path / "history.html")
+    assert '"messages sent":3' in (tmp_path / "history.html").read_text(encoding="utf-8")
+
+
 def test_simulated_players_break_no_rules(tmp_path):
     rows = simulate(ticks=300, bots=4, html=tmp_path / "sim.html")
     assert '"name":"bot0"' in (tmp_path / "sim.html").read_text(encoding="utf-8")
@@ -382,8 +416,13 @@ if __name__ == "__main__":
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--out", help="write every row here as JSON lines")
     parser.add_argument("--html", help="draw the run as a standalone page here")
+    parser.add_argument("--no-record", action="store_true", help="leave sim_history.jsonl alone")
     args = parser.parse_args()
+    began = time.perf_counter()
     rows = simulate(args.ticks, args.bots, args.seed, args.size, args.html)
+    if not args.no_record:
+        params = {"ticks": args.ticks, "bots": args.bots, "seed": args.seed, "size": args.size}
+        sim_history.record("game", params, {**metrics(rows), "run time (s)": round(time.perf_counter() - began, 1)})
     if args.out:
         with open(args.out, "w") as f:
             f.writelines(json.dumps(r, default=str) + "\n" for r in rows)

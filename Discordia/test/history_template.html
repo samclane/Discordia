@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation History</title>
+<!-- Filled in by sim_history.report(): every recorded run replaces the null below. No build step. -->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 2px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.sub { color: var(--ink-2); margin: 0 0 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.filters { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.filters button { font: inherit; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 12px; cursor: pointer; }
+.filters button[aria-pressed=true] { color: var(--ink); border-color: var(--ink-2); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-2); font-size: 13px; margin: 0 0 16px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; margin-bottom: 16px; }
+.charts .card { margin: 0; position: relative; }
+svg { display: block; width: 100%; height: auto; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.grid line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.series { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.dot { stroke: var(--surface); stroke-width: 2; }
+.cross { stroke: var(--muted); stroke-width: 1; visibility: hidden; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); visibility: hidden; min-width: 160px; max-width: 320px; z-index: 2; }
+.tip .head { color: var(--ink-2); margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 8px; }
+.tip .row b { font-variant-numeric: tabular-nums; }
+.tip .row span:last-child { color: var(--ink-2); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+td.num, th.num { text-align: right; }
+.scroll { overflow-x: auto; }
+.empty { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Simulation history</h1>
+  <p class="sub" id="sub"></p>
+  <div class="filters" id="filters" role="group" aria-label="Which simulator"></div>
+  <div class="legend" id="legend"></div>
+  <div class="charts" id="charts"></div>
+  <div class="card">
+    <h2>Every run, newest first</h2>
+    <div class="scroll" id="table"></div>
+  </div>
+</main>
+<script>
+const RUNS = /*DATA*/null;
+const NS = "http://www.w3.org/2000/svg";
+const KINDS = { game: "Game simulator", server: "Server simulator" };
+const color = (i) => (i < 8 ? `var(--s${i + 1})` : "var(--muted)"); // past 8 settings: muted, never a made-up hue
+const el = (tag, attrs = {}, parent) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const html = (tag, text, parent, cls) => {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text; // names come from the file: never innerHTML
+  if (cls) node.className = cls;
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const fmt = (v) => (Math.abs(v) >= 10000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v * 100) / 100}`);
+const settings = (r) => Object.entries(r.params).map(([k, v]) => `${k} ${v}`).join(", ");
+const when = (r) => new Date(r.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+function niceTicks(max, n = 4) {
+  if (max <= 0) return [0, 1];
+  const raw = max / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const out = [];
+  for (let v = 0; v < max + step * 0.999; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+
+const W = 520, H = 220, M = { l: 44, r: 12, t: 10, b: 26 };
+
+function draw(kind) {
+  const runs = RUNS.filter((r) => r.kind === kind);
+  // Colour follows the settings, in order of first appearance: a later run never repaints an earlier line.
+  const configs = [...new Set(runs.map(settings))];
+  const metrics = [...new Set(runs.flatMap((r) => Object.keys(r.metrics)))];
+  const xs = (i) => M.l + (runs.length > 1 ? i / (runs.length - 1) : 0.5) * (W - M.l - M.r);
+
+  document.getElementById("sub").textContent = runs.length
+    ? `${runs.length} ${KINDS[kind].toLowerCase()} runs, ${when(runs[0])} to ${when(runs[runs.length - 1])}. ` +
+      "Each chart plots one number per run, in order; each line is one set of settings, since only like runs compare."
+    : `No ${KINDS[kind].toLowerCase()} runs recorded yet.`;
+
+  const legend = document.getElementById("legend");
+  legend.replaceChildren();
+  if (configs.length > 1) // one line needs no legend: the subtitle says what it is
+    configs.forEach((c, i) => {
+      const item = html("span", undefined, legend);
+      html("i", undefined, item, "key").style.borderColor = color(i);
+      item.appendChild(document.createTextNode(c));
+    });
+
+  const charts = document.getElementById("charts");
+  charts.replaceChildren();
+  for (const metric of metrics) chart(charts, metric, runs, configs, xs);
+  table(runs, metrics);
+}
+
+function chart(parent, metric, runs, configs, xs) {
+  const card = html("div", undefined, parent, "card");
+  html("h2", metric, card);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": metric }, card);
+  const values = runs.map((r) => r.metrics[metric]).filter((v) => typeof v === "number");
+  const yt = niceTicks(Math.max(...values, 0));
+  const top = yt[yt.length - 1];
+  const ys = (v) => H - M.b - (v / top) * (H - M.t - M.b);
+  const grid = el("g", { class: "grid" }, svg);
+  for (const v of yt) {
+    if (v) el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v) }, grid);
+    el("text", { x: M.l - 6, y: ys(v) + 4, "text-anchor": "end" }, svg).textContent = fmt(v);
+  }
+  el("line", { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), class: "baseline" }, svg);
+  const labels = runs.length < 2 ? [0] : [0, Math.floor((runs.length - 1) / 2), runs.length - 1];
+  for (const i of new Set(labels)) {
+    const anchor = runs.length < 2 ? "middle" : i === 0 ? "start" : i === runs.length - 1 ? "end" : "middle";
+    el("text", { x: xs(i), y: H - 8, "text-anchor": anchor }, svg).textContent =
+      new Date(runs[i].at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  configs.forEach((c, ci) => {
+    const mine = runs.map((r, i) => [r, i]).filter(([r]) => settings(r) === c && typeof r.metrics[metric] === "number");
+    if (mine.length > 1) {
+      const points = mine.map(([r, i]) => `${xs(i).toFixed(1)},${ys(r.metrics[metric]).toFixed(1)}`).join(" ");
+      el("polyline", { points, class: "series" }, svg).style.stroke = color(ci);
+    }
+    for (const [r, i] of mine) el("circle", { cx: xs(i), cy: ys(r.metrics[metric]), r: 4, class: "dot" }, svg).style.fill = color(ci);
+  });
+  const cross = el("line", { y1: M.t, y2: H - M.b, class: "cross" }, svg);
+  const tip = html("div", undefined, card, "tip");
+  const hit = el("rect", { x: 0, y: 0, width: W, height: H, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", (ev) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((ev.clientX - box.left) / box.width) * W;
+    const i = runs.length < 2 ? 0 : Math.round(((px - M.l) / (W - M.l - M.r)) * (runs.length - 1));
+    const run = runs[Math.min(Math.max(i, 0), runs.length - 1)];
+    const at = runs.indexOf(run);
+    cross.setAttribute("x1", xs(at));
+    cross.setAttribute("x2", xs(at));
+    cross.style.visibility = "visible";
+    tip.replaceChildren();
+    html("div", `${when(run)} · ${run.commit}`, tip, "head");
+    if (run.subject) html("div", run.subject, tip, "head");
+    const row = html("div", undefined, tip, "row");
+    html("i", undefined, row, "key").style.borderColor = color(configs.indexOf(settings(run)));
+    const v = run.metrics[metric];
+    html("b", typeof v === "number" ? fmt(v) : "–", row);
+    html("span", settings(run), row);
+    tip.style.visibility = "visible";
+    tip.style.top = "44px";
+    const x = ev.clientX - card.getBoundingClientRect().left;
+    tip.style.left = `${Math.min(x + 14, card.clientWidth - tip.offsetWidth - 8)}px`;
+  });
+  hit.addEventListener("pointerleave", () => {
+    cross.style.visibility = "hidden";
+    tip.style.visibility = "hidden";
+  });
+}
+
+function table(runs, metrics) {
+  const holder = document.getElementById("table");
+  holder.replaceChildren();
+  if (!runs.length) return html("p", "Nothing yet.", holder, "empty");
+  const t = html("table", undefined, holder);
+  const head = html("tr", undefined, html("thead", undefined, t));
+  for (const name of ["When", "Commit", "Settings"]) html("th", name, head);
+  for (const m of metrics) html("th", m, head, "num");
+  const body = html("tbody", undefined, t);
+  for (const r of [...runs].reverse()) {
+    const row = html("tr", undefined, body);
+    html("td", when(r), row);
+    html("td", r.commit, row).title = r.subject || "";
+    html("td", settings(r), row);
+    for (const m of metrics) html("td", typeof r.metrics[m] === "number" ? fmt(r.metrics[m]) : "–", row, "num");
+  }
+}
+
+const filters = document.getElementById("filters");
+const present = Object.keys(KINDS).filter((k) => RUNS.some((r) => r.kind === k));
+const kinds = present.length ? present : ["game"];
+for (const kind of kinds) {
+  const b = html("button", KINDS[kind], filters);
+  b.setAttribute("aria-pressed", kind === kinds[0]);
+  b.addEventListener("click", () => {
+    for (const other of filters.children) other.setAttribute("aria-pressed", other === b);
+    draw(kind);
+  });
+}
+draw(kinds[0]);
+</script>
+</body>
+</html>
