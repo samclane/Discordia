@@ -391,6 +391,8 @@ def test_a_run_is_recorded_and_drawn(tmp_path):
     assert runs[0]["at"] and runs[0]["commit"]
     sim_history.report(runs, tmp_path / "history.html")
     assert '"messages sent":3' in (tmp_path / "history.html").read_text(encoding="utf-8")
+    sim_history.record("server", {"ticks": 20}, {"messages sent": 5, "run time (s)": 9}, history)
+    assert sim_history.drift(sim_history.load(history)).endswith(": messages sent 3 -> 5")  # timings left out
 
 
 def test_simulated_players_break_no_rules(tmp_path):
