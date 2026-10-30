@@ -146,11 +146,16 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
 - [ ] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
   reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decide whether stores (or
-  caches, as the only chest armor) should carry it.
+  caches, as the only chest armor) should carry it. (blocked: a design call on what the game sells)
 - [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
-- [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
+- [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 README: documents `-W PORT` and `--database` (and how to run the tests), `/settings`, the DMs a
+  player gets (spotted, a fight's first hit and its end, auto-raid results), the inn and store sell as they are,
+  and piles in `/look`. Python 3.12 and the GitHub Actions badge replace "3.7+" and Travis. Store buy/sell were
+  already described as real. The 6B45 question is marked blocked on a design call.
 
 - 2026-10-30 The `FIXME Ugly function` was `World.is_space_buildable`, used only to plant a town when a map
   rolls none. It's now one line, `type(space) is Space and space.terrain.buildable`: no more list scans of every

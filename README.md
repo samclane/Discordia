@@ -1,7 +1,7 @@
 # Discordia
 ## The highly-anticipated* re-release of DiscordMUD
 
-[![Build Status](https://travis-ci.com/samclane/Discordia.svg?branch=master)](https://travis-ci.com/samclane/Discordia)
+[![tests](https://github.com/samclane/Discordia/actions/workflows/tests.yml/badge.svg)](https://github.com/samclane/Discordia/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/samclane/Discordia/branch/master/graph/badge.svg)](https://codecov.io/gh/samclane/Discordia)
 
 ![The live map](screenshots/map.png)
@@ -10,7 +10,7 @@
 |---|---|
 | ![Home page](screenshots/home.png) | ![Character sheet](screenshots/me.png) |
 
-Requires Python 3.7+
+Requires Python 3.12.
 
 # Starting 
 
@@ -18,9 +18,16 @@ To install:
 
 `pip install -r requirements.txt`
 
-`python main.py`
+`python main.py [-W PORT] [--database PATH]`
 
 Set the `DISCORD_TOKEN` environment variable, or fill in `Token` under `[Discord]` in `config.ini`.
+
+* `-W PORT` also serves the website on that port: the public home page at `/`, the live map at `/map` and each
+  player's character sheet at `/me` (both need a `/weblogin` link), and server settings for `/settings`.
+* `--database PATH` is the save file (default `./discordia.db`). The world is saved on a timer and on shutdown,
+  and a restart pays hideouts for the time it was down.
+
+Tests: `python -m pytest Discordia/test -q`, no Discord token needed.
 
 # Deploying (Linode / any Ubuntu 24.04 box)
 
@@ -64,13 +71,16 @@ the bot syncs them.
 * `/help`
     * Every command and what it does, privately.
 * `/look`
-    * Where you are, how dangerous it is and the nearest way out (a town or an extraction point), who's in sight (raiders, animals, players: how many squares away and
-      which way), and a picture of your surroundings, as far as your `FOV` can see.
+    * Where you are, how dangerous it is and the nearest way out (a town or an extraction point), who's in sight (raiders, animals, players, and the things
+      a death left lying about: how many squares away and which way), and a picture of your surroundings, as far as your `FOV` can see.
 * `/weblogin`
     * Get a private, one-time link (10 minutes) that logs you in to the website. The map then follows your
       character, with a pad to move, attack and answer encounters from the browser (keys 1-9 like a numpad, T to
       switch), and `/me` is your character sheet with what the world did to you lately. No password: Discord already
       knows who you are.
+* `/settings`
+    * Server admins (Manage Server): a private link to this server's settings page, to pick the channels the game
+      plays in, where the daily digest goes, and where players' deaths and hauls are announced. Needs `-W`.
 * `/equipment`
     * Prints your "character sheet" in chat: name, level and experience to the next one, money, health, and equipment.
 * `/move` [`direction`]
@@ -92,6 +102,8 @@ the bot syncs them.
     they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
     traverses removes % damage until it goes to 0.
     * Killing an NPC hands you its money and whatever it was carrying.
+    * You hear about what happens while you're not looking by DM: a raider spotting you, the first hit of a
+      fight and how it ends (not every blow), and how an auto-raid went. `/me` on the website keeps the full log.
 * `/choose` [`talk`|`rob`|`ignore`]
     * Wandering the wilds can turn up a stranger on the road, who waits for you to decide what to do.
     * `talk` gets you directions to the nearest town, `rob` is a contest of your level against theirs
@@ -106,7 +118,7 @@ the bot syncs them.
 * `/town status`
     * Which town you're in, its population, and who runs the place: the shopkeeper, innkeeper and guard.
     * `/town inn`
-        * Run the events of the town's inn. Usually restores health/resources. 
+        * Rest at the inn: back to full health, free.
     * `/town recruit`
         * Change your player class to the one offered by the town.
     * `/town store list` [`kind`]
@@ -116,7 +128,7 @@ the bot syncs them.
             * Purchase the item at the given index, adding it to your inventory. Start typing an item's name
               and Discord suggests matches with their prices, so you don't need the list's numbers.
         * `/town store sell` [`index`]
-            * Sell an item from your inventory, removing it and giving you some money. 
+            * Sell the inventory item at that index for what it's worth (a part-used ammo box for what's left in it).
 * `/stash list`
     * In any town: what you've banked. The stash is one per player, reachable from every town, and
     dying out in the wilds never touches it. Dying anywhere but a town loses everything you were
