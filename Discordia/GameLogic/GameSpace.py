@@ -549,53 +549,6 @@ class Town(Space):
         return str(self.sprite_path)
 
 
-class BaseLevel:
-
-    def __init__(self, level: int):
-        self.level: int = level
-        self.max_level: int = 5
-
-    def upgrade(self):
-        if self.level < self.max_level:
-            self.level += 1
-            return True
-        return False
-
-    def base_event(self, character: Actors.PlayerCharacter) -> PlayerActionResponse:
-        character.hit_points = character.hit_points_max
-        resp = PlayerActionResponse(
-            is_successful=True,
-            text=f"Your hitpoints have been restored, {character.name}",
-            source=character,
-        )
-        return resp
-
-
-class Base(Space):
-
-    def __init__(
-        self,
-        x: int,
-        y: int,
-        name: str,
-        terrain: Terrain = NullTerrain(),
-        store: Store | None = None,
-        owner: Actors.PlayerCharacter | None = None,
-    ) -> None:
-        super().__init__(x, y, terrain)
-        self.name: str = name
-        self.store: Store = store if store is not None else Store()
-        self.owner: Actors.PlayerCharacter | None = owner
-        self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
-        self.level = BaseLevel(1)
-
-    @classmethod
-    def generate_base(cls, x, y, terrain, owner: Actors.PlayerCharacter | None = None):
-        name = "Base"
-        store = Store.generate_store()
-        return cls(x, y, name, terrain, store, owner=owner)
-
-
 class Wilds(Space):
 
     def __init__(self, x, y, name, terrain: Terrain = NullTerrain()):

@@ -132,7 +132,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   free from any store. Give every item a floor price.
 - [x] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
   it twice, as a slot row and a backpack row, and a restart hands back two.
-- [ ] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
+- [x] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
 
@@ -148,6 +148,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Deleted `GameSpace.Base` and `BaseLevel`: never placed, never referenced; the hideout is
+  `PlayerCharacter.hideout_level`. CLAUDE.md's layout line now lists Cache/Extract instead.
 
 - 2026-10-30 Worn from the backpack, saved once: an item equipped with `/inventory equip` stays in the
   backpack by design (`lose_carried` already counted it once), but `Database.save` wrote it as a slot row and a

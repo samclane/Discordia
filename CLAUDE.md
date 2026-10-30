@@ -14,7 +14,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 ## Layout
 
 - `Discordia/GameLogic/` pure game rules, no Discord imports.
-  - `GameSpace.py` Terrain, Space/Town/Wilds/Base, `World` (map gen, `tick()`, `attack`, death), `Store`, A* pathfinder.
+  - `GameSpace.py` Terrain, Space/Town/Wilds/Cache/Extract, `World` (map gen, `tick()`, `attack`, death), `Store`, A* pathfinder.
     The map is generated lazily in `CHUNK_SIZE` chunks, deterministic per (seed, chunk): reach squares through
     `world.space_at(x, y)`, never a grid. `world.towns`/`wilds` hold loaded chunks only. Wilds roll their events on
     first visit. NPCs only act within `NPC_AWAKE_RADIUS` (a chunk) of a player and never step into
