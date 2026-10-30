@@ -92,7 +92,9 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 ## Discord UX
 
 - [x] `/look` should list visible NPCs and players by direction, not only render the image. `Wilds.level` now exists, so it can also say how rough the place you are standing in is.
-- [ ] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order.
+- [x] Combat and event results are long: batch `PlayerActionResponse` text into one embed per order. (stale: a
+  move is already one message, and since fights summarise per enemy the longest of 300 level-8 fights is 961
+  characters, under Discord's 2000. An embed would be cosmetic.)
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [ ] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
