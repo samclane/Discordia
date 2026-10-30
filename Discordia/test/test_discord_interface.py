@@ -47,6 +47,7 @@ EXPECTED = {
     "hideout build",
     "raid",
     "camp",
+    "help",
     "weblogin",
     "settings",
 }
@@ -99,14 +100,14 @@ def test_slash_commands_registered():
     assert EXPECTED <= names, EXPECTED - names
 
 
-def test_every_command_but_register_and_settings_requires_a_character():
+def test_every_command_but_register_settings_and_help_requires_a_character():
     interface = loaded_cog()
     unchecked = {
         cmd.qualified_name
         for cmd in interface.bot.tree.walk_commands()
         if isinstance(cmd, app_commands.Command) and not cmd.checks
     }
-    assert unchecked == {"register", "settings"}, unchecked
+    assert unchecked == {"register", "settings", "help"}, unchecked
 
 
 def run_checks(command, interaction) -> bool:
@@ -629,6 +630,22 @@ def test_town_status_introduces_the_residents():
     asyncio.run(command_named(interface, "town status").callback(interface, interaction))  # type: ignore[arg-type]
     [text] = replies.sent
     assert text.startswith("You're in Hub, population 40.") and "the shopkeeper" in text and "the guard" in text
+
+
+def test_help_lists_every_command_privately_starting_with_register():
+    interface = loaded_cog()
+    sent = []
+
+    async def send_message(content, **kwargs):
+        sent.append(kwargs)
+
+    response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
+    interaction = SimpleNamespace(command="help", user=SimpleNamespace(id=1), response=response)
+    asyncio.run(command_named(interface, "help").callback(interface, interaction))  # type: ignore[arg-type]
+    [kwargs] = sent
+    lines = kwargs["embed"].description.splitlines()
+    assert kwargs["ephemeral"] and lines[0].startswith("`/register`")
+    assert {line.split("`")[1][1:] for line in lines} >= EXPECTED
 
 
 def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():

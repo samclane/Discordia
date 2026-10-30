@@ -96,7 +96,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   move is already one message, and since fights summarise per enemy the longest of 300 level-8 fights is 961
   characters, under Discord's 2000. An embed would be cosmetic.)
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
-- [ ] `/help` command generated from the Cog's command descriptions.
+- [x] `/help` command generated from the Cog's command descriptions.
 - [ ] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
 - [ ] Channel announcements for deaths and town arrivals instead of only DMs.
 - [x] DM spam (found by `test_server_simulation.py`; drop its `KNOWN` entry once fixed): a raider standing on you
@@ -141,6 +141,10 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 `/help`: every slash command with its description, `/register` first, read from the command
+  tree so a new command lists itself. One ephemeral embed: the list alone is near the 2000-character message
+  limit, and an embed takes 4096. Needs no character. (Also closed the one-embed-per-order item as stale.)
 
 - 2026-10-30 `/look` lists who's in sight, nearest first: name (raider/player tagged), squares away and
   compass bearing ("Vex (raider), 2 squares east"), and says how rough the square is: wilds by their level,

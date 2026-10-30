@@ -61,6 +61,8 @@ the bot syncs them.
 
 * `/register` [`name`]
     * Create a new player character and spawn into the game world.
+* `/help`
+    * Every command and what it does, privately.
 * `/look`
     * Where you are and how dangerous it is, who's in sight (raiders, animals, players: how many squares away and
       which way), and a picture of your surroundings, as far as your `FOV` can see.

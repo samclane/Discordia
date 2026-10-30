@@ -458,6 +458,15 @@ class DiscordInterface(commands.Cog):
         self.world_adapter.register_player(interaction.user.id, player_name=name)
         await _send(interaction, f"Welcome, {name}! Good luck out there, comrade!")
 
+    @app_commands.command(name="help")
+    async def help_(self, interaction: discord.Interaction):
+        """Every command and what it does"""
+        commands_ = [c for c in self.bot.tree.walk_commands() if isinstance(c, app_commands.Command)]
+        commands_.sort(key=lambda c: c.name != "register")  # stable: the rest keep the cog's order
+        listing = "\n".join(f"`/{c.qualified_name}` {c.description}" for c in commands_)
+        # An embed: the list is about Discord's 2000-character message limit on its own, and an embed takes 4096.
+        await _send(interaction, "", embed=discord.Embed(title="Discordia commands", description=listing), ephemeral=True)
+
     @app_commands.command()
     @requires_character()
     async def weblogin(self, interaction: discord.Interaction):
