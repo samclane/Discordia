@@ -135,6 +135,7 @@ def channel_check(channels, channel_id, parent_id=None, command="look", guild_id
     interface = loaded_cog(adapter)
     interaction = SimpleNamespace(
         guild_id=guild_id,
+        user=SimpleNamespace(id=1),
         channel_id=channel_id,
         channel=SimpleNamespace(parent_id=parent_id),
         command=command_named(interface, command),
@@ -240,7 +241,7 @@ PLAYER = cast(Actors.PlayerCharacter, "a player")  # orders only ever key on ide
 def ticking_interface(on_world_tick=lambda: []) -> DiscordInterface:
     """A cog whose world does nothing but record that it ticked and report its events."""
     adapter = SimpleNamespace(
-        world=SimpleNamespace(tick=on_world_tick, stats=GameSpace.Stats()),
+        world=SimpleNamespace(tick=on_world_tick, stats=GameSpace.Stats(), announcements=[]),
         get_member_id=lambda character: 7,
     )
     return DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
@@ -422,6 +423,30 @@ def test_the_digest_goes_to_each_server_that_picked_a_channel():
 
     asyncio.run(interface.post_digest("A quiet day."))  # one server's trouble stays its own
     assert sent == [(10, "A quiet day.")]
+
+
+def test_deaths_and_hauls_go_to_the_servers_the_player_plays_in():
+    world = SimpleNamespace(tick=lambda: [], announcements=[], stats=SimpleNamespace(active_players=set()))
+    player = SimpleNamespace(name="Vex")
+    adapter = SimpleNamespace(
+        world=world,
+        guild_settings={1: GuildSettings(announce_channel=10), 2: GuildSettings(announce_channel=20), 3: GuildSettings()},
+        get_member_id=lambda character: 7 if character is player else None,
+    )
+    interface = DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
+    sent = []
+    channels = {c: SimpleNamespace(send=lambda text, c=c: _record(sent, c, text)) for c in (10, 20)}
+    interface.bot.get_channel = channels.get  # type: ignore[method-assign]
+    for guild_id in (1, 3):  # plays in 1 and 3; 3 picked no channel, and 2 has never seen them
+        asyncio.run(interface.interaction_check(cast(Any, SimpleNamespace(guild_id=guild_id, user=SimpleNamespace(id=7)))))
+    world.announcements += [(player, "Vex died."), (player, "Vex made it back.")]
+    asyncio.run(interface.tick())
+    assert sent == [(10, "Vex died.\nVex made it back.")]  # one message, in the one server that wants it
+    assert world.announcements == []
+
+
+async def _record(sent, channel_id, text):
+    sent.append((channel_id, text))
 
 
 def test_jobs_run_on_the_bots_event_loop():

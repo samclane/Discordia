@@ -459,6 +459,8 @@ class PlayerCharacter(Actor):
         if self.experience > experience:
             found.append(f"{self.experience - experience} XP")
         haul = ", ".join(found) if found else "nothing but the walk"
+        if found:
+            self.parent_world.announcements.append((self, f"{self.name} made it back to {self.location.name} with {haul}."))
         return f"You make it back to {self.location.name}. Raid over, you brought home: {haul}."
 
     @property

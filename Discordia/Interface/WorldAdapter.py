@@ -133,6 +133,7 @@ class GuildSettings:
 
     channels: List[int] = field(default_factory=list)  # where commands work; empty means everywhere
     digest_channel: Optional[int] = None  # where the daily digest goes; None means it doesn't
+    announce_channel: Optional[int] = None  # where its players' deaths and hauls are posted; None means nowhere
 
 
 class WorldAdapter:

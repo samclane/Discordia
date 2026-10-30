@@ -51,7 +51,7 @@ REPORT_TEMPLATE = Path(__file__).with_name("server_template.html")
 # Every rule the run is checked against, by the name it's flagged under, as the dashboard explains it.
 RULES = {
     "outside allowed channels": "Public replies only in the channels a server's admins picked (any, if none).",
-    "unprompted post": "Messages nobody asked for only as the welcome (system channel) or the digest (its channel).",
+    "unprompted post": "Messages nobody asked for only as the welcome (system channel), or the digest and the deaths and hauls (their channels).",
     "rate limited": f"No more than {RATE} messages to one channel or DM in {TICK_SECONDS:g} seconds.",
     "dm spam": f"Nobody DM'd every tick for more than {DM_STREAK} ticks running.",
     "chatty": f"No command answers with more than {CHATTY} messages.",
@@ -152,8 +152,8 @@ class Discord:
         channel = self.channels[sent.channel]
         settings = self.interface.world_adapter.guild_settings.get(channel.guild)
         guild = self.guilds[channel.guild]
-        if sent.where == "channel":  # unprompted: only the welcome and the digest may do that
-            allowed = {guild.system_channel.id} | ({settings.digest_channel} if settings else set())
+        if sent.where == "channel":  # unprompted: only the welcome, the digest and the announcements may do that
+            allowed = {guild.system_channel.id} | ({settings.digest_channel, settings.announce_channel} if settings else set())
             if sent.channel not in allowed:
                 self.flag("unprompted post", f"in #{channel.name}: {sent.content[:60]!r}")
         elif settings and settings.channels and sent.command != "settings":
@@ -323,7 +323,9 @@ async def _simulate(ticks: int, seed: int, size: int) -> Discord:
     members = discord_.members = cast_of_members(discord_)
     locked = discord_.guilds[1]
     adapter.guild_settings[1] = GuildSettings(
-        channels=[locked.channels["play"].id], digest_channel=locked.channels["news"].id
+        channels=[locked.channels["play"].id],
+        digest_channel=locked.channels["news"].id,
+        announce_channel=locked.channels["news"].id,
     )
     discord_.closed_dms = {m.id for m in members if m.closed_dms}
     commands = {c.qualified_name: c for c in interface.bot.tree.walk_commands() if isinstance(c, app_commands.Command)}
@@ -438,7 +440,7 @@ def metrics(discord_: Discord) -> Dict[str, float]:
         "messages sent": len(discord_.sent),
         "command answers (reply + followup)": where["reply"] + where["followup"],
         "DMs": where["dm"],
-        "channel posts (welcome, digest)": where["channel"],
+        "channel posts (welcome, digest, deaths and hauls)": where["channel"],
         "problems": len(discord_.problems),
         "rules broken": len({p.rule for p in discord_.problems}),
     }

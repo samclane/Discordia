@@ -244,6 +244,9 @@ class DiscordInterface(commands.Cog):
         ] = {}
         # Who hit whom last tick, and the target's death count then: a fight already under way isn't news.
         self._fights: Dict[Actors.Actor, Tuple[set, int]] = {}
+        # Discord member id -> the servers they've used a command in: where their deaths and hauls are news.
+        # ponytail: in memory, so after a restart a player's news reaches a server once they play there again.
+        self._servers: Dict[int, set] = {}
 
     def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
         """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
@@ -312,6 +315,34 @@ class DiscordInterface(commands.Cog):
                 self._fights[character] = (hitting, getattr(character, "deaths", 0))
             if fresh:
                 await self._dm(character, "\n".join(fresh))
+        await self._announce()
+
+    async def _announce(self):
+        """Post the world's announcements in each server where the player plays and the admins picked a channel
+        for them. One message per server per tick, however many there were."""
+        world = self.world_adapter.world
+        announcements, world.announcements = world.announcements, []
+        by_server: Dict[int, List[str]] = {}
+        for character, text in announcements:
+            member_id = self.world_adapter.get_member_id(character)
+            for guild_id in self._servers.get(member_id, ()) if member_id is not None else ():
+                by_server.setdefault(guild_id, []).append(text)
+        for guild_id, lines in by_server.items():
+            settings = self.world_adapter.guild_settings.get(guild_id)
+            if settings is not None and settings.announce_channel is not None:
+                await self._post(settings.announce_channel, "\n".join(lines))
+
+    async def _post(self, channel_id: int, text: str):
+        """Post in a channel a server's admins picked. Best effort, like _dm."""
+        channel = self.bot.get_channel(channel_id)
+        if channel is None:  # deleted, or the bot can't see it any more
+            LOG.info("No channel %s to post in", channel_id)
+            return
+        try:
+            for chunk in _chunks(text):
+                await channel.send(chunk)  # type: ignore[union-attr]  # the website only offers text channels
+        except discord.HTTPException:  # not allowed to post there
+            LOG.info("Could not post in %s", channel_id)
 
     async def _dm(self, character: Actors.Actor, text: str):
         """Tell a player something that happened while they weren't looking. Best effort: DMs can be closed."""
@@ -327,18 +358,9 @@ class DiscordInterface(commands.Cog):
 
     async def post_digest(self, text: str):
         """Post the daily digest in every server that picked a channel for it. Best effort, like _dm."""
-        for guild_id, settings in list(self.world_adapter.guild_settings.items()):
-            if settings.digest_channel is None:
-                continue
-            channel = self.bot.get_channel(settings.digest_channel)
-            if channel is None:  # deleted, or the bot can't see it any more
-                LOG.info("No digest channel %s in server %s", settings.digest_channel, guild_id)
-                continue
-            try:
-                for chunk in _chunks(text):
-                    await channel.send(chunk)  # type: ignore[union-attr]  # the website only offers text channels
-            except discord.HTTPException:  # not allowed to post there
-                LOG.info("Could not post the digest in %s", settings.digest_channel)
+        for settings in list(self.world_adapter.guild_settings.values()):
+            if settings.digest_channel is not None:
+                await self._post(settings.digest_channel, text)
 
     def order_threadsafe(
         self,
@@ -434,6 +456,8 @@ class DiscordInterface(commands.Cog):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Commands only work in the channels a server's admins picked on the website: all of them if
         they picked none. /settings works anywhere, so nobody locks themselves out."""
+        if interaction.guild_id is not None:
+            self._servers.setdefault(interaction.user.id, set()).add(interaction.guild_id)
         settings = self.world_adapter.guild_settings.get(interaction.guild_id or 0)
         if settings is None or not settings.channels or getattr(interaction.command, "name", None) == "settings":
             return True

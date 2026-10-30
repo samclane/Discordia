@@ -119,6 +119,12 @@ ADMIN_BODY = """<section class="sheet settings"><div class="wrap">
           happened. The bot needs permission to post in that channel.</p>
         <label>Post it in <select name="digest">{{DIGEST}}</select></label>
       </div>
+      <div class="card">
+        <h3>Deaths and hauls</h3>
+        <p class="note">As they happen: a player from this server dies out past the towns (and where their things
+          lie, for anyone to loot), or makes it back with something. At most one message a tick.</p>
+        <label>Post them in <select name="announce">{{ANNOUNCE}}</select></label>
+      </div>
       <button class="btn">Save</button>
     </form>
   </div></section>"""
@@ -576,11 +582,14 @@ class _Handler(BaseHTTPRequestHandler):
         name, channels = guild
         settings = self.renderer.world_adapter.guild_settings.get(guild_id, GuildSettings())
         picked = set(settings.channels)
-        digest = '<option value="">Nowhere</option>' + "".join(
-            f'<option value="{channel_id}"{" selected" if channel_id == settings.digest_channel else ""}>'
-            f"#{html.escape(channel_name)}</option>"
-            for channel_id, channel_name in channels
-        )
+
+        def options(chosen):
+            return '<option value="">Nowhere</option>' + "".join(
+                f'<option value="{channel_id}"{" selected" if channel_id == chosen else ""}>'
+                f"#{html.escape(channel_name)}</option>"
+                for channel_id, channel_name in channels
+            )
+
         rows = "".join(
             f'<li><label><input type="checkbox" name="c" value="{channel_id}"{" checked" if channel_id in picked else ""}>'
             f" #{html.escape(channel_name)}</label></li>"
@@ -592,7 +601,8 @@ class _Handler(BaseHTTPRequestHandler):
             SERVER=name,
             ACTION=f"/admin/{guild_id}",
             CHANNELS=Markup(rows),
-            DIGEST=Markup(digest),
+            DIGEST=Markup(options(settings.digest_channel)),
+            ANNOUNCE=Markup(options(settings.announce_channel)),
             SAVED=Markup('<p class="alert"><b>Saved.</b></p>' if saved else ""),
         )
 
@@ -614,13 +624,17 @@ class _Handler(BaseHTTPRequestHandler):
         real = {channel_id for channel_id, _ in guild[1]}
         form = parse_qs(body)
         picked = [int(c) for c in form.get("c", []) if c.isdigit() and int(c) in real]
-        digest = form.get("digest", [""])[0]
+        def channel(name):  # one of this server's channels, or None
+            value = form.get(name, [""])[0]
+            return int(value) if value.isdigit() and int(value) in real else None
+
         settings = self.renderer.world_adapter.guild_settings
         # One assignment, so the bot loop reading it from its thread sees the old settings or the new ones.
         settings[guild_id] = replace(
             settings.get(guild_id, GuildSettings()),
             channels=picked,
-            digest_channel=int(digest) if digest.isdigit() and int(digest) in real else None,
+            digest_channel=channel("digest"),
+            announce_channel=channel("announce"),
         )
         self._redirect(f"/admin/{guild_id}?saved")
 

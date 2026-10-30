@@ -794,6 +794,9 @@ class World:
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
         self.ticks: int = 0  # how many times tick() has run, as a clock for things that expire
+        # (player, text) worth telling the player's Discord server: deaths, and raids that brought something home.
+        # Whoever posts them takes them (the cog, once a tick); nothing else reads it.
+        self.announcements: List[Tuple[Actors.PlayerCharacter, str]] = []
         self.starting_town: Town = None  # type: ignore[assignment]  # chosen by _choose_spawn
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
@@ -1321,6 +1324,11 @@ class World:
             pile.expires = self.ticks + REMAINS_TICKS
             if items or currency:
                 player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
+            danger = here.level if isinstance(here, Wilds) else self.depth_at(here)
+            news = f"{player.name} died at {here}, danger {danger}."
+            if items or currency:  # a corpse run for anyone who reads this
+                news += f" {Remains(player, items, currency, 0)} lie there for whoever gets to them first."
+            self.announcements.append((player, news))
         player.deaths += 1
         player.raid_start = None
         player.camping = False

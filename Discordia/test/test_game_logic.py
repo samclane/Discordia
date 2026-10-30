@@ -1165,6 +1165,23 @@ def test_stepping_back_into_town_extracts_and_reports_the_haul(adapter):
     assert player.location == adapter.world.starting_town
     assert results[-1].text.endswith(f"you brought home: {helmet}, $250, 40 XP.")
     assert player.raid_start is None
+    town = adapter.world.starting_town.name
+    assert adapter.world.announcements == [(player, f"Tester made it back to {town} with {helmet}, $250, 40 XP.")]
+
+
+def test_a_raid_death_is_news_and_says_where_the_loot_lies(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    adapter.move_player(player, _quiet_step_out_of_town(world))
+    here, player.currency = player.location, 300
+    player.take_damage(player.hit_points_max)
+    [(who, text)] = world.announcements
+    assert who is player and text.startswith(f"Tester died at {here}, danger ")
+    assert text.endswith("$300 lie there for whoever gets to them first.")
+    world.announcements.clear()
+    here.remains = None  # or the next step out is a corpse run, and that's a haul
+    adapter.move_player(player, _quiet_step_out_of_town(world))
+    adapter.move_player(player, tuple(-v for v in _quiet_step_out_of_town(world)))
+    assert world.announcements == []  # back with nothing: not news
 
 
 def test_a_raid_death_is_not_an_extraction(adapter):
