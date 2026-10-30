@@ -14,6 +14,7 @@ from Discordia.GameLogic import (
     Actors,
     Armor,
     Behavior,
+    Data,
     Events,
     GameSpace,
     Items,
@@ -836,8 +837,15 @@ def test_a_weapon_that_does_no_damage_still_ends_the_fight(adapter):
     assert responses[-1].is_successful
 
 
+def test_stores_stock_what_the_data_allows_and_never_fists_or_salvage():
+    stocked = Data.stocked()
+    assert Weapons.Hammer in stocked and Weapons.Ammo9mm in stocked and Armor.SSh68 in stocked
+    assert not {Weapons.Fist, Items.Salvage, Armor.Chest6B45} & set(stocked)  # "store": false in their blocks
+    assert Weapons.Fist().name == "Fist"  # the flag isn't passed on to the constructor
+
+
 def test_every_gun_has_ammo_a_store_can_stock():
-    items = [cls() for cls in Items.FullyImplemented.__subclasses__()]
+    items = [cls() for cls in Data.stocked()]
     boxes = {item.caliber for item in items if isinstance(item, Items.Ammo)}
     guns = [item for item in items if isinstance(item, Weapons.ProjectileWeapon)]
     assert guns

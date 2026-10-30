@@ -7,11 +7,11 @@ and every loader here fails at import if a file is broken, rather than mid-game.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from Discordia import DATA_FOLDER
 
-__all__ = ["DATA_FOLDER", "load", "FromData"]
+__all__ = ["DATA_FOLDER", "load", "FromData", "stocked"]
 
 
 def load(
@@ -39,4 +39,22 @@ class FromData:
     STATS: Dict[str, Dict[str, Any]] = {}
 
     def __init__(self):
-        super().__init__(**self.STATS[type(self).__name__])
+        stats = self.STATS[type(self).__name__]
+        super().__init__(**{field: value for field, value in stats.items() if field != "store"})
+
+
+def _descendants(cls: type) -> Iterator[type]:
+    for sub in cls.__subclasses__():
+        yield sub
+        yield from _descendants(sub)
+
+
+def stocked() -> List[type]:
+    """Every piece of gear with a stat block that a store may sell: all of them but blocks saying "store": false
+    (fists, salvage). In the order the classes are defined, which a world's seeded stores depend on."""
+    found: List[type] = []
+    for cls in _descendants(FromData):
+        block = cls.STATS.get(cls.__name__)
+        if block is not None and block.get("store", True) and cls not in found:
+            found.append(cls)
+    return found

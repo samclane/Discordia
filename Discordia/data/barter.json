@@ -1,6 +1,7 @@
 {
   "Salvage": {
     "name": "Salvage",
+    "store": false,
     "base_value": 50,
     "weight_lb": 5.0
   }

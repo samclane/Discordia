@@ -12,7 +12,6 @@ from Discordia.GameLogic.Data import DATA_FOLDER
 from Discordia.GameLogic.Items import (
     HeadArmorAbstract,
     ChestArmorAbstract,
-    FullyImplemented,
 )
 
 STATS_PATH = DATA_FOLDER / "armor.json"
@@ -60,13 +59,13 @@ class ChestArmor(ChestArmorAbstract):
         self._armor_count = val
 
 
-class SSh68(FromData, Helmet, FullyImplemented):
+class SSh68(FromData, Helmet):
     """
     Based on the Soviet SSh-68 helmet
     """
 
 
-class Helm6B27(FromData, Helmet, FullyImplemented):
+class Helm6B27(FromData, Helmet):
     """
     Based on the Soviet 6B27/6B26/6B28
     """

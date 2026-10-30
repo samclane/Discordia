@@ -13,6 +13,7 @@
   },
   "Chest6B45": {
     "name": "6B45",
+    "store": false,
     "coverage": 0.7,
     "efficiency": 0.0,
     "armor_count": 10,

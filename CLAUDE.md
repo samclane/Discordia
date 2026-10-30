@@ -49,7 +49,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 ## Conventions
 
 - Game rules go in GameLogic; the Cog only parses input and formats `PlayerActionResponse.text`.
-- New items/weapons/armor: add a JSON stat block in `data/`, subclass the matching `FromData` class. Restorable classes must live in a module listed in `Database._ALLOWED_MODULES`.
+- New items/weapons/armor: add a JSON stat block in `data/`, subclass the matching `FromData` class. Stores stock
+  every such class (`Data.stocked()`) unless its block says `"store": false`. Restorable classes must live in a module listed in `Database._ALLOWED_MODULES`.
 - Anything on a saved character (new field, new equipment slot) needs a `Database` save/load change and a round-trip test in `test_game_logic.py`.
 - Tests: pytest, plain functions, no Discord token. Discord commands are tested with fake interactions in `test_discord_interface.py`; copy an existing one. The web map page is tested in headless Chrome/Edge over DevTools in `test_webclient.py` (skipped without a browser): `page.js(...)` runs script in it.
 - `test_simulation.py` is a player simulator: bots play through `WorldAdapter` in lockstep with `World.tick()` and

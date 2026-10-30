@@ -19,7 +19,6 @@ from Discordia.GameLogic.Items import (
     Equipment,
     MainHandEquipment,
     OffHandEquipment,
-    FullyImplemented,
 )
 
 STATS_PATH = DATA_FOLDER / "weapons.json"
@@ -317,7 +316,7 @@ class SingleLoad(ProjectileWeapon, ABC):
     reload_size = 1
 
 
-class FNMinimi(FromData, MachineGun, FullyImplemented):
+class FNMinimi(FromData, MachineGun):
     """
     Based on the FN Minimi
     """
@@ -377,12 +376,12 @@ class BluntWeapon(MeleeWeapon, ABC):
         self.cripple_chance = cripple_chance
 
 
-class Hammer(FromData, BluntWeapon, MainHandEquipment, FullyImplemented):
+class Hammer(FromData, BluntWeapon, MainHandEquipment):
     pass
 
 
 class Fist(FromData, BluntWeapon, MainHandEquipment, OffHandEquipment):
-    """Everyone starts with these; not FullyImplemented, so no store stocks them."""
+    """Everyone starts with these; "store": false in weapons.json, so no store stocks them."""
 
 
 class SMG(Firearm, MainHandEquipment, OffHandEquipment, ABC):
@@ -397,43 +396,43 @@ class Rifle(Firearm, MainHandEquipment, OffHandEquipment, ABC):
     pass
 
 
-class WeblyRevolver(FromData, Pistol, FullyImplemented):
+class WeblyRevolver(FromData, Pistol):
     """
     Based on the Webly Mk. IV
     """
 
 
-class TT33(FromData, Pistol, FullyImplemented):
+class TT33(FromData, Pistol):
     """
     Based on the TT-33
     """
 
 
-class Makarov(FromData, Pistol, FullyImplemented):
+class Makarov(FromData, Pistol):
     """
     Based on the Makarov PM
     """
 
 
-class M1911(FromData, Pistol, FullyImplemented):
+class M1911(FromData, Pistol):
     """
     Based on the M1911
     """
 
 
-class StechkinAPS(FromData, MachinePistol, SelectiveFire, FullyImplemented):
+class StechkinAPS(FromData, MachinePistol, SelectiveFire):
     """
     Based on the Stechkin automatic pistol (APS)
     """
 
 
-class CarlGustafm45(FromData, SMG, FullyImplemented):
+class CarlGustafm45(FromData, SMG):
     """
     Based on the Carl Gustaf m/45
     """
 
 
-class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
+class PPSh41(FromData, SMG, SelectiveFire):
     """
     Based on the PPSh-41 (Shpagin machine pistol). The drum lets it rip while it is more than half
     full; below that it stutters back down to single shots.
@@ -452,7 +451,7 @@ class PPSh41(FromData, SMG, SelectiveFire, FullyImplemented):
         self._burst_size = value
 
 
-class Sten(FromData, SMG, SelectiveFire, FullyImplemented):
+class Sten(FromData, SMG, SelectiveFire):
     """
     Based on the Sten submachine gun. Stamped out of tube and sheet: one shot in five jams, and the
     shot you spend clearing it lands at half.
@@ -470,19 +469,19 @@ class Sten(FromData, SMG, SelectiveFire, FullyImplemented):
         super().fire()
 
 
-class NorincoCQ(FromData, SMG, FullyImplemented):
+class NorincoCQ(FromData, SMG):
     """
     Based on the Norinco CQ
     """
 
 
-class L1A1(FromData, Rifle, FullyImplemented):
+class L1A1(FromData, Rifle):
     """
     Based on the L1A1 (FN FAL)
     """
 
 
-class OwenSMG(FromData, SMG, FullyImplemented):
+class OwenSMG(FromData, SMG):
     """
     Based on the Owen Machine Carbine (Australian)
     """
@@ -497,31 +496,31 @@ class OwenSMG(FromData, SMG, FullyImplemented):
         return super().calc_damage(distance)
 
 
-class AK47(FromData, Rifle, SelectiveFire, FullyImplemented):
+class AK47(FromData, Rifle, SelectiveFire):
     """
     Based on the AK-47
     """
 
 
-class AKM(FromData, Rifle, SelectiveFire, FullyImplemented):
+class AKM(FromData, Rifle, SelectiveFire):
     """
     Based on the AKM
     """
 
 
-class Type56(FromData, Rifle, SelectiveFire, FullyImplemented):
+class Type56(FromData, Rifle, SelectiveFire):
     """
     Based on the Type 56
     """
 
 
-class HKG3(FromData, Rifle, SelectiveFire, FullyImplemented):
+class HKG3(FromData, Rifle, SelectiveFire):
     """
     Based on the Heckler & Koch G3
     """
 
 
-class Jezail(FromData, Rifle, FullyImplemented):
+class Jezail(FromData, Rifle):
     """
     Based on the Jezail Musket. Does 2x dmg if user is on a mountain.
     https://en.wikipedia.org/wiki/Jezail
@@ -536,7 +535,7 @@ class Jezail(FromData, Rifle, FullyImplemented):
         return damage
 
 
-class MartiniHenry(FromData, Rifle, FullyImplemented):
+class MartiniHenry(FromData, Rifle):
     """
     Based on the Martini-Henry rifle
     """
@@ -549,7 +548,7 @@ class MartiniHenry(FromData, Rifle, FullyImplemented):
         return max(damage * (1 - self.range_falloff * distance * 2), 0.0)
 
 
-class MosinNagant(FromData, Rifle, FullyImplemented):
+class MosinNagant(FromData, Rifle):
     """
     Based on the Mosin-Nagant rifle
     """
@@ -561,7 +560,7 @@ class MosinNagant(FromData, Rifle, FullyImplemented):
         return self.damage * min(1 + self.range_falloff * distance, 2.0)
 
 
-class Lebel(FromData, SingleLoad, Rifle, FullyImplemented):
+class Lebel(FromData, SingleLoad, Rifle):
     """
     Based on the Lebel Model 1886 rifle. Tube magazine: thumbed full one round at a time.
     """
@@ -577,7 +576,7 @@ class Lebel(FromData, SingleLoad, Rifle, FullyImplemented):
         return damage
 
 
-class LeeEnfield(FromData, Rifle, FullyImplemented):
+class LeeEnfield(FromData, Rifle):
     """
     Based on the Lee-Enfield rifle. Stripper clips and a round left in the chamber: reloads to one
     over a full magazine.
@@ -586,19 +585,19 @@ class LeeEnfield(FromData, Rifle, FullyImplemented):
     chambered = 1
 
 
-class M1917(FromData, Rifle, FullyImplemented):
+class M1917(FromData, Rifle):
     """
     Based on the M1917 rifle
     """
 
 
-class Hanyang(FromData, SingleLoad, Rifle, FullyImplemented):
+class Hanyang(FromData, SingleLoad, Rifle):
     """
     Based on the Hanyang 88 rifle. Worn out long before anyone here got hold of one: single loading.
     """
 
 
-class SKS(FromData, Rifle, FullyImplemented):
+class SKS(FromData, Rifle):
     """
     Based on the SKS rifle. Stripper clips over an open bolt, one up the spout.
     """
@@ -606,7 +605,7 @@ class SKS(FromData, Rifle, FullyImplemented):
     chambered = 1
 
 
-class M1Garand(FromData, Rifle, FullyImplemented):
+class M1Garand(FromData, Rifle):
     """
     Based on the M1 Garand rifle. The en-bloc clip pings out when the last round goes and everyone in
     earshot knows you are empty -- the first shot after that reload lands at half.
@@ -623,31 +622,31 @@ class M1Garand(FromData, Rifle, FullyImplemented):
         self._pinged = self.is_empty
 
 
-class RPD(FromData, BeltFedMachineGun, FullyImplemented):
+class RPD(FromData, BeltFedMachineGun):
     """
     Based on the RPD light machine gun
     """
 
 
-class RPK(FromData, Bipod, FullyImplemented):
+class RPK(FromData, Bipod):
     """
     Based on the RPK light machine gun
     """
 
 
-class ZBvz26(FromData, Bipod, FullyImplemented):
+class ZBvz26(FromData, Bipod):
     """
     Based on the ZB vz. 26 light machine gun
     """
 
 
-class PKM(FromData, BeltFedMachineGun, FullyImplemented):
+class PKM(FromData, BeltFedMachineGun):
     """
     Based on the PKM general-purpose machine gun
     """
 
 
-class Type67(FromData, BeltFedMachineGun, FullyImplemented):
+class Type67(FromData, BeltFedMachineGun):
     """
     Based on the Type 67 general-purpose machine gun
     """
@@ -662,45 +661,45 @@ class AmmoFromData(Data.FromData):
     STATS = AMMO_STATS
 
 
-class Ammo9mm(AmmoFromData, Ammo, FullyImplemented):
+class Ammo9mm(AmmoFromData, Ammo):
     """Also fits .38: Caliber.MM_9 and IN_38 are the same round here."""
 
 
-class AmmoTokarev(AmmoFromData, Ammo, FullyImplemented):
+class AmmoTokarev(AmmoFromData, Ammo):
     pass
 
 
-class Ammo45(AmmoFromData, Ammo, FullyImplemented):
+class Ammo45(AmmoFromData, Ammo):
     pass
 
 
-class Ammo556(AmmoFromData, Ammo, FullyImplemented):
+class Ammo556(AmmoFromData, Ammo):
     pass
 
 
-class Ammo762(AmmoFromData, Ammo, FullyImplemented):
+class Ammo762(AmmoFromData, Ammo):
     pass
 
 
-class Ammo8mm(AmmoFromData, Ammo, FullyImplemented):
+class Ammo8mm(AmmoFromData, Ammo):
     pass
 
 
-class Ammo303(AmmoFromData, Ammo, FullyImplemented):
+class Ammo303(AmmoFromData, Ammo):
     pass
 
 
-class Ammo88(AmmoFromData, Ammo, FullyImplemented):
+class Ammo88(AmmoFromData, Ammo):
     pass
 
 
-class Ammo792(AmmoFromData, Ammo, FullyImplemented):
+class Ammo792(AmmoFromData, Ammo):
     pass
 
 
-class Ammo577(AmmoFromData, Ammo, FullyImplemented):
+class Ammo577(AmmoFromData, Ammo):
     pass
 
 
-class MusketBalls(AmmoFromData, Ammo, FullyImplemented):
+class MusketBalls(AmmoFromData, Ammo):
     pass

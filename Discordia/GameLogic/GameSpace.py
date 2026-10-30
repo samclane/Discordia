@@ -18,7 +18,7 @@ from math import sqrt
 from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import Events, Actors, Items, Weapons
+from Discordia.GameLogic import Data, Events, Actors, Items, Weapons
 from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
 from Discordia.GameLogic.StringGenerator import (
@@ -1326,7 +1326,7 @@ class Store:
     @classmethod
     def generate_store(cls):
         inventory: List[Equipment] = []
-        for item_class in Items.FullyImplemented.__subclasses__():
+        for item_class in Data.stocked():
             item = item_class()
             if isinstance(item, Equipment) and random.random() > 0.2:
                 inventory.append(item)

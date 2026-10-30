@@ -142,12 +142,19 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] `Space.__eq__` ignores terrain but `Space.__hash__` includes it, so equal spaces can hash differently. Set
   operations on spaces (`World.get_players_in_region`) are quietly relying on identity today.
 
-- [ ] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
+- [x] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
 - [ ] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
+- [ ] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
+  reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decide whether stores (or
+  caches, as the only chest armor) should carry it.
 - [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 `FullyImplemented` is gone: stores stock `Data.stocked()`, every gear class with a stat block in
+  `data/`, minus blocks saying `"store": false` (fists, salvage, and the 6B45 that was never stocked). Same
+  classes in the same order as before, so every seeded store comes out as it did.
 
 - 2026-10-30 Deleted `GameSpace.Base` and `BaseLevel`: never placed, never referenced; the hideout is
   `PlayerCharacter.hideout_level`. CLAUDE.md's layout line now lists Cache/Extract instead.

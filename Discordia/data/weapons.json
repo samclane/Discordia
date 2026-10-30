@@ -281,6 +281,7 @@
   },
   "Fist": {
     "name": "Fist",
+    "store": false,
     "base_value": 0,
     "cripple_chance": 0.1,
     "base_damage": 2
