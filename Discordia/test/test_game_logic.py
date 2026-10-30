@@ -1732,7 +1732,7 @@ def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_r
     adapter.register_player(2, "Pal")
     adapter.get_player(2).location = world.space_at(corner.x + 1, corner.y)
     text = adapter.look_text(player)
-    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops")
+    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops", "ruins", "plaza")
     danger = corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
     assert f"danger {danger}." in text.splitlines()[0]
     assert text.endswith("In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east.")
@@ -1763,6 +1763,41 @@ def test_a_small_animal_and_a_large_one_look_different():
 
 def test_npcs_and_raiders_are_people():
     assert all(isinstance(Actors.Raider.generate(1).body_type, Actors.Humanoid) for _ in range(20))
+
+
+def _layout(world):
+    return [(type(s).__name__, s.x, s.y) for c in world.loaded_chunks() for row in world.loaded_chunk(*c) or []
+            for s in row if type(s) is not GameSpace.Space]
+
+
+def test_ruins_and_plazas_are_paving_that_moved_nothing_on_the_map(monkeypatch):
+    def world():
+        w = GameSpace.World("Districts", 192, 192, seed=4)
+        for x in range(0, 192, GameSpace.CHUNK_SIZE):
+            for y in range(0, 192, GameSpace.CHUNK_SIZE):
+                w.space_at(x, y)
+        return w
+
+    with_districts = world()
+    kinds = {type(s.terrain) for c in with_districts.loaded_chunks() for row in with_districts.loaded_chunk(*c) or [] for s in row}
+    assert {GameSpace.RuinsTerrain, GameSpace.PlazaTerrain} <= kinds
+    assert GameSpace.RuinsTerrain().buildable and GameSpace.PlazaTerrain().walkable
+    monkeypatch.setattr(GameSpace, "DISTRICT_LEVEL", 2.0)  # noise never gets there: the map as it was before them
+    assert _layout(world()) == _layout(with_districts)  # same towns, wilds, caches and exits, square for square
+
+
+def test_ruins_hide_you_from_raiders_and_a_plaza_shows_you_from_twice_as_far(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    sight = GameSpace.NPC_SIGHT
+    corner = _open_ground(world, 2 * sight + 1)
+    player.location = corner
+    near, far = world.space_at(corner.x + sight, corner.y), world.space_at(corner.x + 2 * sight, corner.y)
+    corner.terrain = GameSpace.RuinsTerrain()
+    assert world.prey_in_sight(world.space_at(corner.x + 1, corner.y)) is None  # not even from next door
+    corner.terrain = GameSpace.PlazaTerrain()
+    assert world.prey_in_sight(far) is player
+    corner.terrain = GameSpace.SandTerrain()
+    assert world.prey_in_sight(near) is player and world.prey_in_sight(far) is None
 
 
 def test_a_raider_does_not_see_past_its_sight(adapter, lone_raider):

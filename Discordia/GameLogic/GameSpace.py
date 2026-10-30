@@ -128,6 +128,10 @@ EXTRACT_CHANCE = 0.5
 # raiders still wander in from just out of sight.
 NPC_AWAKE_RADIUS = CHUNK_SIZE
 
+# Paving where a fourth noise layer passes +DISTRICT_LEVEL is ruins (cover), and where it passes -DISTRICT_LEVEL a
+# plaza (exposed): see RuinsTerrain and PlazaTerrain.
+DISTRICT_LEVEL = 0.3
+
 # How far a raider spots a player from, in squares either way. Further than /look's 2, so the first a
 # player knows of one is its warning, while there's still room to run.
 NPC_SIGHT = 6
@@ -247,6 +251,28 @@ class SandTerrain(Terrain):
     @property
     def layer(self) -> int:
         return 1
+
+
+class RuinsTerrain(SandTerrain):
+    """Bombed-out lots among the paving: cover. A raider can't spot you standing in them (World.prey_in_sight).
+    Paving in every other way, buildable and walkable, so adding it moved no town, wilds or character on any
+    saved map: chunk generation only asks whether a square is buildable."""
+
+    label = "ruins"
+
+    @property
+    def name(self) -> str:
+        return "ruins"
+
+
+class PlazaTerrain(SandTerrain):
+    """Open squares: nowhere to hide, so a raider spots you from twice as far. Paving otherwise, as ruins are."""
+
+    label = "plaza"
+
+    @property
+    def name(self) -> str:
+        return "plaza"
 
 
 class GrassTerrain(Terrain):
@@ -790,6 +816,8 @@ class World:
         # scaled to the map, so a big world is more of the same, not the same few islands blown up.
         self._noise_scale = self.gen_params.resolution_constant * 50
         self._slices = (random.random(), random.random(), random.random())
+        # Its own generator, not a fourth draw: that would shift the game's random sequence for old saves.
+        self._district_slice = random.Random(f"{self.seed}:districts").random()
         self._choose_spawn()
 
     def _choose_spawn(self):
@@ -848,6 +876,12 @@ class World:
             terrain = MountainTerrain()
         if abs(pnoise3(nx, ny, self._slices[2])) > self.gen_params.grass:
             terrain = GrassTerrain()
+        if type(terrain) is SandTerrain:
+            district = pnoise3(nx, ny, self._district_slice)
+            if district > DISTRICT_LEVEL:
+                terrain = RuinsTerrain()
+            elif district < -DISTRICT_LEVEL:
+                terrain = PlazaTerrain()
         return terrain
 
     def _load_chunk(self, cx: int, cy: int) -> List[List[Space]]:
@@ -1140,13 +1174,18 @@ class World:
         )
 
     def prey_in_sight(self, space: Space) -> Actors.PlayerCharacter | None:
-        """The nearest player within NPC_SIGHT of `space` who isn't safe in a town."""
+        """The nearest player a raider at `space` can see: within NPC_SIGHT, twice that on a plaza, and not safe in
+        a town or hidden in ruins."""
+
+        def sight(terrain: Terrain) -> int:
+            return -1 if isinstance(terrain, RuinsTerrain) else NPC_SIGHT * (2 if isinstance(terrain, PlazaTerrain) else 1)
+
         in_sight = [
             p
             for p in self.players
             if p.location is not None
             and not isinstance(p.location, Town)
-            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= NPC_SIGHT
+            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= sight(p.location.terrain)
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 

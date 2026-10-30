@@ -67,6 +67,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   2026-10-30: extracting with a haul pays 10 XP per danger level of the deepest square reached on that raid
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
 - [x] More classes: each trade town trains one, with one perk (`PlayerClass.perk`).
+- [x] More tile types: ruins (cover) and plazas (exposed), carved out of paving.
 - [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
@@ -162,6 +163,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Ruins and plazas: a fourth noise layer turns about a fifth of paving into ruins (`RuinsTerrain`,
+  the sheet's grey concrete block: raiders can't spot you in them) or plazas (`PlazaTerrain`, the tan-bordered
+  block: spotted from twice `NPC_SIGHT`), both in `World.prey_in_sight`. They're paving subclasses, buildable and
+  walkable, and the layer has its own seed, so every saved map keeps its towns, wilds, caches and exits square for
+  square (tested by switching the layer off). `ART_VERSION` 7.
 
 - 2026-10-30 More classes: mining towns train Scavengers (60 HP, a cache gives one more salvage), farming towns
   Medics (55, camping heals twice as fast), woodworking towns Scouts (55, `fov` + 1 for `/look` and the map view),

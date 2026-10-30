@@ -88,7 +88,7 @@ def test_explored_chunks_are_pngs(base_url):
 
     terrain = json.loads(get(base_url + f"/chunk/{cx}/{cy}.json")[2])["terrain"]
     assert len(terrain) == 12 and len(terrain[0]) == GameSpace.CHUNK_SIZE  # clipped to the map
-    assert {t for row in terrain for t in row} <= {"paving", "park", "canal", "rooftops"}  # what the art shows
+    assert {t for row in terrain for t in row} <= {"paving", "park", "canal", "rooftops", "ruins", "plaza"}  # what the art shows
 
 
 def test_hovering_names_extraction_points_and_caches():

@@ -35,7 +35,7 @@ TILE = 16
 GROUND = 117
 # Top-left tile of each terrain's block in the sheet. Every block has the same layout: a 3x3 of corners,
 # edges and middle at columns 0-2, and inside corners at columns 5-6 of the top two rows.
-BLOCKS = {"water": 170, "grass": 0, "mountain": 81}
+BLOCKS = {"water": 170, "grass": 0, "mountain": 81, "ruins": 8, "plaza": 89}
 # Pixels a square in the zoomed-out overview: still reads as coast and towns, at a tenth of the bytes.
 MINI_TILE = 2
 

@@ -58,7 +58,7 @@ HOME_HTML = Path(__file__).with_name("home.html")
 ME_HTML = Path(__file__).with_name("me.html")
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
-ART_VERSION = 6
+ART_VERSION = 7
 ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
