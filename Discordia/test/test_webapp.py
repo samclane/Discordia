@@ -50,6 +50,9 @@ def base_url():
         Actors.NPC(parent_world=adapter.world, name="Bandit", hp=10)
     )
     adapter.world.npcs[0].location = adapter.world.space_at(4, 3)
+    fallen = adapter.world.space_at(6, 3)  # a corpse run's pile
+    fallen.remains = GameSpace.Remains(Actors.PlayerCharacter(adapter.world, name="Gone"), [], 40, 10**9)
+    adapter.world.piles.append(fallen)
 
     server = serve(adapter)
     yield f"http://127.0.0.1:{server.server_port}"
@@ -134,6 +137,9 @@ def test_actors_json_carries_the_spawned_npc(base_url):
     assert (bandit["x"], bandit["y"], bandit["kind"]) == (4, 3, "npc")
     assert bandit["sprite"].startswith("/sprites/") and bandit["sprite"].endswith(".png")
     assert get(base_url + bandit["sprite"])[2].startswith(b"\x89PNG")
+    pile = next(a for a in actors if a["kind"] == "remains")
+    assert (pile["x"], pile["y"], pile["name"], pile["contents"]) == (6, 3, "Gone's things", "$40")
+    assert get(base_url + pile["sprite"])[2].startswith(b"\x89PNG")
 
 
 def test_one_connection_serves_many_requests(base_url):

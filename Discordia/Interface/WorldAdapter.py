@@ -283,7 +283,8 @@ class WorldAdapter:
         return npcs
 
     def look_text(self, character: Actors.PlayerCharacter) -> str:
-        """Where `character` stands, how rough it is, and who's in view, nearest first with a bearing to each."""
+        """Where `character` stands, how rough it is, and who and what's in view (people, animals, the piles a
+        raid death left), nearest first with a bearing to each."""
         here = character.location
         text = f"You're at {here}, on {here.terrain.label}."
         if isinstance(here, Town):
@@ -292,23 +293,27 @@ class WorldAdapter:
             text += f" You're in the wilds, {here.name}, danger {here.level}."
         else:
             text += f" Out here is danger {self.world.depth_at(here)}."
-        others = [a for a in self.get_nearby_npcs(character) + self.get_nearby_players(character) if a is not character]
-        if not others:
+        seen: List[Tuple[str, Space]] = []
+        for actor in self.get_nearby_npcs(character) + self.get_nearby_players(character):
+            if actor is not character:
+                kind = " (raider)" if isinstance(actor, Actors.Raider) else ""
+                kind = " (player)" if isinstance(actor, Actors.PlayerCharacter) else kind
+                seen.append((actor.name + kind, actor.location))
+        for space in self.world.live_piles():
+            pile = space.remains
+            if pile is not None and max(abs(space.x - here.x), abs(space.y - here.y)) <= character.fov:
+                seen.append((f"{pile.owner.name}'s things ({pile})", space))
+        if not seen:
             return text + " Nobody else in sight."
 
-        def sighting(actor: Actors.Actor) -> str:
-            label = actor.name
-            if isinstance(actor, Actors.Raider):
-                label += " (raider)"
-            elif isinstance(actor, Actors.PlayerCharacter):
-                label += " (player)"
-            squares = max(abs(actor.location.x - here.x), abs(actor.location.y - here.y))
+        def sighting(label: str, there: Space) -> str:
+            squares = max(abs(there.x - here.x), abs(there.y - here.y))
             if not squares:
                 return f"{label}, right here"
-            return f"{label}, {squares} square{'s' * (squares != 1)} {bearing(here, actor.location)}"
+            return f"{label}, {squares} square{'s' * (squares != 1)} {bearing(here, there)}"
 
-        others.sort(key=lambda a: here.distance(a.location))
-        return text + "\nIn sight: " + "; ".join(map(sighting, others)) + "."
+        seen.sort(key=lambda s: here.distance(s[1]))
+        return text + "\nIn sight: " + "; ".join(sighting(*s) for s in seen) + "."
 
     def get_nearby_players(
         self, character: Actors.PlayerCharacter

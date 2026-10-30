@@ -808,6 +808,8 @@ class World:
         # (player, text) worth telling the player's Discord server: deaths, and raids that brought something home.
         # Whoever posts them takes them (the cog, once a tick); nothing else reads it.
         self.announcements: List[Tuple[Actors.PlayerCharacter, str]] = []
+        # Squares a raid death left remains on, some since picked up or rotted: live_piles() says which still count.
+        self.piles: List[Space] = []
         self.starting_town: Town = None  # type: ignore[assignment]  # chosen by _choose_spawn
 
         # Always seeded, and always remembers its seed: that's what lets a save file be just the seed.
@@ -1299,6 +1301,14 @@ class World:
             )
         return events
 
+    def live_piles(self) -> List[Space]:
+        """Squares where a raid death's things still lie, for the map and /look. Safe from another thread."""
+        return [
+            space
+            for space in list(self.piles)
+            if (pile := space.remains) is not None and pile.expires >= self.ticks and (pile.items or pile.currency)
+        ]
+
     def pick_up_remains(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
         """Take whatever a raid death left on the square `player` stands on, if it hasn't rotted away."""
         here = player.location
@@ -1333,6 +1343,7 @@ class World:
             pile.items += items
             pile.currency += currency
             pile.expires = self.ticks + REMAINS_TICKS
+            self.piles = [s for s in self.live_piles() if s is not here] + [here]  # pruned as it grows
             if items or currency:
                 player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
             danger = here.level if isinstance(here, Wilds) else self.depth_at(here)

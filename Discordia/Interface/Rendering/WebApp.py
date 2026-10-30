@@ -229,6 +229,23 @@ def _actors_json(renderer: WindowRenderer) -> bytes:
                 **({"level": actor.level, "class": actor.player_class.name} if isinstance(actor, PlayerCharacter) else {}),
             }
         )
+    for space in adapter.world.live_piles():  # a corpse run's pile: drawn like an actor that never moves
+        pile = space.remains
+        if pile is None:  # picked up since live_piles looked
+            continue
+        actors.append(
+            {
+                "id": f"remains:{space.x},{space.y}",
+                "kind": "remains",
+                "name": f"{pile.owner.name}'s things",
+                "x": space.x,
+                "y": space.y,
+                "sprite": _sprite_url(str(SPRITES_ROOT / "Structures" / "remains.png")),
+                "hp": 0,
+                "hp_max": 0,
+                "contents": str(pile),
+            }
+        )
     return json.dumps({"actors": actors}).encode()
 
 

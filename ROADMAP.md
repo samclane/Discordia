@@ -116,7 +116,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
   (stale: side by side, the raider, soldier and wanderer sprites already are those characters in the sheet's
   palette, recoloured with helmets and hard hats. Only the unused `null_actor.png` placeholder isn't.)
 - [x] Random sprite generation per `BodySize` (TODO in `Actors.py`); NPCs all share `null_npc.png`.
-- [ ] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
+- [x] Show `Space.remains` (a corpse run's pile) on the web map and in `/look`, so you can find your way back.
 - [ ] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
   a player where the nearest one is. A bearing to it in `/look`, like `/choose talk`'s directions to a town.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
@@ -148,6 +148,11 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Piles on the map: `World.piles` remembers where raid deaths left things and `live_piles()` keeps
+  the ones still there (not picked up, not rotted, not empty). `/look` lists a pile in view like anyone else
+  ("Vex's things ($300, Helmet), 2 squares east"), and the web map draws each as a black bag from the Kenney
+  sheet (`Sprites/Structures/remains.png`), sent with the actors as `kind: "remains"`; clicking says what's in it.
 
 - 2026-10-30 Sprites by body size: a small animal (rat, feral cat, crow, fox) draws as a new hand-drawn rat,
   `Sprites/Actors/small_animal.png`; large ones keep the dog. "NPCs all share null_npc.png" was stale: raiders

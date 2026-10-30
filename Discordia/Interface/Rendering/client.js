@@ -295,9 +295,10 @@ function renderActors() {
   const followed = selected?.actor && actors.find((a) => a.id === selected.actor);
   if (followed && follow) flyTo(followed.x, followed.y);
   const npcs = actors.filter((a) => a.kind === "npc").length;
+  const players = actors.filter((a) => a.kind === "player").length; // the rest are remains
   $("meta").textContent =
     `Seed ${world.seed} · ${world.width.toLocaleString()}² · ${explored.size} chunks explored · ` +
-    `${actors.length - npcs} player${actors.length - npcs === 1 ? "" : "s"} · ${npcs} NPC${npcs === 1 ? "" : "s"}`;
+    `${players} player${players === 1 ? "" : "s"} · ${npcs} NPC${npcs === 1 ? "" : "s"}`;
   renderPlayers();
   renderMe();
   renderInfo();
@@ -435,6 +436,7 @@ function clearSelection() {
 }
 
 function describeActor(a) {
+  if (a.kind === "remains") return `<b>${esc(a.name)}</b> <span class="dim">&mdash; dropped on death, free to take</span><br>${esc(a.contents)}`;
   const what = a.kind === "player" ? `Level ${a.level} ${esc(a.class)}` : "NPC";
   return `<b>${esc(a.name)}</b> <span class="dim">&mdash; ${what}</span><br>${a.hp}/${a.hp_max} hp`;
 }

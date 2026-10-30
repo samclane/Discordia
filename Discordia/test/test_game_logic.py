@@ -1178,8 +1178,11 @@ def test_a_raid_death_is_news_and_says_where_the_loot_lies(adapter):
     [(who, text)] = world.announcements
     assert who is player and text.startswith(f"Tester died at {here}, danger ")
     assert text.endswith("$300 lie there for whoever gets to them first.")
+    assert world.live_piles() == [here]
+    assert f"Tester's things ($300), 1 square {GameSpace.bearing(player.location, here)}" in adapter.look_text(player)
     world.announcements.clear()
     here.remains = None  # or the next step out is a corpse run, and that's a haul
+    assert world.live_piles() == []
     adapter.move_player(player, _quiet_step_out_of_town(world))
     adapter.move_player(player, tuple(-v for v in _quiet_step_out_of_town(world)))
     assert world.announcements == []  # back with nothing: not news
