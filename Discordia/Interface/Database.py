@@ -111,10 +111,13 @@ POUCH = "pouch"  # item.slot for the one carried item a death leaves alone
 ITEM_STATE = ("_current_capacity", "_jammed", "_pinged", "_consecutive_fires")
 
 
-def _item_state(item: Equipment) -> str | None:
+def _item_state(item: Equipment, worn: str | None = None) -> str | None:
+    """`worn`: the slot a backpack item is also equipped in. It's one item, so it gets one row."""
     state = {key: value for key, value in vars(item).items() if key in ITEM_STATE}
     if isinstance(item, Ammo):
         state["quantity"] = item.quantity
+    if worn is not None:
+        state["worn"] = worn
     return json.dumps(state) if state else None
 
 
@@ -247,6 +250,8 @@ class Database:
             item = _restore_item(item_row["class_path"], item_row["state"])
             if item_row["slot"] is None:
                 character.inventory.append(item)
+                if worn := json.loads(item_row["state"] or "{}").get("worn"):  # equipped from the backpack
+                    character.equip(item, EquipmentSet.SLOTS[worn])
             elif item_row["slot"] == STASH:
                 character.stash.append(item)
             elif item_row["slot"] == POUCH:
@@ -331,19 +336,20 @@ class Database:
             ),
         )
 
-        equipped = [
-            (item, slot)
+        worn = {
+            id(item): (item, slot)
             for slot in EquipmentSet.SLOTS
             for item in [getattr(character.equipment_set, slot)]
-            if type(item) not in EquipmentSet.SLOTS.values()
-        ]  # the bare base classes are empty slots
+            if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+        }
+        carried = {id(item) for item in character.inventory}
+        # (item, slot, also worn in): one row per item. Worn from the backpack is a backpack row that says so,
+        # worn but not carried (fists, say) is a slot row.
+        rows = [(item, slot, None) for key, (item, slot) in worn.items() if key not in carried]
+        rows += [(item, None, worn[id(item)][1] if id(item) in worn else None) for item in character.inventory]
+        rows += [(item, STASH, None) for item in character.stash]
+        rows += [(character.pouch, POUCH, None)] if character.pouch is not None else []
         self.connection.executemany(
             "INSERT INTO item (discord_id, class_path, slot, state) VALUES (?, ?, ?, ?)",
-            [
-                (discord_id, _class_path(item), slot, _item_state(item))
-                for item, slot in equipped
-                + [(item, None) for item in character.inventory]
-                + [(item, STASH) for item in character.stash]
-                + ([(character.pouch, POUCH)] if character.pouch is not None else [])
-            ],
+            [(discord_id, _class_path(item), slot, _item_state(item, also)) for item, slot, also in rows],
         )

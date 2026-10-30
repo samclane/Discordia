@@ -130,7 +130,7 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 
 - [x] Armor rolls its coverage randomly and `base_value` is `10 * armor_count`, so a piece worth 0 is
   free from any store. Give every item a floor price.
-- [ ] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
+- [x] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
   it twice, as a slot row and a backpack row, and a restart hands back two.
 - [ ] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
@@ -148,6 +148,12 @@ and a reason to check in on Discord a few times a day rather than grind for hour
 - [ ] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-30 Worn from the backpack, saved once: an item equipped with `/inventory equip` stays in the
+  backpack by design (`lose_carried` already counted it once), but `Database.save` wrote it as a slot row and a
+  backpack row, so a restart handed back two. It's now one backpack row whose JSON state names the slot it's worn
+  in; items worn but not carried (fists) keep slot rows. Saves from before the fix still hold both copies, and a
+  real second helmet can't be told from a duplicate, so they're left as they are.
 
 - 2026-10-30 Naming the way out: `/look` outside a town says the nearest way out, a town by name or an
   extraction point, with squares and bearing. The web map's hover and click now name extraction points and caches

@@ -223,7 +223,9 @@ class TestGeneral(unittest.TestCase):
         jezail = Jezail()
         player.equip(jezail)
         jezail.fire()  # a single shot, now empty
-        player.inventory.append(Armor.Helmet())
+        helmet = Armor.Helmet()
+        player.inventory.append(helmet)
+        player.equip(helmet)  # worn from the backpack, as /inventory equip does: one helmet, not two
         player.stash.append(Jezail())
         balls = Weapons.MusketBalls()
         balls.take(3)
@@ -288,6 +290,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual((box.quantity, box.base_value), (balls.quantity, balls.base_value))
         self.assertEqual(box.quantity, Weapons.MusketBalls().quantity - 3)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
+        self.assertIs(restored.equipment_set.head, restored.inventory[0])  # still worn, and the same one
         self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
         self.assertEqual(restored.stash_currency, 77)
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
