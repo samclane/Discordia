@@ -35,6 +35,7 @@ from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
 from Discordia.test import sim_history
 
 DIRECTIONS = [d for k, d in DIRECTION_VECTORS.items() if k]
+TRADES = {c().name for c in (Actors.Scavenger, Actors.Medic, Actors.Scout, Actors.Fixer)}  # what trade towns train
 COMPASS = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]  # clockwise from north
 SLOW_ORDER = 1.0  # seconds; an order this slow is worth a look (CombatEvent can spin)
 HANG = 300  # seconds for a whole run before faulthandler dumps every stack and exits
@@ -394,7 +395,8 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "mean level": round(mean(r["level"] for r in last), 2),
         "top level": max(r["level"] for r in last),
         "deaths": sum(r["deaths"] for r in last),
-        "trade classes (share of bots)": round(mean(r["class"] != Actors.WandererClass().name for r in last), 2),
+        "trade classes (share of bots)": round(mean(r["class"] in TRADES for r in last), 2),
+        "raiders (share of bots)": round(mean(r["class"] == Actors.RaiderClass().name for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
