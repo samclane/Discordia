@@ -91,6 +91,9 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Ruins and plazas made raids deadlier in simulation (374c68f): deaths 16 -> 17 (seed 0) and 18 -> 25 (seed 1),
   mean worth 592 -> 468 and 864 -> 768. Simulator bots don't know to cut through ruins or skirt plazas, so they only
   meet the downside; real players can. Teach the bots that first, then see if plazas need to be 1.5x, not 2x.
+- [ ] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
+  deadlier: deaths 25 -> 29, mean worth 768 -> 643 (seed 0 went the other way, 17 -> 14 and 468 -> 578). Likely
+  levelled bots raiding deeper; check the deaths-by-danger split on a longer run before tuning anything.
 - [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
