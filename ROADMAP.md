@@ -82,7 +82,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Levels outrun the map: in a 3000-tick simulation bots reach level 4-30 without going past danger 5. Tune XP
   or danger once Extract exists. (Deaths are now mostly wilds fights at danger 3-5, which is the risk working.)
 - [x] Rest / heal outside towns (camp command, slow regen per tick) so a hurt player is not forced to walk home.
-- [ ] XP is slow now that a cleared wilds square can't be re-looted: over 3000 simulated ticks (seed 0) bots end
+- [x] XP is slow now that a cleared wilds square can't be re-looted: over 3000 simulated ticks (seed 0) bots end
   at level 1-5, where the same run gave 4-7 before. Re-looting dead enemies had been most of the XP. Decided
   2026-10-30: extracting with a haul pays 10 XP per danger level of the deepest square reached on that raid
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
@@ -452,3 +452,5 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-10-31 Prestige: `/hideout prestige` (town, hideout 15+, `confirm` to go through) wipes the hideout and
   stash for +10% hideout income per prestige, kept in a migrated `character.prestige`; income now goes through
   `PlayerCharacter.hideout_income`.
+- 2026-10-31 XP on extract: extracting with items or money pays `EXTRACT_XP_PER_DANGER` (10) XP per danger level
+  of the deepest square stood on that raid (`PlayerCharacter.raid_deepest`, via the new `World.danger_at`).

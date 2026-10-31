@@ -14,6 +14,7 @@ CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds leve
 HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
 EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, and so on
 HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
+EXTRACT_XP_PER_DANGER = 10  # extracting with loot pays this per danger level of the deepest square reached
 # Each hideout level pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks: $120 an hour at the
 # default 5-second tick. The first costs HIDEOUT_COST, about eight hours of what it pays, and each after costs
 # HIDEOUT_GROWTH times more (Cookie Clicker's curve), so every level takes a little longer to pay for itself.
@@ -518,6 +519,8 @@ class PlayerCharacter(Actor):
         # (money, backpack, experience) as you last stepped out of a town, or None when no raid is on.
         # Not saved: a load out of town starts it afresh (Database), and a death throws it away.
         self.raid_start: Tuple[int, List[Items.Equipment], int] | None = None
+        # The highest danger stood on since raid_start, which extracting with loot pays XP for. Not saved either.
+        self.raid_deepest: int = 0
         # An unattended raid (World.tick walks it): (the World.ticks it heads home at, deaths when it set out,
         # the deepest danger level it goes to). Saved, so a restart picks the raid up where it was.
         self.auto_raid: Tuple[int, int, int] | None = None
@@ -537,7 +540,11 @@ class PlayerCharacter(Actor):
         was_out = not isinstance(self.location, GameSpace.Town)
         if not was_out:
             self.raid_start = (self.currency, self.carried, self.experience)
+            self.raid_deepest = 0
         responses = super().attempt_move(shift)
+        # ponytail: an extraction point moves you on to town before this looks, so its own square isn't counted.
+        if self.raid_start is not None and not isinstance(self.location, GameSpace.Town):
+            self.raid_deepest = max(self.raid_deepest, self.parent_world.danger_at(self.location))
         if (found := self.parent_world.pick_up_remains(self)) is not None:
             responses.append(found)
         # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
@@ -552,8 +559,10 @@ class PlayerCharacter(Actor):
         found = [str(item) for item in self.carried if not any(item is had for had in pack)]
         if self.currency > money:
             found.append(f"${self.currency - money}")
+        # Bringing loot home is what levels you: the deeper the raid went, the more it pays.
+        levels = self.gain_experience(EXTRACT_XP_PER_DANGER * self.raid_deepest) if found else 0
         if self.experience > experience:
-            found.append(f"{self.experience - experience} XP")
+            found.append(f"{self.experience - experience} XP" + (f" (level {self.level}!)" if levels else ""))
         haul = ", ".join(found) if found else "nothing but the walk"
         if found:
             self.parent_world.announcements.append((self, f"{self.name} made it back to {self.location.name} with {haul}."))

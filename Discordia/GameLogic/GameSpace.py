@@ -1033,6 +1033,10 @@ class World:
         """danger_level without the roll: the level a square is meant to be, by distance from the spawn."""
         return min(WILDS_MAX_LEVEL, 1 + int(self.starting_town.distance(space) / DANGER_TILES_PER_LEVEL))
 
+    def danger_at(self, space: Space) -> int:
+        """The danger a player sees at `space`: a wilds square's own roll, else the level it's meant to be."""
+        return space.level if isinstance(space, Wilds) else self.depth_at(space)
+
     def danger_level(self, space: Space) -> int:
         """How rough the wilds are at `space`: 1 next to the starting town, one more per
         DANGER_TILES_PER_LEVEL squares out, up to WILDS_MAX_LEVEL. The roll adds a little local variety.
@@ -1348,8 +1352,7 @@ class World:
             self.piles = [s for s in self.live_piles() if s is not here] + [here]  # pruned as it grows
             if items or currency:
                 player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
-            danger = here.level if isinstance(here, Wilds) else self.depth_at(here)
-            news = f"{player.name} died at {here}, danger {danger}."
+            news = f"{player.name} died at {here}, danger {self.danger_at(here)}."
             if items or currency:  # a corpse run for anyone who reads this
                 news += f" {Remains(player, items, currency, 0)} lie there for whoever gets to them first."
             self.announcements.append((player, news))

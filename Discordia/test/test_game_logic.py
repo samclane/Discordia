@@ -1225,16 +1225,28 @@ def test_stepping_back_into_town_extracts_and_reports_the_haul(adapter):
 
     adapter.move_player(player, d)
     assert player.raid_start is not None
+    danger = adapter.world.danger_at(player.location)
+    assert danger >= 1 and player.raid_deepest == danger
     player.inventory.append(helmet)
     player.currency += 250
     player.gain_experience(40)
 
     results = adapter.move_player(player, (-d[0], -d[1]))
     assert player.location == adapter.world.starting_town
-    assert results[-1].text.endswith(f"you brought home: {helmet}, $250, 40 XP.")
+    xp = 40 + Actors.EXTRACT_XP_PER_DANGER * danger  # the kill's, and the haul's for how deep it went
+    assert results[-1].text.endswith(f"you brought home: {helmet}, $250, {xp} XP.")
     assert player.raid_start is None
     town = adapter.world.starting_town.name
-    assert adapter.world.announcements == [(player, f"Tester made it back to {town} with {helmet}, $250, 40 XP.")]
+    assert adapter.world.announcements == [(player, f"Tester made it back to {town} with {helmet}, $250, {xp} XP.")]
+
+
+def test_extracting_empty_handed_pays_no_xp(adapter):
+    player = adapter.get_player(1)
+    d = _quiet_step_out_of_town(adapter.world)
+    adapter.move_player(player, d)
+    results = adapter.move_player(player, (-d[0], -d[1]))
+    assert results[-1].text.endswith("you brought home: nothing but the walk.")
+    assert player.experience == 0
 
 
 def test_a_raid_death_is_news_and_says_where_the_loot_lies(adapter):

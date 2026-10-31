@@ -263,6 +263,7 @@ class Database:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
         if not isinstance(character.location, GameSpace.Town):  # mid-raid: the haul counts from the restart
             character.raid_start = (character.currency, character.carried, character.experience)
+            character.raid_deepest = adapter.world.danger_at(character.location)
 
     def save(self, adapter: WorldAdapter):
         """Full rewrite of the mutable state, in one transaction."""

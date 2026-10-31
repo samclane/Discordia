@@ -306,6 +306,8 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.
         self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))
+        if restored.raid_start is not None:  # and the depth it pays for counts from where it stands
+            self.assertEqual(restored.raid_deepest, adapter.world.danger_at(restored.location))
         self.assertEqual(adapter.guild_settings, {5: GuildSettings(channels=[11, 12], digest_channel=12)})
         self.assertEqual(
             (restored.location.x, restored.location.y),
