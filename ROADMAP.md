@@ -215,7 +215,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [x] Delete `Items.FullyImplemented` marker (FIXME): `Store.generate_store` should pick from JSON data instead of subclass scanning.
 - [x] `GameSpace.generate_map` region around the `FIXME Ugly function` note at ~L685.
-- [ ] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
+- [x] The 6B45 chest armor (`Armor.Chest6B45`) has never been sold: it lacked the old marker since 2019 with no
   reason given, so it's `"store": false` in `armor.json` to keep shops as they were. Decided 2026-10-30: make it
   cache-only loot, so deep raids are where chest armor comes from. Caches pick from store stock today
   (`Cache.run_event`), so give them a small extra pool of `"store": false` gear, salvage aside.
@@ -223,6 +223,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Cache-only chest armor: caches roll for a piece of `GameSpace.CACHE_ONLY` (the 6B45, still
+  `"store": false`) at a chance of their level / `WILDS_MAX_LEVEL`, on top of the usual kit: 1 in 8 at danger 1,
+  certain at the deepest. Its own roll, since mixed into the kit pick a $100 vest loses to the store's best gun.
 
 - 2026-10-31 Private refusals before the tick: `/move` into water or off the map and `/choose` with nobody waiting
   are refused before the defer, so the reply is ephemeral (a public defer makes the first followup public).

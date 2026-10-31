@@ -19,7 +19,7 @@ from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Data, Events, Actors, Items, Weapons
-from Discordia.GameLogic import Armor  # noqa: F401  # Store stocks every Data.stocked() class: they must all be imported
+from Discordia.GameLogic import Armor  # Store stocks every Data.stocked() class: they must all be imported
 from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
 from Discordia.GameLogic.StringGenerator import (
@@ -120,6 +120,9 @@ CACHE_CURRENCY_PER_LEVEL = 100
 # CACHE_REFILL_TICKS, four hours at a 5-second tick, so a raid route is worth running a few times a day.
 CACHE_LEVELS_PER_SALVAGE = 3
 CACHE_REFILL_TICKS = 2880
+# "store": false gear that only caches hand out, one piece at a chance of the cache's level / WILDS_MAX_LEVEL: deep
+# raids are where chest armor comes from.
+CACHE_ONLY: Tuple[type, ...] = (Armor.Chest6B45,)
 
 # Extraction points: on the same cells as caches, each cell rolls EXTRACT_CHANCE for one on a plain square of one
 # of its middle chunks. Stepping on one is a ride to the nearest town, so a deep raid needn't walk all the way back.
@@ -695,6 +698,8 @@ class Cache(Space):
         found = [f"${response.currency}"]
         stock = Store.generate_store().inventory
         kit = [max(random.sample(stock, min(level, len(stock))), key=lambda i: i.base_value)] if stock else []
+        if random.random() < level / WILDS_MAX_LEVEL:  # its own roll: against the store's best it would lose
+            kit.append(random.choice(CACHE_ONLY)())
         # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
         extra = isinstance(player.player_class, Actors.Scavenger)
         salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE + extra)]

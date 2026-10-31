@@ -1462,6 +1462,25 @@ def test_a_cache_always_holds_salvage(adapter):
     assert any(isinstance(item, Items.Salvage) for item in player.inventory)
 
 
+def test_chest_armor_comes_from_caches_and_likelier_deep(adapter):
+    player = adapter.get_player(1)
+    assert Armor.Chest6B45 not in Data.stocked()  # no store sells it
+
+    def share(level, runs=400):
+        random.seed(level)
+        found = 0
+        for _ in range(runs):
+            cache = GameSpace.Cache(0, 0)
+            cache.level = level
+            player.inventory = Actors.Inventory()
+            cache.run_event(player)
+            found += any(isinstance(i, Armor.Chest6B45) for i in player.inventory)
+        return found / runs
+
+    assert share(GameSpace.WILDS_MAX_LEVEL, runs=20) == 1
+    assert 0 < share(1) < 0.25  # about one cache in WILDS_MAX_LEVEL at danger 1
+
+
 def test_a_far_cache_pays_better_than_a_near_one(adapter):
     player = adapter.get_player(1)
 
