@@ -109,10 +109,19 @@ existing things to it when an item touches them anyway, not as a sweep.
   (d15fd3f): it doesn't hold. Per 1000 bot-ticks out of town Raiders die in wilds fights at 0.92, everyone else
   at 1.01 (9.9 vs 12.1 per 1000 ticks on a wilds square), and none of their 70 deaths were to map NPCs. The rise
   was counts, not rates. Left as is; wilds fights spawn plain `NPC`s anyway, which `World.spares` never covers.
-- [ ] Since d15fd3f deaths rose 10.5 -> 12 a seed (11.8; 10 seeds x 2000 ticks) and max danger fell 5.1 -> 4.8.
+- [x] Since d15fd3f deaths rose 10.5 -> 12 a seed (11.8; 10 seeds x 2000 ticks) and max danger fell 5.1 -> 4.8.
   Achievements change no rules, but the same commit made stores stock armor, which re-rolls every chunk's towns and
   wilds (and gives bots armor to buy). Likely the new maps, not a balance change: compare deaths by danger on a
-  longer run before tuning anything.
+  longer run before tuning anything. Checked 2026-10-31 against b559d70, 10 seeds x
+  2000 and 5000 ticks: starting stores are identical (bots never buy armor), and without seed 1 the 5000-tick
+  means are 24.4 vs 24.1 deaths. Seed 1's new map put one bot in a death spiral: broke ($0 + $8 stashed from tick
+  ~500), bare-fisted, level 1, still raiding at full reach, 34 deaths (28 with fists) where the old map's run had 11.
+- [ ] No way back from broke: a death strips all carried money and gear, and with an empty stash and no hideout
+  a player is left with fists (2 dmg), which lose the fights that would pay for a gun. Needs a decision on the
+  floor: a free starter weapon from the starting town's store when you own none, a loan, or fist-safe ways to
+  earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above).
+- [ ] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
+  go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
@@ -206,6 +215,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Deaths after d15fd3f: one seed-1 bot's broke, bare-fisted death spiral, not a balance change (the
+  other nine seeds and five bots match b559d70). Logged the missing floor for broke players and the bots' habit
+  of raiding deep unarmed as follow-ups.
 
 - 2026-10-31 Raider deaths after fc3f783: a 10-seed x 5000-tick run shows Raider-class bots die in wilds fights
   no more often than anyone else per tick out (0.92 vs 1.01 per 1000), so wilds fights keep fighting Raiders.
