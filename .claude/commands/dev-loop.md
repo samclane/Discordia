@@ -32,15 +32,15 @@ Requested focus (may be empty): $ARGUMENTS
    player-facing command changed.
 7. **Commit.** One commit for the item, imperative subject line, body says what changed and why. Do not push.
 8. **Simulate.** If the iteration changed code, run on the now-clean tree (each appends a line to
-   `Discordia/test/sim_history.jsonl` at the item's commit, a few seconds each):
+   `Discordia/test/sim_history.jsonl` at the item's commit, under half a minute in all):
    ```
-   python -m Discordia.test.test_simulation --seed 0
-   python -m Discordia.test.test_simulation --seed 1
+   python -m Discordia.test.test_simulation --seeds 10
    python -m Discordia.test.test_server_simulation
    python -m Discordia.test.sim_history
    ```
    The last prints what moved since the previous run of the same settings. Seeded runs are deterministic apart
-   from timings, so a moved metric is a real behavior change. If the item meant it, say so in the summary. If
+   from timings, so a moved metric is a real behavior change; the game's are means over 10 seeds, because one
+   seed's deaths swing with the map it rolls. If the item meant it, say so in the summary. If
    not, or it's a regression (errors, anomalies, problems up), add an unchecked roadmap line naming the metric,
    before -> after, and the commit. Then commit the history (and that line) as `Record simulation history for
    <short hash>`.

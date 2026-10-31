@@ -94,7 +94,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
   deadlier: deaths 25 -> 29, mean worth 768 -> 643 (seed 0 went the other way, 17 -> 14 and 468 -> 578). Likely
   levelled bots raiding deeper; check the deaths-by-danger split on a longer run before tuning anything.
-- [ ] Two seeds can't tell a death change from noise: over 10 seeds x 2000 ticks one build's deaths ranged 1-29
+- [x] Two seeds can't tell a death change from noise: over 10 seeds x 2000 ticks one build's deaths ranged 1-29
   a seed, and 462a11b moved seed 0 14 -> 18 and seed 1 29 -> 28 with no real effect. Let the simulator take
   `--seeds N` and record the means, so `sim_history` drift on deaths and worth means something.
 - [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
@@ -467,3 +467,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-10-31 Extract XP deadlier? No: over 10 seeds x 2000 ticks, `EXTRACT_XP_PER_DANGER` 0 vs 10 gives deaths
   158 vs 142, mean level 1.32 vs 2.03, worth 738 vs 747, furthest 33.4 vs 32.7, and the same deaths-by-danger
   split (most at danger 3 either way). Levelled bots live longer; seed 1's 25 -> 29 was noise. No code change.
+- 2026-10-31 Simulator `--seeds N`: plays N seeds from `--seed` and records each metric's mean (`seeds` joins
+  the settings only when N > 1, so single-seed history still lines up). `/dev-loop` now runs `--seeds 10`
+  (~20 s) instead of seeds 0 and 1.

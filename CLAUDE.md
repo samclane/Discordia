@@ -56,6 +56,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - `test_simulation.py` is a player simulator: bots play through `WorldAdapter` in lockstep with `World.tick()` and
   flag anomalies. `python -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl --html sim.html` for a long run to analyse;
   `--html` draws it (trails and deaths on the map, charts over time) from the `sim_template.html` template.
+  `--seeds N` plays N seeds from `--seed` and records the means: one seed's deaths are mostly the map it rolled.
 - `test_server_simulation.py` is a Discord server simulator: members on two fake servers use the real slash commands
   (discord.py's checks and error handlers, a fake Discord behind them) and every message the bot sends is checked
   for spam, posts outside allowed channels, leaked links, mass pings and unanswered interactions. New rule: add it

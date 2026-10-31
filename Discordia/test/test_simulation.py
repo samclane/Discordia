@@ -449,17 +449,26 @@ if __name__ == "__main__":
     parser.add_argument("--ticks", type=int, default=2000)
     parser.add_argument("--bots", type=int, default=6)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seeds", type=int, default=1, help="run this many seeds from --seed and record their means")
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--out", help="write every row here as JSON lines")
     parser.add_argument("--html", help="draw the run as a standalone page here")
     parser.add_argument("--no-record", action="store_true", help="leave sim_history.jsonl alone")
     args = parser.parse_args()
     began = time.perf_counter()
-    rows = simulate(args.ticks, args.bots, args.seed, args.size, args.html)
+    rows = simulate(args.ticks, args.bots, args.seed, args.size, args.html)  # the first seed is the one drawn
+    # One seed's deaths swing 1-29 with the map it rolls, so a change only shows in the mean over many.
+    more = range(args.seed + 1, args.seed + args.seeds)
+    runs = [metrics(rows)] + [metrics(simulate(args.ticks, args.bots, s, args.size)) for s in more]
+    means = {k: round(mean(m[k] for m in runs), 2) for k in runs[0]}
     if not args.no_record:
         params = {"ticks": args.ticks, "bots": args.bots, "seed": args.seed, "size": args.size}
-        sim_history.record("game", params, {**metrics(rows), "run time (s)": round(time.perf_counter() - began, 1)})
+        if args.seeds > 1:  # left out of single runs, so their history still lines up
+            params["seeds"] = args.seeds
+        sim_history.record("game", params, {**means, "run time (s)": round(time.perf_counter() - began, 1)})
     if args.out:
         with open(args.out, "w") as f:
             f.writelines(json.dumps(r, default=str) + "\n" for r in rows)
     print(summary(rows))
+    if args.seeds > 1:
+        print(f"means over seeds {args.seed}-{args.seed + args.seeds - 1}: {means}")
