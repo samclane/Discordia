@@ -142,6 +142,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Town population: named NPCs that stay in town, give flavor text on `/town status`.
 - [ ] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
   from Kenney's people tiles, if towns feel empty; they'd need to be skipped by `World.attack` and the NPC tick.
+  (blocked: waits on players saying towns feel empty; nothing in the code or the simulators can tell)
 - [x] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
 
 ## Persistence
@@ -152,7 +153,9 @@ existing things to it when an item touches them anyway, not as a sweep.
   (`Items.Ammo.quantity`): both come back full after a restart today.
 - [ ] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
   after a restart. Save `_item_state` per shelf item too if anyone farms it (ponytail note on `Items.Ammo`).
+  (blocked: waits on someone farming it)
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
+  (blocked: waits on a change that rewrites data; every migration so far adds a column)
 
 ## Discord UX
 
@@ -168,7 +171,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   Try `interaction.delete_original_response()` then an ephemeral followup in `cog_app_command_error`, checked
   against real Discord (the simulator's fake honours `ephemeral` on that followup, so it can't tell).
   (blocked: needs a live Discord server to check what that followup does; the loop has none)
-- [ ] Decided 2026-10-30, the part that needs no live test: refuse what can be known before the tick (moving into
+- [x] Decided 2026-10-30, the part that needs no live test: refuse what can be known before the tick (moving into
   water or off the map, `/choose` with no stranger waiting, `/trade` with no trader) privately, before deferring.
   Only refusals that depend on the tick itself stay public.
 - [x] Channel announcements for deaths and town arrivals instead of only DMs.
@@ -220,6 +223,11 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Private refusals before the tick: `/move` into water or off the map and `/choose` with nobody waiting
+  are refused before the defer, so the reply is ephemeral (a public defer makes the first followup public).
+  `/trade` already never deferred. A step off the north or west edge used to be a "successful" move in place
+  (`Space.__add__` clamps at 0); `attempt_move` now adds raw coordinates and refuses it.
 
 - 2026-10-31 Enlisting simulator bots: a third of bots (`Bot.enlists`) skip trade towns and recruit at the first
   military base they rest in; a new `soldiers (share of bots)` metric shows them (0.15 over 10 seeds, the rest

@@ -21,6 +21,7 @@ from Discordia.Interface.WorldAdapter import (
     WorldAdapter,
     NotSpawnedException,
     InvalidSpaceException,
+    NoEncounterException,
     DIRECTION_NAMES,
     SUPERSEDED,
     attack_text,
@@ -583,8 +584,13 @@ class DiscordInterface(commands.Cog):
         self, interaction: discord.Interaction, direction: app_commands.Choice[str]
     ):
         """Move your character one space in the given direction, resolved on the next tick"""
-        await _defer(interaction)
         character = self._player(interaction)
+        # Refused before the defer: the first followup after a public defer goes to everyone, ephemeral or not.
+        # Only what the tick itself decides stays public.
+        (dx, dy), here = DIRECTION_VECTORS[direction.value], character.location
+        if not self.world_adapter.world.is_coords_valid(here.x + dx, here.y + dy):
+            raise InvalidSpaceException()
+        await _defer(interaction)
         results = await self.order(
             character,
             lambda: self.world_adapter.move_player(
@@ -628,8 +634,10 @@ class DiscordInterface(commands.Cog):
         self, interaction: discord.Interaction, choice: app_commands.Choice[str]
     ):
         """Decide what to do about whoever is waiting on the road, resolved on the next tick"""
-        await _defer(interaction)
         character = self._player(interaction)
+        if not isinstance(character.pending_event, Events.EncounterEvent):  # private, before the defer, like /move
+            raise NoEncounterException()
+        await _defer(interaction)
         results = await self.order(
             character,
             lambda: self.world_adapter.resolve_encounter(character, choice.value),

@@ -152,10 +152,12 @@ class Actor(AbstractActor, ABC):
     def attempt_move(
         self, shift: Tuple[int, int]
     ) -> List[GameSpace.PlayerActionResponse]:
-        new_coords = self.location + shift
-        if not self.parent_world.is_coords_valid(new_coords.x, new_coords.y):
+        # Not `location + shift`: Space addition clamps at 0, which made a step off the north or west edge a
+        # "successful" move that went nowhere.
+        x, y = self.location.x + shift[0], self.location.y + shift[1]
+        if not self.parent_world.is_coords_valid(x, y):
             return [GameSpace.PlayerActionResponse(is_successful=False, source=self)]
-        self.location = self.parent_world.space_at(new_coords.x, new_coords.y)
+        self.location = self.parent_world.space_at(x, y)
         if isinstance(
             self.location, (GameSpace.Wilds, GameSpace.Cache, GameSpace.Extract)
         ) and isinstance(self, PlayerCharacter):

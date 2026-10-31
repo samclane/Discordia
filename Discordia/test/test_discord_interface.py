@@ -550,6 +550,7 @@ class Replies:
     def __init__(self):
         self.deferred = False
         self.sent = []
+        self.ephemeral = []  # per send_message: what a followup's visibility depends on is the defer instead
 
     def is_done(self):
         return self.deferred
@@ -557,11 +558,35 @@ class Replies:
     async def defer(self):
         self.deferred = True
 
-    async def send_message(self, content, **kwargs):
+    async def send_message(self, content, ephemeral=False, **kwargs):
         self.sent.append(content)
+        self.ephemeral.append(ephemeral)
 
     async def send(self, content, **kwargs):  # the followup, once deferred
         self.sent.append(content)
+
+
+def test_a_refusal_known_before_the_tick_is_private_and_never_deferred():
+    """A public defer makes the first followup public too, so what the tick needn't decide is refused first."""
+    adapter = WorldAdapter(GameSpace.World("Edge", 40, 40, seed=0))
+    adapter.register_player(1, "Walker")
+    adapter.get_player(1).location = adapter.world.space_at(0, 0)
+    interface = loaded_cog(adapter)
+
+    def run(name, choice):
+        replies = Replies()
+        user = SimpleNamespace(id=1, display_name="Walker")
+        interaction = SimpleNamespace(command=command_named(interface, name), user=user, response=replies)
+        try:
+            asyncio.run(command_named(interface, name).callback(interface, interaction, choice))  # type: ignore[arg-type]
+        except Exception as exc:  # what the tree hands cog_app_command_error
+            asyncio.run(interface.cog_app_command_error(interaction, cast(Any, SimpleNamespace(original=exc))))
+        return replies
+
+    for name, choice in [("move", app_commands.Choice(name="north", value="n")), ("choose", app_commands.Choice(name="talk", value="talk"))]:
+        replies = run(name, choice)
+        assert not replies.deferred, f"/{name} deferred before refusing"
+        assert replies.ephemeral == [True], f"/{name} refused in public"
 
 
 def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():

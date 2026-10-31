@@ -1565,6 +1565,15 @@ def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter
     assert targets == [exfil]
 
 
+def test_a_step_off_the_north_or_west_edge_is_refused_not_a_move_in_place():
+    world = GameSpace.World("Edge", 40, 40, seed=0)
+    player = Actors.PlayerCharacter(parent_world=world, name="Walker")
+    player.location = world.space_at(0, 0)
+    for shift in [(0, -1), (-1, 0), (-1, -1)]:
+        [response] = player.attempt_move(shift)
+        assert response.failed and (player.location.x, player.location.y) == (0, 0)
+
+
 def test_a_camp_heals_slowly_until_you_move(adapter):
     world, player = adapter.world, adapter.get_player(1)
     with pytest.raises(ValueError, match="inn"):
