@@ -99,6 +99,9 @@ existing things to it when an item touches them anyway, not as a sweep.
   `--seeds N` and record the means, so `sim_history` drift on deaths and worth means something.
 - [x] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
+- [ ] Simulator bots pick `/choose rob` a third of the time at random, so since 6aed7f2 64% of them end a run as
+  Raiders and trade classes fell 0.62 -> 0.18 (1323bb6 split the metric). Give bots a stance (some never rob)
+  so both the trade perks and the coming Raider-faction rules show in `sim_history`.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
