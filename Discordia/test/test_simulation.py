@@ -389,6 +389,15 @@ def summary(rows: List[dict]) -> str:
     return "\n".join(lines)
 
 
+def problems(rows: List[dict]) -> List[str]:
+    """Every error and anomaly, one line each, with the tick and bot to look them up by."""
+    return [
+        f"tick {r['tick']}, {r['name']} ({r['order']}): {problem}"
+        for r in rows
+        for problem in ([r["error"]] if r["error"] else []) + r["anomalies"]
+    ]
+
+
 def metrics(rows: List[dict]) -> Dict[str, float]:
     """The run's headline numbers, for sim_history: where the bots ended up, and what went wrong on the way."""
     last = list({r["name"]: r for r in rows}.values())
@@ -476,6 +485,14 @@ def test_only_some_bots_rob_strangers(monkeypatch):
     assert honest.order()[0] == "choose ignore"  # "rob" was never on its list
     assert robber.order()[0] == "choose rob"
 
+
+def test_problems_say_which_tick_and_bot():
+    rows = [
+        {"tick": 3, "name": "bot1", "order": "attack", "error": "Attack failed", "anomalies": ["hp below 0"]},
+        {"tick": 4, "name": "bot2", "order": "raid", "error": None, "anomalies": []},
+    ]
+    assert problems(rows) == ["tick 3, bot1 (attack): Attack failed", "tick 3, bot1 (attack): hp below 0"]
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -492,8 +509,11 @@ if __name__ == "__main__":
     began = time.perf_counter()
     rows = simulate(args.ticks, args.bots, args.seed, args.size, args.html)  # the first seed is the one drawn
     # One seed's deaths swing 1-29 with the map it rolls, so a change only shows in the mean over many.
-    more = range(args.seed + 1, args.seed + args.seeds)
-    runs = [metrics(rows)] + [metrics(simulate(args.ticks, args.bots, s, args.size)) for s in more]
+    runs, found = [metrics(rows)], problems(rows)
+    for seed in range(args.seed + 1, args.seed + args.seeds):
+        more = simulate(args.ticks, args.bots, seed, args.size)
+        runs.append(metrics(more))
+        found += [f"seed {seed}, {line}" for line in problems(more)]
     means = {k: round(mean(m[k] for m in runs), 2) for k in runs[0]}
     if not args.no_record:
         params = {"ticks": args.ticks, "bots": args.bots, "seed": args.seed, "size": args.size}
@@ -506,3 +526,5 @@ if __name__ == "__main__":
     print(summary(rows))
     if args.seeds > 1:
         print(f"means over seeds {args.seed}-{args.seed + args.seeds - 1}: {means}")
+        # The summary above is the first seed's: say where the others' errors are, or a mean of 0.1 can't be found.
+        print("\n".join(found) or "no errors or anomalies in any seed")
