@@ -79,6 +79,10 @@ class Bot:
         if isinstance(town := c.location, Town):
             self.steps_out = 0
             self.goal = self._pick_goal()
+            if isinstance(c.player_class, Actors.WandererClass) and not isinstance(
+                town.industry, (GameSpace.NullIndustry, GameSpace.MilitaryBase)
+            ):  # the first trade town it's in trains it, so class perks show in the runs
+                return "recruit", lambda: [town.recruit(c)]
             if c.hit_points < c.hit_points_max:
                 return "inn", lambda: [town.inn_event(c)]
             if isinstance(c.weapon, Weapons.Fist):
@@ -197,6 +201,7 @@ def snapshot(world: GameSpace.World, c) -> dict:
         "items": len(c.inventory),
         "xp": c.experience,
         "level": c.level,
+        "class": c.player_class.name,
         "deaths": c.deaths,
         "weapon": str(weapon) if weapon else None,
         "ammo": getattr(weapon, "current_capacity", None),
@@ -389,6 +394,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "mean level": round(mean(r["level"] for r in last), 2),
         "top level": max(r["level"] for r in last),
         "deaths": sum(r["deaths"] for r in last),
+        "trade classes (share of bots)": round(mean(r["class"] != Actors.WandererClass().name for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
@@ -441,6 +447,20 @@ def test_bots_skirt_plazas_and_cut_through_ruins():
     for d in [(0, 1), (-1, 1)]:
         world.space_at(here.x + d[0], here.y + d[1]).terrain = GameSpace.SandTerrain()
     assert bot._careful((0, 1)) == (0, 1)  # nothing better beside it: keep the bearing
+
+
+def test_bots_take_the_class_of_the_first_trade_town_they_are_in():
+    world = GameSpace.World("Recruits", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 1, reach=5)
+    town = bot.character.location = world.starting_town
+    town.industry = GameSpace.EasternMilitaryBase()
+    assert bot.order()[0] != "recruit"  # a base trains soldiers, not a trade
+    town.industry = GameSpace.MiningIndustry()
+    label, act = bot.order()
+    assert label == "recruit"
+    act()
+    assert isinstance(bot.character.player_class, Actors.Scavenger)
+    assert bot.order()[0] != "recruit"  # once is enough
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

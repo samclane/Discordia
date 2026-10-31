@@ -97,7 +97,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Two seeds can't tell a death change from noise: over 10 seeds x 2000 ticks one build's deaths ranged 1-29
   a seed, and 462a11b moved seed 0 14 -> 18 and seed 1 29 -> 28 with no real effect. Let the simulator take
   `--seeds N` and record the means, so `sim_history` drift on deaths and worth means something.
-- [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
+- [x] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [ ] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
@@ -470,3 +470,5 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-10-31 Simulator `--seeds N`: plays N seeds from `--seed` and records each metric's mean (`seeds` joins
   the settings only when N > 1, so single-seed history still lines up). `/dev-loop` now runs `--seeds 10`
   (~20 s) instead of seeds 0 and 1.
+- 2026-10-31 Simulator bots recruit: a Wanderer bot takes the class of the first trade town it stands in (not a
+  military base), rows carry the class, and a new "trade classes (share of bots)" metric shows how many did.
