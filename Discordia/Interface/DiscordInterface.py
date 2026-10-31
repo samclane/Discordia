@@ -688,6 +688,18 @@ class DiscordInterface(commands.Cog):
         except ValueError as exc:
             await _send(interaction, str(exc), ephemeral=True)
 
+    @hideout.command(name="prestige")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def hideout_prestige(self, interaction: discord.Interaction, confirm: bool = False):
+        """From hideout level 15: trade the hideout and your whole stash in for +10% hideout income for good"""
+        try:
+            text = self._player(interaction).prestige_hideout(confirm)
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, text, ephemeral=not confirm)
+
     async def _stash_move(self, interaction: discord.Interaction, move, item, money):
         try:
             moved = move(item, money)

@@ -23,6 +23,10 @@ HIDEOUT_GROWTH = 1.15
 HIDEOUT_SALVAGE_EVERY = 5
 HIDEOUT_INCOME = 10
 HIDEOUT_PAY_TICKS = 60
+# From PRESTIGE_LEVEL on, a hideout can be traded in, stash and all, for PRESTIGE_BONUS more income for good: by
+# level 15 a new level takes about three days of income to pay for itself, where the curve flattens out.
+PRESTIGE_LEVEL = 15
+PRESTIGE_BONUS = 0.1
 # A camp out past the towns heals CAMP_HEAL_SHARE of your hit points every CAMP_HEAL_TICKS: full in twenty minutes
 # at a 5-second tick. Slow next to an inn, which is the point: it saves the walk, not the time.
 CAMP_HEAL_TICKS = 12
@@ -500,6 +504,8 @@ class PlayerCharacter(Actor):
         self.stash_currency: int = 0
         # Levels of hideout, which earn into the stash every so many ticks whether you're playing or not.
         self.hideout_level: int = 0
+        # Hideouts traded in so far (prestige_hideout), each adding PRESTIGE_BONUS to the income.
+        self.prestige: int = 0
         # The secure pouch: one item, carried, that a death leaves on you. Filled from the backpack, anywhere.
         self.pouch: Items.Equipment | None = None
         # What the last death took, phrased for a player, so whoever narrates it can say. Transient: not worth saving.
@@ -725,6 +731,11 @@ class PlayerCharacter(Actor):
         return int(HIDEOUT_COST * HIDEOUT_GROWTH**self.hideout_level), 0
 
     @property
+    def hideout_income(self) -> int:
+        """What the hideout pays into the stash each pay day."""
+        return int(HIDEOUT_INCOME * self.hideout_level * (1 + PRESTIGE_BONUS * self.prestige))
+
+    @property
     def stash_value(self) -> int:
         """The stash's money plus what its items are worth: the idle side's score."""
         return self.stash_currency + sum(int(item.base_value) for item in self.stash)
@@ -745,9 +756,28 @@ class PlayerCharacter(Actor):
             self.stash.remove(part)
         self.hideout_level += 1
         return (
-            f"Your hideout is level {self.hideout_level}: ${HIDEOUT_INCOME * self.hideout_level} into your stash "
+            f"Your hideout is level {self.hideout_level}: ${self.hideout_income} into your stash "
             f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not."
         )
+
+    def prestige_hideout(self, confirm: bool = False) -> str:
+        """Trade the hideout and the whole stash in for PRESTIGE_BONUS more income for good. Level, gear, the
+        backpack and the pouch stay. Without `confirm` it only says what it would cost. Callers check the player
+        is in a town. Returns what happened, phrased for a player; raises ValueError below PRESTIGE_LEVEL."""
+        if self.hideout_level < PRESTIGE_LEVEL:
+            raise ValueError(f"Prestige needs a level {PRESTIGE_LEVEL} hideout; yours is level {self.hideout_level}.")
+        bonus = int(PRESTIGE_BONUS * 100 * (self.prestige + 1))
+        if not confirm:
+            return (
+                f"Prestige takes your hideout back to nothing and empties your stash (${self.stash_currency:,} and "
+                f"{len(self.stash)} items), for +{bonus}% hideout income for good. "
+                "Run it again with confirm to go ahead."
+            )
+        self.prestige += 1
+        self.hideout_level = 0
+        self.stash_currency = 0
+        self.stash.clear()
+        return f"You walk away from it all. Prestige {self.prestige}: every hideout you build pays +{bonus}%."
 
     def lose_carried(self) -> Tuple[List[Items.Equipment], int]:
         """Strip everything on you: money, backpack and what you were wearing. Back to bare fists; the stash

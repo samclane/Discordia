@@ -1316,6 +1316,30 @@ def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
     assert player.hideout_price == (int(1000 * 1.15**5), 0)
 
 
+
+def test_prestige_trades_the_hideout_and_stash_for_income_for_good(adapter):
+    player = adapter.get_player(1)
+    player.hideout_level = Actors.PRESTIGE_LEVEL - 1
+    with pytest.raises(ValueError, match="level 15"):
+        player.prestige_hideout(confirm=True)
+    player.hideout_level += 1
+    player.stash_currency, player.currency = 5000, 300
+    player.stash.append(Items.Salvage())
+    pouch = player.pouch = Items.Salvage()
+    player.experience = 500
+    assert "$5,000 and 1 items" in player.prestige_hideout()  # a warning: nothing gone yet
+    assert (player.hideout_level, player.stash_currency) == (15, 5000)
+
+    player.prestige_hideout(confirm=True)
+    assert (player.prestige, player.hideout_level, player.stash_currency, list(player.stash)) == (1, 0, 0, [])
+    assert (player.currency, player.pouch, player.level) == (300, pouch, 6)  # what's on you stays
+    player.hideout_level = 1
+    assert player.hideout_income == 11  # +10% on every level from now on
+    assert "prestige" not in adapter.hideout_text(player)
+    player.hideout_level = Actors.PRESTIGE_LEVEL
+    assert "`/hideout prestige`" in adapter.hideout_text(player)
+
+
 def test_the_idle_numbers_are_per_hour_at_the_servers_tick(adapter):
     player = adapter.get_player(1)
     assert "No hideout yet" in adapter.hideout_text(player)

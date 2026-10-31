@@ -151,6 +151,10 @@ the bot syncs them.
     * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000
       and each after 15% more; every 5th costs salvage instead, which only caches out in the wilds hold. Each level
       pays money into your stash every few minutes, whether you're playing or not.
+* `/hideout prestige [confirm]`
+    * In any town, from hideout level 15: trade the hideout and everything in your stash in for +10% hideout
+      income for good (it stacks). Your level, gear, backpack and pouch stay. Without `confirm` it only tells you
+      what you'd lose.
             
 # Attributions
 

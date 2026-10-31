@@ -172,7 +172,7 @@ class WorldAdapter:
     def income_per_hour(self, character: Actors.PlayerCharacter) -> int:
         """What the hideout pays into the stash an hour, at this server's tick."""
         ticks_an_hour = 3600 / self.tick_seconds
-        return int(Actors.HIDEOUT_INCOME * character.hideout_level * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
+        return int(character.hideout_income * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
 
     def camp(self, character: Actors.PlayerCharacter) -> str:
         """Rest where `character` stands, out past the towns: World.advance heals it until it moves or dies."""
@@ -202,10 +202,13 @@ class WorldAdapter:
         price = f"{salvage} salvage" if salvage else f"${money:,}"
         if not character.hideout_level:
             return f"No hideout yet: `/hideout build` in any town, for {price}, earns while you're away."
-        return (
+        text = (
             f"Hideout level {character.hideout_level}: ${self.income_per_hour(character):,} an hour into your stash,"
             f" which is worth ${character.stash_value:,}. The next level costs {price}."
         )
+        if character.hideout_level >= Actors.PRESTIGE_LEVEL:
+            text += " `/hideout prestige` trades it and the stash in for more income for good."
+        return text
 
     @property
     def width(self):

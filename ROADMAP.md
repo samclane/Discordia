@@ -61,7 +61,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Save `PlayerCharacter.auto_raid` so a restart doesn't strand a character mid-raid with no message.
 - [x] Extraction points out in the wilds (deterministic per chunk, like caches) so a deep raid doesn't mean walking
   all the way back to a town.
-- [ ] Prestige / wipe: `/hideout prestige` (in town, hideout level 15+) resets the hideout to 0 and empties the
+- [x] Prestige / wipe: `/hideout prestige` (in town, hideout level 15+) resets the hideout to 0 and empties the
   stash (money and items) for a permanent +10% hideout income per prestige. Character level, worn gear, the
   backpack and the pouch are kept. Saved as a migrated `character.prestige` count. (Decided 2026-10-30: by level
   15 a new level takes ~3 days of income to pay for itself, where the curve flattens.)
@@ -449,3 +449,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-09-13 Earn money: generated NPCs carry `CURRENCY_PER_LEVEL * level` on average, and `CombatEvent` pays it out
   once per kill alongside the loot. Also guarded `World.generate_map` against rolling zero towns, which an extra
   random draw exposed on small maps.
+- 2026-10-31 Prestige: `/hideout prestige` (town, hideout 15+, `confirm` to go through) wipes the hideout and
+  stash for +10% hideout income per prestige, kept in a migrated `character.prestige`; income now goes through
+  `PlayerCharacter.hideout_income`.

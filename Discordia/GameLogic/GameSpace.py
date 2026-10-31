@@ -1245,7 +1245,7 @@ class World:
         heals = (self.ticks + ticks) // Actors.CAMP_HEAL_TICKS - self.ticks // Actors.CAMP_HEAL_TICKS
         self.ticks += ticks
         for p in self.players:
-            p.stash_currency += Actors.HIDEOUT_INCOME * p.hideout_level * paydays
+            p.stash_currency += p.hideout_income * paydays
             if p.camping:
                 p.hit_points += p.camp_heal * heals
 
