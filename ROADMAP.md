@@ -129,6 +129,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
   - [x] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
 
+- [ ] Simulator bots never recruit at a military base (only trade towns), so soldier prices (af6fce8) and sides
+  moved nothing in `sim_history`. Have a share of bots enlist at the first base they rest in, so the side rules
+  show in the drift numbers.
+
 ## NPCs and world
 
 - [x] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
