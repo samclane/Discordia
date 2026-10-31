@@ -80,9 +80,12 @@ the bot syncs them.
       knows who you are.
 * `/settings`
     * Server admins (Manage Server): a private link to this server's settings page, to pick the channels the game
-      plays in, where the daily digest goes, and where players' deaths and hauls are announced. Needs `-W`.
+      plays in, where the daily digest goes, and where players' deaths, hauls and achievements are announced. Needs `-W`.
 * `/equipment`
     * Prints your "character sheet" in chat: name, level and experience to the next one, money, health, and equipment.
+* `/achievements`
+    * Lists the achievements you've earned and the ones still to get. Earning one DMs you, tells your server's
+      announcement channel, and shows on `/me`.
 * `/move` [`direction`]
     * Directions are (`north`, `east`, `south`, `west`) or (`up`, `down`, `left`, `right`)
     * Move your player character one space in the direction picked from the dropdown.

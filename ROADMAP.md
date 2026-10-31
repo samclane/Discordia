@@ -102,10 +102,13 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Simulator bots pick `/choose rob` a third of the time at random, so since 6aed7f2 64% of them end a run as
   Raiders and trade classes fell 0.62 -> 0.18 (1323bb6 split the metric). Give bots a stance (some never rob)
   so both the trade perks and the coming Raider-faction rules show in `sim_history`.
-- [ ] Since fc3f783 (raiders spare Raiders) deaths rose 10.8 -> 12 a seed. Deaths to raiders on the map fell
+- [x] Since fc3f783 (raiders spare Raiders) deaths rose 10.8 -> 12 a seed. Deaths to raiders on the map fell
   6 -> 4 over 10 seeds as meant, but wilds-fight deaths rose 101 -> 115, mostly Raider-class bots (19 -> 26):
   likely they stay out longer now nothing on the map wears them down. Check a longer run; if it holds, wilds
-  fights may want to spare Raiders too (`CombatEvent` spawns raiders).
+  fights may want to spare Raiders too (`CombatEvent` spawns raiders). Checked 2026-10-31 over 10 seeds x 5000 ticks
+  (d15fd3f): it doesn't hold. Per 1000 bot-ticks out of town Raiders die in wilds fights at 0.92, everyone else
+  at 1.01 (9.9 vs 12.1 per 1000 ticks on a wilds square), and none of their 70 deaths were to map NPCs. The rise
+  was counts, not rates. Left as is; wilds fights spawn plain `NPC`s anyway, which `World.spares` never covers.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
@@ -199,6 +202,13 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Raider deaths after fc3f783: a 10-seed x 5000-tick run shows Raider-class bots die in wilds fights
+  no more often than anyone else per tick out (0.92 vs 1.01 per 1000), so wilds fights keep fighting Raiders.
+
+- 2026-10-31 Achievements (d15fd3f): twelve in `Actors.ACHIEVEMENTS`, checked each `World.tick`, DM'd and
+  announced, listed by `/achievements` and on `/me`; lifetime kills and hauls saved. Stores now stock armor on
+  every map (`GameSpace` imports `Armor`), so a seed rolls the same chunks whatever was imported first.
 
 - 2026-10-30 Ruins and plazas: a fourth noise layer turns about a fifth of paving into ruins (`RuinsTerrain`,
   the sheet's grey concrete block: raiders can't spot you in them) or plazas (`PlazaTerrain`, the tan-bordered
