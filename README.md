@@ -98,7 +98,8 @@ the bot syncs them.
 * `/attack` <`direction`>
     * Directions are (`north`, `east`, `south`, `west`) or (`up`, `down`, `left`, `right`), or valid in-betweens (e.x. `ne` for northeast, etc.)
     * Attack another player or an NPC with your currently equipped weapon. If no `direction` is specified, the user
-    will attack in the current position only. Otherwise, ranged weapons go in a single direction like a "beam", until
+    will attack in the current position only. An NPC sharing the square is hit before any player there, so a few of
+    you can take on one raider together. Otherwise, ranged weapons go in a single direction like a "beam", until
     they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
     traverses removes % damage until it goes to 0.
     * Killing an NPC hands you its money and whatever it was carrying. Killing a player makes you a Raider,

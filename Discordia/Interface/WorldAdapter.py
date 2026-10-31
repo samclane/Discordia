@@ -101,8 +101,9 @@ def move_text(results: List[PlayerActionResponse], direction_name: str) -> str:
 
 
 def attack_text(character: Actors.PlayerCharacter, response: PlayerActionResponse) -> str:
-    target_name = response.target.name if response.target else "nobody"
-    return f"{character.name} deals {response.damage} to {target_name}.\n\n {response.text}"
+    if response.target is None:  # nobody hit, and nothing refused: someone else got there first
+        return response.text
+    return f"{character.name} deals {response.damage} to {response.target.name}.\n\n {response.text}"
 
 
 def choose_text(results: List[PlayerActionResponse]) -> str:

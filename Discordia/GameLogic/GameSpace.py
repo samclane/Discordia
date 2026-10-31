@@ -1132,11 +1132,14 @@ class World:
             weapon.damage
         )  # weapons compute in floats; a hit lands in whole points
         while dmg > 0:
-            targets: List[Actors.Actor] = [
+            here: List[Actors.Actor] = [
                 actor
                 for actor in self.players + self.npcs
                 if actor is not player_character and actor.location == loc
             ]
+            # A raider in the crowd is who you're swinging at: players only when there's nobody else, or a few
+            # players ganging up on one raider kill each other (and turn Raider for it).
+            targets = [actor for actor in here if isinstance(actor, Actors.NPC)] or here
             if len(targets):
                 target: Actors.Actor = random.choice(targets)
                 weapon.on_damage()
@@ -1163,10 +1166,15 @@ class World:
                     response.text = "Nothing within reach of your melee weapon."
                     break
                 if direction == (0, 0):
-                    response.text = (
-                        "Nothing in this square. "
-                        "Specify a direction (n,s,e,w,ne,se,sw,nw))"
-                    )
+                    # The dead stay in self.npcs until the next tick: one that fell here was killed by an attack
+                    # that ran before this one, in the same tick. Losing that race is news, not a mistake.
+                    # ponytail: only a no-direction attack checks; a shot down a line doesn't say who beat it.
+                    fallen = next((n for n in self.npcs if n.is_dead and n.fell_at == loc), None)
+                    if fallen is not None:
+                        response.is_successful = True
+                        response.text = f"{fallen.name} is already down."
+                    else:
+                        response.text = "Nothing in this square. Specify a direction (n,s,e,w,ne,se,sw,nw))"
                     break
                 loc += direction
                 loc = self.space_at(loc.x, loc.y)

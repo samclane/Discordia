@@ -39,6 +39,7 @@ from Discordia.GameLogic.Items import (
 )
 from Discordia.Interface.WorldAdapter import (
     AlreadyRegisteredException,
+    attack_text,
     CombatException,
     InvalidSpaceException,
     NoEncounterException,
@@ -1094,6 +1095,32 @@ def test_killing_a_player_makes_you_a_raider(adapter):
     assert isinstance(attacker.player_class, Actors.RaiderClass)
 
 
+
+
+def test_an_attack_hits_the_raider_not_the_players_beside_you(adapter):
+    adapter.register_player(2, "Ally")
+    player, ally = adapter.get_player(1), adapter.get_player(2)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 1000, "Mook")
+    adapter.world.add_actor(mook, player.location)
+    for _ in range(20):  # a random pick would have found the ally by now
+        assert adapter.attack(player, None).target is mook
+    assert ally.hit_points == ally.hit_points_max
+
+def test_an_attack_that_loses_the_race_for_a_kill_says_so(adapter):
+    """Orders run one after another before the tick: a second attack on the same raider finds it gone."""
+    player = adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    mook = Actors.NPC(None, 1, "Mook")
+    adapter.world.add_actor(mook, player.location)
+    mook.take_damage(1)  # an earlier order in the same tick killed it
+
+    response = adapter.attack(player, None)  # no CombatException: losing the race isn't a refusal
+    assert attack_text(player, response) == "Mook is already down."
+    adapter.world.tick()  # the dead are cleared, and an empty square is an empty square again
+    with pytest.raises(CombatException, match="Nothing in this square"):
+        adapter.attack(player, None)
+
 def test_a_space_is_not_equal_to_things_that_are_not_coordinates():
     """A despawned actor's location is None, and combat compares locations every swing."""
     space = Space(1, 2, GrassTerrain())
@@ -1140,8 +1167,8 @@ def test_a_dead_npc_cannot_be_attacked_again(adapter):
     adapter.attack(player, None)
 
     assert mook in adapter.world.npcs  # still on the roster until the next tick
-    with pytest.raises(CombatException):
-        adapter.attack(player, None)
+    again = adapter.attack(player, None)
+    assert (again.target, again.damage, again.text) == (None, 0, "Mook is already down.")
 
 
 def test_an_empty_gun_cannot_shoot_so_you_swing_fists(adapter):

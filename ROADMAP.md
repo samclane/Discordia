@@ -487,3 +487,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-10-31 Raiders spare Raiders: `World.spares(npc, player)` keeps raider NPCs from hitting (the tick's targets)
   or hunting (`prey_in_sight(space, hunter)`) Raider-class players. Animals still go for anyone; wilds fights
   (`CombatEvent`) are unchanged.
+- 2026-10-31 Friendly fire: a no-direction `/attack` picked a random target among everyone on the square, so bots
+  ganging up on a raider killed each other (seed 7's lone sim error: bot1 killed bot4, whose own attack then ran
+  in town). An NPC on the square is now hit before any player. And an attack on a raider another order killed
+  this tick says "X is already down." instead of refusing (`NPC.fell_at`). Sim deaths 12 -> 10.5 a seed, errors 0.

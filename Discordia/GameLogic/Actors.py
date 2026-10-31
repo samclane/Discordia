@@ -228,9 +228,11 @@ class NPC(Actor):
         self.currency: int = 0  # what the killer pockets, alongside the inventory
         self.brain = Behavior.FiniteStateMachine(self, Behavior.Aggressive())
         self.quarry: PlayerCharacter | None = None  # who it last warned it's hunting
+        # Where it died, so an attack queued on it this tick can say someone got there first (World.attack).
+        self.fell_at: GameSpace.Space | None = None
 
     def on_death(self) -> Inventory:
-        self.location = None  # type: ignore[assignment]  # despawns the NPC
+        self.fell_at, self.location = self.location, None  # type: ignore[assignment]  # despawns the NPC
         return self.inventory
 
     @property
