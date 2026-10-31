@@ -211,6 +211,19 @@ def test_the_stock_listing_groups_sorts_and_marks_what_you_cannot_afford():
     ]
 
 
+def test_a_soldiers_stock_listing_says_whose_base_it_is():
+    character = Actors.PlayerCharacter(None, name="Ivan")
+    character.side, character.currency = "East", 10_000
+    store = _little_store()
+    store.side = "East"
+    rifle = store.inventory[0]
+    text = _stock_listing(store, character)
+    assert "Your side's base: 20% off." in text and f"${int(rifle.base_value * 0.8)}" in text
+    store.side = "West"
+    assert "The other side's base: 20% on top." in _stock_listing(store, character)
+    assert "base" not in _stock_listing(_little_store(), character)  # a store with no side says nothing
+
+
 def test_buying_autocompletes_by_name_cheapest_first():
     store = _little_store()
     prices = [store.get_price(store.inventory[c.value]) for c in _stock_choices(store, "")]

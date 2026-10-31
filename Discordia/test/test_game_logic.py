@@ -390,6 +390,25 @@ def test_store_price_follows_the_price_ratio():
     assert store.get_price(rifle) == 2 * rifle.base_value
 
 
+def test_a_soldier_pays_less_at_their_own_base_and_more_at_the_other():
+    east = GameSpace.Town(0, 0, "Bagram", industry=GameSpace.EasternMilitaryBase(), store=Store([Weapons.AK47()]))
+    west = GameSpace.Town(1, 0, "Camp", industry=GameSpace.WesternMilitaryBase())
+    market = GameSpace.Town(2, 0, "Bazaar", industry=GameSpace.MiningIndustry())
+    soldier = Actors.PlayerCharacter(parent_world=None, name="Ivan")
+    east.recruit(soldier)
+    wanderer = Actors.PlayerCharacter(parent_world=None, name="Abdul")
+    rifle = east.store.inventory[0]
+    full = rifle.base_value
+
+    assert soldier.side == "East" and east.store.side == "East"
+    assert east.store.get_price(rifle, soldier) == int(full * 0.8)
+    assert west.store.get_price(rifle, soldier) == int(full * 1.2)
+    assert market.store.get_price(rifle, soldier) == full  # a trade town takes no side
+    assert east.store.get_price(rifle, wanderer) == east.store.get_price(rifle) == full
+    soldier.currency = int(full * 0.8)  # exactly the discounted price: the sale charges what the listing said
+    assert east.store.sell_item(0, soldier) and soldier.currency == 0
+
+
 def test_store_refuses_a_bad_index_or_an_empty_wallet():
     rifle = Weapons.AK47()
     store = Store([rifle])

@@ -47,6 +47,7 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 }
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
+SIDE_DISCOUNT = 0.2  # off for a soldier at their own side's military base store, on at the other side's
 
 # Who you meet in every town (Town.residents), and what each might say. Flavor only: they aren't on the map.
 TOWNSFOLK = {
@@ -538,6 +539,7 @@ class Town(Space):
         self.population: int = population
         self.industry: IndustryType = industry
         self.store: Store = store if store is not None else Store()
+        self.store.side = industry.side  # a base's store knows whose it is; set here, so a load gets it back too
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
 
     @property
@@ -1408,6 +1410,8 @@ class Store:
         )
         # Bought from or sold to since generation. Only these are saved: an untouched store regenerates as it was.
         self.traded: bool = False
+        # The army whose military base this store is in (Town sets it), else None: see get_price.
+        self.side: str | None = None
 
     @classmethod
     def generate_store(cls):
@@ -1418,8 +1422,13 @@ class Store:
                 inventory.append(item)
         return cls(inventory)
 
-    def get_price(self, item: Equipment) -> int:
-        return int(item.base_value * self.price_ratio)
+    def get_price(self, item: Equipment, buyer: Actors.PlayerCharacter | None = None) -> int:
+        """What `item` costs `buyer`: a soldier (only a base's recruit gives you a side) pays SIDE_DISCOUNT less at
+        their own side's base and that much more at the other side's."""
+        ratio = self.price_ratio
+        if self.side is not None and buyer is not None and buyer.side is not None:
+            ratio *= 1 - SIDE_DISCOUNT if buyer.side == self.side else 1 + SIDE_DISCOUNT
+        return int(item.base_value * ratio)
 
     def sell_item(self, index: int, player_character: Actors.PlayerCharacter) -> bool:
         # Get an instance of the item from the Store's inventory
@@ -1427,7 +1436,7 @@ class Store:
             item = self.inventory[index]
         except IndexError:
             return False
-        price = self.get_price(item)
+        price = self.get_price(item, player_character)
         if player_character.currency < price:
             return False
         self.inventory.remove(item)

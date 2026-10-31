@@ -129,14 +129,14 @@ class Bot:
         fits = [
             item
             for item in store.inventory
-            if test(item) and store.get_price(item) <= self.character.currency
+            if test(item) and store.get_price(item, self.character) <= self.character.currency
         ]
-        return min(fits, key=store.get_price, default=None)
+        return min(fits, key=lambda item: store.get_price(item, self.character), default=None)
 
     def _short_for_a_weapon(self, town: Town) -> int:
         """What to take out of the stash to afford the cheapest weapon here, or 0 if it can't or needn't."""
         c = self.character
-        prices = [town.store.get_price(i) for i in town.store.inventory if isinstance(i, Weapons.Weapon)]
+        prices = [town.store.get_price(i, c) for i in town.store.inventory if isinstance(i, Weapons.Weapon)]
         price = min(prices, default=0)
         return price - c.currency if c.currency < price <= c.currency + c.stash_currency else 0
 

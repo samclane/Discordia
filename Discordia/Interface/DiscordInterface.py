@@ -141,17 +141,23 @@ def _stock_listing(store: GameSpace.Store, character: Actors.PlayerCharacter, ki
         if heading not in groups or kind not in (None, heading):
             continue
         lines.append(f"{heading.upper():<{w + 4}} {column:>4} {'price':>6}")
-        for index, item in sorted(groups[heading], key=lambda row: store.get_price(row[1])):
-            price = store.get_price(item)
+        for index, item in sorted(groups[heading], key=lambda row: store.get_price(row[1], character)):
+            price = store.get_price(item, character)
             name = item.name if len(item.name) <= w else item.name[: w - 1] + "…"
             dear = " ✗" if price > character.currency else ""
             lines.append(f"{'#' + str(index):<4}{name:<{w}} {stat(item):>4} {'$' + str(price):>6}{dear}")
     if not lines:
         return f"Nothing in {kind} here right now."
-    return f"You have ${character.currency:,}.\n```\n" + "\n".join(lines) + "\n```"
+    side = ""
+    if store.side is not None and character.side is not None:  # what get_price did to every price above
+        own = store.side == character.side
+        side = f" {'Your' if own else 'The other'} side's base: {GameSpace.SIDE_DISCOUNT:.0%} {'off' if own else 'on top'}."
+    return f"You have ${character.currency:,}.{side}\n```\n" + "\n".join(lines) + "\n```"
 
 
-def _stock_choices(store: GameSpace.Store, current: str) -> List[app_commands.Choice[int]]:
+def _stock_choices(
+    store: GameSpace.Store, current: str, buyer: Actors.PlayerCharacter | None = None
+) -> List[app_commands.Choice[int]]:
     """Autocomplete for a buy: items whose name (or #) matches what's typed so far, cheapest first."""
     typed = current.strip().lstrip("#").lower()
     matches = [
@@ -160,8 +166,8 @@ def _stock_choices(store: GameSpace.Store, current: str) -> List[app_commands.Ch
         if typed in item.name.lower() or typed == str(index)
     ]
     return [
-        app_commands.Choice(name=f"{item.name} · ${store.get_price(item)}", value=index)
-        for index, item in sorted(matches, key=lambda row: store.get_price(row[1]))[:25]  # Discord's cap
+        app_commands.Choice(name=f"{item.name} · ${store.get_price(item, buyer)}", value=index)
+        for index, item in sorted(matches, key=lambda row: store.get_price(row[1], buyer))[:25]  # Discord's cap
     ]
 
 
@@ -872,10 +878,11 @@ class DiscordInterface(commands.Cog):
     async def _buy_choices(self, interaction: discord.Interaction, current: str):
         # No checks run on an autocomplete: anyone not in a town just gets no suggestions.
         try:
-            town = self._player(interaction).location
+            character = self._player(interaction)
         except Exception:
             return []
-        return _stock_choices(town.store, current) if isinstance(town, GameSpace.Town) else []
+        town = character.location
+        return _stock_choices(town.store, current, character) if isinstance(town, GameSpace.Town) else []
 
     @store.command()
     @requires_character()

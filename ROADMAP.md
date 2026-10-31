@@ -123,11 +123,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   decision on which floor; with the bot fix below that bot still ends a 5000-tick run broke, bare-fisted, level 1.)
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
-- [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
+- [x] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
   - [x] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
-  - [ ] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
+  - [x] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
 
 ## NPCs and world
 
@@ -216,6 +216,11 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Soldier prices: a military base's store takes its side from the town (`Store.side`, set in
+  `Town.__init__`, so a load gets it back with no new column), and `Store.get_price(item, buyer)` takes 20% off
+  for a soldier of that side and adds 20% for the other (`SIDE_DISCOUNT`). Listings, autocomplete and the sale
+  all use the buyer's price; the listing says which. Selling to a store is unchanged. Closes faction consequences.
 
 - 2026-10-31 Unarmed simulator bots: a bot whose main hand is a `Fist` heads home from anywhere above danger 1,
   so it raids only the shallow end until it can afford a gun. Seed 1 at 5000 ticks: 61 -> 29 deaths, the spiralling

@@ -126,12 +126,14 @@ the bot syncs them.
         * Rest at the inn: back to full health, free.
     * `/town recruit`
         * Change your player class to the one the town trains (`/town status` says which). Military bases train
-          Soldiers (75 HP) for that base's side, East or West, and there's no switching sides. Mining towns train Scavengers (a cache gives one more salvage), farming towns Medics
+          Soldiers (75 HP) for that base's side, East or West, and there's no switching sides. A soldier pays
+          20% less at their own side's base store and 20% more at the other side's. Mining towns train Scavengers (a cache gives one more salvage), farming towns Medics
           (camping heals twice as fast), woodworking towns Scouts (see a square further), smithing towns Fixers
           (stores pay a quarter more when you sell).
     * `/town store list` [`kind`]
         * What the town's store sells, grouped into weapons, armor, ammo and other, cheapest first, with each
-          item's damage, armor or rounds. ✗ marks what you can't afford. `kind` shows just one group.
+          item's damage, armor or rounds, at your price (a soldier's side changes it at a base). ✗ marks what you
+          can't afford. `kind` shows just one group.
         * `/town store buy` [`index`]
             * Purchase the item at the given index, adding it to your inventory. Start typing an item's name
               and Discord suggests matches with their prices, so you don't need the list's numbers.
