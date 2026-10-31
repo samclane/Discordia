@@ -547,6 +547,20 @@ class DiscordInterface(commands.Cog):
 
     @app_commands.command()
     @requires_character()
+    async def achievements(self, interaction: discord.Interaction):
+        """List the achievements you've earned and the ones still to get"""
+        earned = self._player(interaction).achievements
+        await _send(
+            interaction,
+            f"Achievements, {len(earned & Actors.ACHIEVEMENTS.keys())} of {len(Actors.ACHIEVEMENTS)}:\n"
+            + "\n".join(
+                f"✅ **{title}**: {how}" if key in earned else f"⬛ {title}: {how}"
+                for key, (title, how, _) in Actors.ACHIEVEMENTS.items()
+            ),
+        )
+
+    @app_commands.command()
+    @requires_character()
     async def look(self, interaction: discord.Interaction):
         """Describes your character's surroundings"""
         await _defer(interaction)

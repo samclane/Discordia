@@ -235,6 +235,7 @@ PLAY: List[Tuple[str, float, Callable[[], Dict[str, Any]]]] = [
     ("choose", 1, lambda: {"choice": random.choice(Events.EncounterEvent.CHOICES)}),
     ("look", 1, lambda: {}),
     ("equipment", 1, lambda: {}),
+    ("achievements", 0.3, lambda: {}),
     ("inventory list", 1, lambda: {}),
     ("inventory equip", 0.5, lambda: {"index": random.randrange(4)}),
     ("inventory pouch", 0.3, lambda: {"index": random.randrange(3)}),
@@ -447,7 +448,7 @@ def metrics(discord_: Discord) -> Dict[str, float]:
 
 
 def test_the_bot_keeps_to_server_rules(tmp_path):
-    discord_ = simulate(ticks=60)
+    discord_ = simulate(ticks=120)
     out = tmp_path / "server.jsonl"
     write(discord_, 0, out)
     report(*load(out), tmp_path / "server.html")  # the dashboard builds from what the run wrote

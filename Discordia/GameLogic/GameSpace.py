@@ -19,6 +19,7 @@ from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Data, Events, Actors, Items, Weapons
+from Discordia.GameLogic import Armor  # noqa: F401  # Store stocks every Data.stocked() class: they must all be imported
 from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
 from Discordia.GameLogic.StringGenerator import (
@@ -1329,6 +1330,15 @@ class World:
                     text=text,
                 )
             )
+        # Last, so whatever this tick and the orders before it did counts. Rare enough to be worth a DM each.
+        for p in self.players:
+            if earned := [Actors.ACHIEVEMENTS[key] for key in p.check_achievements()]:
+                events += [
+                    PlayerActionResponse(is_successful=True, target=p, source=p, text=f"Achievement: {title}. {how}")
+                    for title, how, _ in earned
+                ]
+                # One line per player however many: a deploy hands old characters a pile at once.
+                self.announcements.append((p, f"{p.name} earned {', '.join(title for title, _, _ in earned)}."))
         return events
 
     def live_piles(self) -> List[Space]:

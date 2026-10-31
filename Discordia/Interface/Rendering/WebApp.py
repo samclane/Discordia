@@ -32,7 +32,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from Discordia import SPRITE_FOLDER, VERSION
 from Discordia.GameLogic import Events, GameSpace
-from Discordia.GameLogic.Actors import EXPERIENCE_PER_LEVEL, Fixer, Medic, PlayerCharacter, Scavenger, Scout, Soldier, WandererClass
+from Discordia.GameLogic.Actors import ACHIEVEMENTS, EXPERIENCE_PER_LEVEL, Fixer, Medic, PlayerCharacter, Scavenger, Scout, Soldier, WandererClass
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
 from Discordia.GameLogic.Weapons import Weapon
 from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
@@ -335,6 +335,12 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
     else:
         death_note = "You had nothing on you to lose last time."
     news = adapter.news(character)
+    achievements = "".join(
+        f'<li{"" if key in character.achievements else ' class="empty-slot"'}>'
+        f'<span class="slot">{"earned" if key in character.achievements else "locked"}</span>'
+        f'<span class="name">{html.escape(title)}: {html.escape(how)}</span></li>'
+        for key, (title, how, _) in ACHIEVEMENTS.items()
+    )
     hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0
     return {
         "SPRITE": _sprite_url(character.sprite_path_string),
@@ -357,6 +363,9 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         "DEATH_NOTE": death_note,
         "EQUIPMENT": Markup(equipment),
         "NEWS": Markup(_news_rows(news)),
+        "ACHIEVEMENTS": Markup(achievements),
+        "EARNED": sum(key in character.achievements for key in ACHIEVEMENTS),
+        "ACHIEVEMENTS_TOTAL": len(ACHIEVEMENTS),
         "INVENTORY": Markup(
             inventory
             or '<li class="empty-slot"><span class="name">Nothing yet. Stores sell, and raiders drop.</span></li>'

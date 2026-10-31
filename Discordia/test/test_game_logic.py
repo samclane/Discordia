@@ -682,6 +682,23 @@ def test_a_kill_pays_experience_and_announces_a_level(adapter):
     assert "XP" in phrase and "level 2" in phrase
 
 
+def test_a_first_kill_earns_an_achievement_once_on_the_next_tick(adapter):
+    player = adapter.get_player(1)
+    mook = Actors.NPC(None, 10, "Mook")
+    adapter.world.add_actor(mook, player.location)
+    mook.take_damage(mook.hit_points_max)
+    player.loot(mook, GameSpace.PlayerActionResponse(source=player))
+    assert player.kills == 1 and "first_blood" not in player.achievements
+
+    news = [e.text for e in adapter.world.tick() if e.target is player]
+    assert "Achievement: First blood. Kill something out past the towns." in news
+    assert "first_blood" in player.achievements
+    assert (player, f"{player.name} earned First blood.") in adapter.world.announcements
+    adapter.world.announcements.clear()
+    assert not any("First blood" in e.text for e in adapter.world.tick())
+    assert adapter.world.announcements == []
+
+
 def test_a_kill_below_your_level_pays_its_share_of_your_level(adapter):
     player = adapter.get_player(1)
     player.gain_experience(3 * Actors.EXPERIENCE_PER_LEVEL)  # level 4
@@ -1692,7 +1709,7 @@ def test_a_tick_that_kills_says_so_and_sends_you_home(adapter):
     player.hit_points = 1
     world.add_actor(Actors.Raider(world, 50, "Mugger"), player.location)
 
-    [event] = [e for e in world.tick() if e.target is player]
+    [event] = [e for e in world.tick() if e.target is player and e.source is not player]  # not the achievement
     assert "black out" in event.text
     assert player.location == world.starting_town and not player.is_dead
 
@@ -1710,7 +1727,7 @@ def test_raider_npcs_neither_hunt_nor_hit_a_raider(adapter, lone_raider):
 
     npc.location = corner
     health = player.hit_points
-    assert [e for e in world.tick() if e.target is player] == []
+    assert [e for e in world.tick() if e.target is player and e.source is npc] == []
     assert player.hit_points == health
 
 def test_dead_npcs_are_dropped_on_the_next_tick(adapter):

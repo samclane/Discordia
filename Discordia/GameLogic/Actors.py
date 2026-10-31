@@ -491,6 +491,28 @@ class Fixer(PlayerClass):
         return str(SPRITE_FOLDER / "Actors" / "fixer_class.png")
 
 
+# key: (title, how to earn it, whether a player has). Checked every World.tick, kept once earned. The key is what's
+# saved: retitle freely, but a new key or a removed one is a new achievement or a lost one.
+ACHIEVEMENTS = {
+    "first_blood": ("First blood", "Kill something out past the towns.", lambda p: p.kills >= 1),
+    "veteran": ("Veteran", "Kill fifty.", lambda p: p.kills >= 50),
+    "home_alive": ("Home alive", "Bring a raid's haul back to town.", lambda p: p.extractions >= 1),
+    "old_hand": ("Old hand", "Bring twenty-five hauls home.", lambda p: p.extractions >= 25),
+    "cargo_200": ("Cargo 200", "Die. It happens to everyone.", lambda p: p.deaths >= 1),
+    "seasoned": ("Seasoned", "Reach level 5.", lambda p: p.level >= 5),
+    "hardened": ("Hardened", "Reach level 10.", lambda p: p.level >= 10),
+    "enlisted": ("Enlisted", "Train with either army at a military base.", lambda p: p.side is not None),
+    "gone_rogue": ("Gone rogue", "Live as a Raider.", lambda p: isinstance(p.player_class, RaiderClass)),
+    "a_roof": ("A roof", "Build a hideout.", lambda p: p.hideout_level >= 1),
+    "walk_away": ("Walk away", "Prestige your hideout.", lambda p: p.prestige >= 1),
+    "fat_stash": (
+        "Fat stash",
+        "Hold $10,000, carried and stashed together.",
+        lambda p: p.currency + p.stash_currency >= 10_000,
+    ),
+}
+
+
 class PlayerCharacter(Actor):
 
     def __init__(self, *args, **kwargs):
@@ -517,6 +539,10 @@ class PlayerCharacter(Actor):
         self.last_death_loss: str = ""
         # Deaths so far. A player is revived the moment they die, so a fight watches this to know it's over.
         self.deaths: int = 0
+        # Lifetime NPC kills and hauls brought home, for ACHIEVEMENTS, and the keys of those earned.
+        self.kills: int = 0
+        self.extractions: int = 0
+        self.achievements: set[str] = set()
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
         self.pending_event: Any = None
@@ -569,6 +595,7 @@ class PlayerCharacter(Actor):
             found.append(f"{self.experience - experience} XP" + (f" (level {self.level}!)" if levels else ""))
         haul = ", ".join(found) if found else "nothing but the walk"
         if found:
+            self.extractions += 1
             self.parent_world.announcements.append((self, f"{self.name} made it back to {self.location.name} with {haul}."))
         return f"You make it back to {self.location.name}. Raid over, you brought home: {haul}."
 
@@ -585,6 +612,12 @@ class PlayerCharacter(Actor):
         self._player_class = class_
         self._refresh_hit_points_max()
         self._hit_points = self.hit_points_max
+
+    def check_achievements(self) -> List[str]:
+        """Award every ACHIEVEMENTS key you now qualify for. Returns the newly earned keys."""
+        new = [key for key, (_, _, has) in ACHIEVEMENTS.items() if key not in self.achievements and has(self)]
+        self.achievements.update(new)
+        return new
 
     def turn_raider(self) -> str:
         """Robbing a stranger or killing a player puts you outside any army: a Raider, keeping the hit points
@@ -676,6 +709,7 @@ class PlayerCharacter(Actor):
         corpse.inventory = Inventory()
         corpse.currency = 0
         self.parent_world.stats.kills += 1
+        self.kills += 1
 
         # A tougher corpse is worth more, and one below your level pays its share of yours: levels keep pace with
         # how deep you raid, rather than piling up on the wilds next to town.

@@ -206,6 +206,7 @@ def snapshot(world: GameSpace.World, c) -> dict:
         "level": c.level,
         "class": c.player_class.name,
         "deaths": c.deaths,
+        "achievements": len(c.achievements),
         "weapon": str(weapon) if weapon else None,
         "ammo": getattr(weapon, "current_capacity", None),
     }
@@ -406,6 +407,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "mean level": round(mean(r["level"] for r in last), 2),
         "top level": max(r["level"] for r in last),
         "deaths": sum(r["deaths"] for r in last),
+        "mean achievements": round(mean(r["achievements"] for r in last), 2),
         "trade classes (share of bots)": round(mean(r["class"] in TRADES for r in last), 2),
         "raiders (share of bots)": round(mean(r["class"] == Actors.RaiderClass().name for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),

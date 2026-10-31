@@ -236,6 +236,8 @@ class TestGeneral(unittest.TestCase):
         player.prestige = 2
         player.side = "West"
         player.deaths = 2
+        player.kills, player.extractions = 7, 3
+        player.achievements = {"first_blood", "home_alive"}
         self.adapter.start_raid(player, 60, depth=4)
         self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
         for _ in self._move_randomly():
@@ -298,6 +300,8 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
         self.assertEqual((restored.hideout_level, restored.prestige, restored.side), (3, 2, "West"))
         self.assertTrue(restored.camping)
+        self.assertEqual((restored.kills, restored.extractions), (7, 3))
+        self.assertEqual(restored.achievements, {"first_blood", "home_alive"})
         self.assertEqual(
             [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in adapter.world.npcs],
             [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in self.world.npcs],

@@ -31,6 +31,7 @@ EXPECTED = {
     "move",
     "attack",
     "equipment",
+    "achievements",
     "inventory list",
     "inventory equip",
     "inventory unequip",
@@ -657,6 +658,18 @@ def test_town_status_introduces_the_residents():
     [text] = replies.sent
     assert text.startswith("You're in Hub, population 40. It trains Scavengers: Every cache gives you one more")
     assert "the shopkeeper" in text and "the guard" in text
+
+
+def test_achievements_lists_earned_and_locked():
+    character = Actors.PlayerCharacter(parent_world=None, name="Medalled")
+    character.achievements = {"a_roof"}
+    interface = loaded_cog(StubAdapter(character))
+    replies = Replies()
+    interaction = SimpleNamespace(command="achievements", user=SimpleNamespace(id=1), response=replies)
+    asyncio.run(command_named(interface, "achievements").callback(interface, interaction))  # type: ignore[arg-type]
+    [text] = replies.sent
+    assert text.startswith(f"Achievements, 1 of {len(Actors.ACHIEVEMENTS)}:\n")
+    assert "✅ **A roof**: Build a hideout." in text and "⬛ First blood:" in text
 
 
 def test_help_lists_every_command_privately_starting_with_register():
