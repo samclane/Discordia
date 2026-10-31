@@ -133,6 +133,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   moved nothing in `sim_history`. Have a share of bots enlist at the first base they rest in, so the side rules
   show in the drift numbers.
 
+- [ ] Simulator bots never equip what they find, only what they buy, so cache-only chest armor (7710272) moved
+  nothing but the random stream in `sim_history` (worth 838 -> 811, level 2.05 -> 1.97, deaths 9.8 -> 9.7). Have a
+  bot wear found armor that beats what it has on, so armor shows in the drift numbers.
+
 ## NPCs and world
 
 - [x] NPCs fleeing should step away on the grid (`Behavior.Fleeing`, ponytail note) now that NPCs move in `World.tick`.
