@@ -109,6 +109,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   (d15fd3f): it doesn't hold. Per 1000 bot-ticks out of town Raiders die in wilds fights at 0.92, everyone else
   at 1.01 (9.9 vs 12.1 per 1000 ticks on a wilds square), and none of their 70 deaths were to map NPCs. The rise
   was counts, not rates. Left as is; wilds fights spawn plain `NPC`s anyway, which `World.spares` never covers.
+- [ ] Since d15fd3f deaths rose 10.5 -> 12 a seed (11.8; 10 seeds x 2000 ticks) and max danger fell 5.1 -> 4.8.
+  Achievements change no rules, but the same commit made stores stock armor, which re-rolls every chunk's towns and
+  wilds (and gives bots armor to buy). Likely the new maps, not a balance change: compare deaths by danger on a
+  longer run before tuning anything.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
