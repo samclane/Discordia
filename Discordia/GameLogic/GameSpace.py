@@ -348,6 +348,8 @@ class MountainTerrain(Terrain):
 
 
 class IndustryType(ABC):
+    side: str | None = None  # the army a military base trains for (PlayerCharacter.side)
+
     @property
     def name(self) -> str:
         raise NotImplementedError
@@ -414,12 +416,16 @@ class MilitaryBase(IndustryType, ABC):
 
 
 class EasternMilitaryBase(MilitaryBase):
+    side = "East"
+
     @property
     def name(self) -> str:
         return "Eastern Military Base"
 
 
 class WesternMilitaryBase(MilitaryBase):
+    side = "West"
+
     @property
     def name(self) -> str:
         return "Western Military Base"
@@ -571,6 +577,7 @@ class Town(Space):
             and _class.name != character.player_class.name
         ):
             character.player_class = _class
+            character.side = self.industry.side
             resp = PlayerActionResponse(
                 is_successful=True,
                 text=f"You're a {_class.name} now. {_class.perk}".rstrip(),
@@ -1133,6 +1140,7 @@ class World:
             if len(targets):
                 target: Actors.Actor = random.choice(targets)
                 weapon.on_damage()
+                deaths = getattr(target, "deaths", 0)  # a player is revived on the spot: this shows the kill
                 target.take_damage(dmg)
                 response.is_successful = True
                 response.damage = dmg
@@ -1144,6 +1152,8 @@ class World:
                     response.text = f"You kill {target.name}" + (
                         f" and take {drops}." if drops else "."
                     )
+                elif isinstance(target, Actors.PlayerCharacter) and target.deaths != deaths:
+                    response.text = f"You kill {target.name}." + player_character.turn_raider()
                 break
             else:
                 # A melee weapon reaches your square and the one next to it: a raider beside you is one

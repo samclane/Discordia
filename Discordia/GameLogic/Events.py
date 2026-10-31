@@ -237,16 +237,13 @@ class EncounterEvent(Event):
                 )
             return
         if not npc.currency:
-            response.text = (
-                f"You put {npc.name} on the ground and find nothing worth taking."
-            )
-            return
-        response.currency = npc.currency
-        player_character.currency += npc.currency
-        npc.currency = 0
-        response.text = (
-            f"You take ${response.currency} off {npc.name} and leave them in the dirt."
-        )
+            response.text = f"You put {npc.name} on the ground and find nothing worth taking."
+        else:
+            response.currency = npc.currency
+            player_character.currency += npc.currency
+            npc.currency = 0
+            response.text = f"You take ${response.currency} off {npc.name} and leave them in the dirt."
+        response.text += player_character.turn_raider()  # a win either way, and that's what makes a raider
 
 
 class MerchantEvent(Event):

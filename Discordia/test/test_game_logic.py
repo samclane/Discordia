@@ -310,8 +310,21 @@ def test_recruiting_promotes_you_once():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
 
     assert town.recruit(character).is_successful
-    assert isinstance(character.player_class, Actors.Soldier)
+    assert isinstance(character.player_class, Actors.Soldier) and character.side == "East"
     assert town.recruit(character).failed  # already a Solider; nothing left to offer
+    assert Town(1, 1, "Camp", industry=GameSpace.WesternMilitaryBase()).recruit(character).failed
+    assert character.side == "East"  # no changing sides at the other base
+
+
+def test_turning_raider_drops_your_side_and_keeps_your_wounds():
+    character = Actors.PlayerCharacter(parent_world=None, name="Deserter")
+    Town(1, 1, "Camp", industry=GameSpace.WesternMilitaryBase()).recruit(character)
+    assert character.side == "West"
+    character.take_damage(30)
+    assert character.turn_raider() == " That makes you a Raider."
+    assert isinstance(character.player_class, Actors.RaiderClass) and character.side is None
+    assert (character.hit_points, character.hit_points_max) == (45, 60)  # a Soldier's 75 less the hit: no healing
+    assert character.turn_raider() == ""  # already one
 
 
 def test_a_wanderer_town_cannot_promote_a_wanderer():
@@ -737,7 +750,8 @@ def test_robbing_a_stranger_who_loses_takes_their_money(adapter, monkeypatch):
     assert response.is_successful
     assert player.currency == purse + 60
     assert npc.currency == 0
-    assert "$60" in response.text
+    assert response.text.endswith("$60 off Stranger and leave them in the dirt. That makes you a Raider.")
+    assert isinstance(player.player_class, Actors.RaiderClass)
 
 
 def test_robbing_a_stranger_who_wins_hurts(adapter, monkeypatch):
@@ -750,6 +764,7 @@ def test_robbing_a_stranger_who_wins_hurts(adapter, monkeypatch):
     assert player.currency == purse
     assert npc.currency == 60
     assert player.hit_points == health - 20  # a fifth of what the stranger can take
+    assert isinstance(player.player_class, Actors.WandererClass)  # a failed robbery makes no raider
 
 
 def test_an_encounter_refuses_a_choice_it_does_not_offer(adapter):
@@ -1065,6 +1080,18 @@ def test_pvp_hits_someone_standing_on_the_same_square(adapter):
     assert response.is_successful
     assert response.target is victim
     assert victim.hit_points < victim.hit_points_max
+    assert isinstance(attacker.player_class, Actors.WandererClass)  # a hit is not a kill
+
+
+def test_killing_a_player_makes_you_a_raider(adapter):
+    adapter.register_player(2, "Victim")
+    attacker, victim = adapter.get_player(1), adapter.get_player(2)
+    attacker.equip(Weapons.Hammer())
+    victim.hit_points = 1
+    response = adapter.attack(attacker, None)
+    assert victim.deaths == 1
+    assert response.text == "You kill Victim. That makes you a Raider."
+    assert isinstance(attacker.player_class, Actors.RaiderClass)
 
 
 def test_a_space_is_not_equal_to_things_that_are_not_coordinates():

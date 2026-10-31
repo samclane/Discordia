@@ -507,6 +507,8 @@ class PlayerCharacter(Actor):
         self.hideout_level: int = 0
         # Hideouts traded in so far (prestige_hideout), each adding PRESTIGE_BONUS to the income.
         self.prestige: int = 0
+        # "East" or "West" once a military base trains you (Town.recruit), else None. Turning Raider drops it.
+        self.side: str | None = None
         # The secure pouch: one item, carried, that a death leaves on you. Filled from the backpack, anywhere.
         self.pouch: Items.Equipment | None = None
         # What the last death took, phrased for a player, so whoever narrates it can say. Transient: not worth saving.
@@ -581,6 +583,16 @@ class PlayerCharacter(Actor):
         self._player_class = class_
         self._refresh_hit_points_max()
         self._hit_points = self.hit_points_max
+
+    def turn_raider(self) -> str:
+        """Robbing a stranger or killing a player puts you outside any army: a Raider, keeping the hit points
+        you have (the player_class setter would heal you). Returns the news for a player, "" if you already were."""
+        if isinstance(self._player_class, RaiderClass):
+            return ""
+        self._player_class, self.side = RaiderClass(), None
+        self._refresh_hit_points_max()
+        self._hit_points = min(self._hit_points, self.hit_points_max)
+        return " That makes you a Raider."
 
     @property
     def level(self) -> int:

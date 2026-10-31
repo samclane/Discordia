@@ -101,13 +101,13 @@ the bot syncs them.
     will attack in the current position only. Otherwise, ranged weapons go in a single direction like a "beam", until
     they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
     traverses removes % damage until it goes to 0.
-    * Killing an NPC hands you its money and whatever it was carrying.
+    * Killing an NPC hands you its money and whatever it was carrying. Killing a player makes you a Raider.
     * You hear about what happens while you're not looking by DM: a raider spotting you, the first hit of a
       fight and how it ends (not every blow), and how an auto-raid went. `/me` on the website keeps the full log.
 * `/choose` [`talk`|`rob`|`ignore`]
     * Wandering the wilds can turn up a stranger on the road, who waits for you to decide what to do.
     * `talk` gets you directions to the nearest town, `rob` is a contest of your level against theirs
-    (win and you take their money, lose and they hurt you), `ignore` walks on. Moving anywhere also
+    (win and you take their money and become a Raider, lose and they hurt you), `ignore` walks on. Moving anywhere also
     counts as walking on.
 * `/trade list`
     * The wilds can also turn up a trader with a few things laid out on a blanket. Lists what they have
@@ -121,7 +121,7 @@ the bot syncs them.
         * Rest at the inn: back to full health, free.
     * `/town recruit`
         * Change your player class to the one the town trains (`/town status` says which). Military bases train
-          Soldiers (75 HP). Mining towns train Scavengers (a cache gives one more salvage), farming towns Medics
+          Soldiers (75 HP) for that base's side, East or West, and there's no switching sides. Mining towns train Scavengers (a cache gives one more salvage), farming towns Medics
           (camping heals twice as fast), woodworking towns Scouts (see a square further), smithing towns Fixers
           (stores pay a quarter more when you sell).
     * `/town store list` [`kind`]

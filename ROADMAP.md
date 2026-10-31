@@ -100,7 +100,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
-  - [ ] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
+  - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
   - [ ] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
   - [ ] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
@@ -472,3 +472,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   (~20 s) instead of seeds 0 and 1.
 - 2026-10-31 Simulator bots recruit: a Wanderer bot takes the class of the first trade town it stands in (not a
   military base), rows carry the class, and a new "trade classes (share of bots)" metric shows how many did.
+- 2026-10-31 Faction joining: a won `/choose rob` or a player kill calls `PlayerCharacter.turn_raider()` (Raider,
+  side dropped, hit points kept rather than healed); a military base's recruit sets `character.side` from
+  `IndustryType.side` ("East"/"West"), saved in a migrated column.

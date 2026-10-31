@@ -234,6 +234,7 @@ class TestGeneral(unittest.TestCase):
         player.pouch = Weapons.MusketBalls()
         player.hideout_level = 3
         player.prestige = 2
+        player.side = "West"
         player.deaths = 2
         self.adapter.start_raid(player, 60, depth=4)
         self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
@@ -295,7 +296,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
         self.assertEqual(restored.stash_currency, 77)
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
-        self.assertEqual((restored.hideout_level, restored.prestige), (3, 2))
+        self.assertEqual((restored.hideout_level, restored.prestige, restored.side), (3, 2, "West"))
         self.assertTrue(restored.camping)
         self.assertEqual(
             [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in adapter.world.npcs],
@@ -327,6 +328,7 @@ class TestGeneral(unittest.TestCase):
         connection.execute("ALTER TABLE character DROP COLUMN experience")
         connection.execute("ALTER TABLE character DROP COLUMN hideout_level")
         connection.execute("ALTER TABLE character DROP COLUMN prestige")
+        connection.execute("ALTER TABLE character DROP COLUMN side")
         connection.execute("ALTER TABLE world DROP COLUMN ticks")
         connection.execute("ALTER TABLE world DROP COLUMN saved_at")
         connection.commit()
@@ -342,6 +344,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(adapter.get_player(0).experience, 0)
         self.assertEqual(adapter.get_player(0).level, 1)
         self.assertEqual((adapter.get_player(0).hideout_level, adapter.get_player(0).prestige), (0, 0))
+        self.assertIsNone(adapter.get_player(0).side)
 
     def test_loading_pays_hideouts_for_the_downtime(self):
         """A restart moves the clock on by however long the save sat on disk, so idle income isn't lost."""

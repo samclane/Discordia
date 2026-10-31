@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS character (
     stash_currency  INTEGER NOT NULL DEFAULT 0,
     hideout_level   INTEGER NOT NULL DEFAULT 0,
     prestige        INTEGER NOT NULL DEFAULT 0,
+    side            TEXT,  -- PlayerCharacter.side: "East", "West" or NULL
     raid_home_at    INTEGER,  -- PlayerCharacter.auto_raid's World.ticks to head home at; NULL when none is on
     raid_depth      INTEGER,  -- and its depth
     camping         INTEGER NOT NULL DEFAULT 0,
@@ -169,6 +170,7 @@ class Database:
             ("character", "stash_currency", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "hideout_level", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "prestige", "INTEGER NOT NULL DEFAULT 0"),
+            ("character", "side", "TEXT"),
             ("character", "raid_home_at", "INTEGER"),
             ("character", "raid_depth", "INTEGER"),
             ("character", "camping", "INTEGER NOT NULL DEFAULT 0"),
@@ -242,6 +244,7 @@ class Database:
         character.stash_currency = row["stash_currency"]
         character.hideout_level = row["hideout_level"]
         character.prestige = row["prestige"]
+        character.side = row["side"]
         character.location = adapter.world.space_at(row["x"], row["y"])
         character.camping = bool(row["camping"])  # World.advance heals it for the downtime
         if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
@@ -321,8 +324,8 @@ class Database:
         # sits in SCHEMA.
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
-            " currency, experience, stash_currency, hideout_level, prestige, raid_home_at, raid_depth, camping, x, y)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " currency, experience, stash_currency, hideout_level, prestige, side, raid_home_at, raid_depth, camping,"
+            " x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -334,6 +337,7 @@ class Database:
                 character.stash_currency,
                 character.hideout_level,
                 character.prestige,
+                character.side,
                 *((character.auto_raid[0], character.auto_raid[2]) if character.auto_raid else (None, None)),
                 character.camping,
                 character.location.x,
