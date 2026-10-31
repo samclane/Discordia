@@ -94,6 +94,9 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
   deadlier: deaths 25 -> 29, mean worth 768 -> 643 (seed 0 went the other way, 17 -> 14 and 468 -> 578). Likely
   levelled bots raiding deeper; check the deaths-by-danger split on a longer run before tuning anything.
+- [ ] Two seeds can't tell a death change from noise: over 10 seeds x 2000 ticks one build's deaths ranged 1-29
+  a seed, and 462a11b moved seed 0 14 -> 18 and seed 1 29 -> 28 with no real effect. Let the simulator take
+  `--seeds N` and record the means, so `sim_history` drift on deaths and worth means something.
 - [ ] Simulator bots never `/town recruit`, so class perks don't show in `sim_history` (05429a6 moved nothing).
   Have each bot take the class of the first trade town it rests in, so the drift numbers cover them.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
