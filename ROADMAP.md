@@ -230,7 +230,9 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - 2026-10-31 Bots wear found armor: out of a fight, a simulator bot spends its order putting on backpack armor worth
   more than what's in that slot (`Bot._better_armor`, by `base_value`: `armor_count` is a roll), and a new
-  `mean armor worn (pieces)` metric shows it.
+  `mean armor worn (pieces)` metric shows it. It reads 0.02 at the end of 10 x 2000-tick runs: a cache's kit is
+  its dearest pick (mostly guns), deep caches are rarely reached, and a death strips what's worn. Armor is scarce,
+  not broken; worth a look if chest armor should matter more.
 
 - 2026-10-31 Cache-only chest armor: caches roll for a piece of `GameSpace.CACHE_ONLY` (the 6B45, still
   `"store": false`) at a chance of their level / `WILDS_MAX_LEVEL`, on top of the usual kit: 1 in 8 at danger 1,
