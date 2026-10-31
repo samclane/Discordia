@@ -1187,9 +1187,14 @@ class World:
             for p in self.players
         )
 
-    def prey_in_sight(self, space: Space) -> Actors.PlayerCharacter | None:
+    @staticmethod
+    def spares(npc: Actors.NPC, player: Actors.PlayerCharacter) -> bool:
+        """Raiders leave their own kind alone: a Raider-class player is neither hunted nor hit by a raider NPC."""
+        return isinstance(npc, Actors.Raider) and isinstance(player.player_class, Actors.RaiderClass)
+
+    def prey_in_sight(self, space: Space, hunter: Actors.NPC | None = None) -> Actors.PlayerCharacter | None:
         """The nearest player a raider at `space` can see: within NPC_SIGHT, twice that on a plaza, and not safe in
-        a town or hidden in ruins."""
+        a town or hidden in ruins, nor one `hunter` spares."""
 
         def sight(terrain: Terrain) -> int:
             return -1 if isinstance(terrain, RuinsTerrain) else NPC_SIGHT * (2 if isinstance(terrain, PlazaTerrain) else 1)
@@ -1200,6 +1205,7 @@ class World:
             if p.location is not None
             and not isinstance(p.location, Town)
             and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= sight(p.location.terrain)
+            and not (hunter and self.spares(hunter, p))
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
@@ -1285,10 +1291,10 @@ class World:
             targets = [
                 p
                 for p in self.players
-                if p.location == npc.location and not isinstance(p.location, Town)
+                if p.location == npc.location and not isinstance(p.location, Town) and not self.spares(npc, p)
             ]
             if not targets:
-                prey = self.prey_in_sight(npc.location)
+                prey = self.prey_in_sight(npc.location, npc)
                 if prey is None:
                     npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
                 elif warning := npc.brain.see(prey):

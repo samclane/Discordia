@@ -101,7 +101,8 @@ the bot syncs them.
     will attack in the current position only. Otherwise, ranged weapons go in a single direction like a "beam", until
     they either a) hit someone and apply damage, or b) Miss, as the damage falloff, as each tile the projectile
     traverses removes % damage until it goes to 0.
-    * Killing an NPC hands you its money and whatever it was carrying. Killing a player makes you a Raider.
+    * Killing an NPC hands you its money and whatever it was carrying. Killing a player makes you a Raider,
+      and raiders roaming the map leave their own kind alone.
     * You hear about what happens while you're not looking by DM: a raider spotting you, the first hit of a
       fight and how it ends (not every blow), and how an auto-raid went. `/me` on the website keeps the full log.
 * `/choose` [`talk`|`rob`|`ignore`]

@@ -105,7 +105,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
     military base's recruit records its side (East/West) on the character, a migrated `character.side` column.
-  - [ ] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
+  - [x] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
   - [ ] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
 
 ## NPCs and world
@@ -480,3 +480,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   `IndustryType.side` ("East"/"West"), saved in a migrated column.
 - 2026-10-31 Simulator bot stance: odd-numbered bots rob strangers, even ones only talk or walk on (by id, so no
   extra random draws), so trade classes and Raiders both show in `sim_history`.
+- 2026-10-31 Raiders spare Raiders: `World.spares(npc, player)` keeps raider NPCs from hitting (the tick's targets)
+  or hunting (`prey_in_sight(space, hunter)`) Raider-class players. Animals still go for anyone; wilds fights
+  (`CombatEvent`) are unchanged.

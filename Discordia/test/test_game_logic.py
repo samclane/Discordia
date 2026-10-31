@@ -1670,6 +1670,22 @@ def test_a_tick_that_kills_says_so_and_sends_you_home(adapter):
     assert player.location == world.starting_town and not player.is_dead
 
 
+
+def test_raider_npcs_neither_hunt_nor_hit_a_raider(adapter, lone_raider):
+    world, player = adapter.world, adapter.get_player(1)
+    player.turn_raider()
+    corner = _open_ground(world, GameSpace.NPC_SIGHT + 1)
+    player.location = corner
+    npc = Actors.Raider(world, 50, "Comrade")
+    world.add_actor(npc, world.space_at(corner.x + 2, corner.y))
+    assert world.prey_in_sight(npc.location, npc) is None
+    assert world.prey_in_sight(npc.location) is player  # still in sight, just not prey
+
+    npc.location = corner
+    health = player.hit_points
+    assert [e for e in world.tick() if e.target is player] == []
+    assert player.hit_points == health
+
 def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
     world = adapter.world
     npc = Actors.Raider(world, 1, "Doomed")
