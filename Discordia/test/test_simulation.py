@@ -67,6 +67,8 @@ class Bot:
         self.reach = reach
         # Half the bots never rob a stranger, so trade classes survive a run as well as Raiders turn up.
         self.robs = member_id % 2 == 1
+        # A third enlist instead, at the first military base they rest in, so the side rules show in the runs too.
+        self.enlists = member_id % 3 == 0
         self.goal = self._pick_goal()
         self.steps_out = 0
         self.entered: Optional[GameSpace.Space] = None  # the square this tick's move stepped into, if any
@@ -82,9 +84,10 @@ class Bot:
         if isinstance(town := c.location, Town):
             self.steps_out = 0
             self.goal = self._pick_goal()
-            if isinstance(c.player_class, Actors.WandererClass) and not isinstance(
-                town.industry, (GameSpace.NullIndustry, GameSpace.MilitaryBase)
-            ):  # the first trade town it's in trains it, so class perks show in the runs
+            base = isinstance(town.industry, GameSpace.MilitaryBase)
+            if isinstance(c.player_class, Actors.WandererClass) and (
+                base if self.enlists else not base and not isinstance(town.industry, GameSpace.NullIndustry)
+            ):  # the first trade town it's in trains it, or the first base for one that enlists
                 return "recruit", lambda: [town.recruit(c)]
             if c.hit_points < c.hit_points_max:
                 return "inn", lambda: [town.inn_event(c)]
@@ -412,6 +415,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "mean achievements": round(mean(r["achievements"] for r in last), 2),
         "trade classes (share of bots)": round(mean(r["class"] in TRADES for r in last), 2),
         "raiders (share of bots)": round(mean(r["class"] == Actors.RaiderClass().name for r in last), 2),
+        "soldiers (share of bots)": round(mean(r["class"] == Actors.Soldier().name for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
@@ -477,6 +481,20 @@ def test_bots_take_the_class_of_the_first_trade_town_they_are_in():
     assert label == "recruit"
     act()
     assert isinstance(bot.character.player_class, Actors.Scavenger)
+
+
+def test_some_bots_enlist_at_the_first_military_base_instead():
+    world = GameSpace.World("Recruits", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 3, reach=5)
+    assert bot.enlists and not Bot(WorldAdapter(world), 1, reach=5).enlists
+    town = bot.character.location = world.starting_town
+    town.industry = GameSpace.MiningIndustry()
+    assert bot.order()[0] != "recruit"  # holds out for a base
+    town.industry = GameSpace.WesternMilitaryBase()
+    label, act = bot.order()
+    assert label == "recruit"
+    act()
+    assert isinstance(bot.character.player_class, Actors.Soldier) and bot.character.side == "West"
     assert bot.order()[0] != "recruit"  # once is enough
 
 

@@ -129,7 +129,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Raider NPCs neither hunt nor hit Raider-class players (the NPC tick's targets and `prey_in_sight`).
   - [x] Soldiers pay 20% less at their own side's military base store and 20% more at the other side's.
 
-- [ ] Simulator bots never recruit at a military base (only trade towns), so soldier prices (af6fce8) and sides
+- [x] Simulator bots never recruit at a military base (only trade towns), so soldier prices (af6fce8) and sides
   moved nothing in `sim_history`. Have a share of bots enlist at the first base they rest in, so the side rules
   show in the drift numbers.
 
@@ -220,6 +220,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Enlisting simulator bots: a third of bots (`Bot.enlists`) skip trade towns and recruit at the first
+  military base they rest in; a new `soldiers (share of bots)` metric shows them (0.15 over 10 seeds, the rest
+  turn Raider or never reach a base), so soldier prices and sides move `sim_history` now.
 
 - 2026-10-31 Soldier prices: a military base's store takes its side from the town (`Store.side`, set in
   `Town.__init__`, so a load gets it back with no new column), and `Store.get_price(item, buyer)` takes 20% off
