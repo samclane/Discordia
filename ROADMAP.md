@@ -91,7 +91,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Ruins and plazas made raids deadlier in simulation (374c68f): deaths 16 -> 17 (seed 0) and 18 -> 25 (seed 1),
   mean worth 592 -> 468 and 864 -> 768. Simulator bots don't know to cut through ruins or skirt plazas, so they only
   meet the downside; real players can. Teach the bots that first, then see if plazas need to be 1.5x, not 2x.
-- [ ] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
+- [x] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
   deadlier: deaths 25 -> 29, mean worth 768 -> 643 (seed 0 went the other way, 17 -> 14 and 468 -> 578). Likely
   levelled bots raiding deeper; check the deaths-by-danger split on a longer run before tuning anything.
 - [ ] Two seeds can't tell a death change from noise: over 10 seeds x 2000 ticks one build's deaths ranged 1-29
@@ -464,3 +464,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   loaded squares). It changes ~8% of steps but not the outcome: over 10 seeds x 2000 ticks, 142 deaths with it
   and 133 without, worth 747 vs 708, inside seed noise. Sight isn't what kills bots (wilds fights are), so
   plazas stay at 2x.
+- 2026-10-31 Extract XP deadlier? No: over 10 seeds x 2000 ticks, `EXTRACT_XP_PER_DANGER` 0 vs 10 gives deaths
+  158 vs 142, mean level 1.32 vs 2.03, worth 738 vs 747, furthest 33.4 vs 32.7, and the same deaths-by-danger
+  split (most at danger 3 either way). Levelled bots live longer; seed 1's 25 -> 29 was noise. No code change.
