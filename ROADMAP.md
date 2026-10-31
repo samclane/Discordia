@@ -119,8 +119,9 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] No way back from broke: a death strips all carried money and gear, and with an empty stash and no hideout
   a player is left with fists (2 dmg), which lose the fights that would pay for a gun. Needs a decision on the
   floor: a free starter weapon from the starting town's store when you own none, a loan, or fist-safe ways to
-  earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above).
-- [ ] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
+  earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above). (blocked: needs a design
+  decision on which floor; with the bot fix below that bot still ends a 5000-tick run broke, bare-fisted, level 1.)
+- [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [ ] Faction consequences, decided 2026-10-30. Split into these, in order:
   - [x] Joining: winning a `/choose rob` or killing another player makes you a Raider (`RaiderClass`). A
@@ -215,6 +216,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Unarmed simulator bots: a bot whose main hand is a `Fist` heads home from anywhere above danger 1,
+  so it raids only the shallow end until it can afford a gun. Seed 1 at 5000 ticks: 61 -> 29 deaths, the spiralling
+  bot 34 -> 12.
 
 - 2026-10-31 Deaths after d15fd3f: one seed-1 bot's broke, bare-fisted death spiral, not a balance change (the
   other nine seeds and five bots match b559d70). Logged the missing floor for broke players and the bots' habit

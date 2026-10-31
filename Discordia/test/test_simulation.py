@@ -104,7 +104,9 @@ class Bot:
                 money = c.currency - 100  # bank all but walking-around money
                 return f"stash ${money}", lambda: c.stash_put(money=money)
         hurt = c.hit_points < c.hit_points_max * 0.4
-        if hurt or self.steps_out >= self.reach:
+        # Bare-fisted and broke, it keeps to danger 1 until a cache or a kill pays for a gun, as a player would.
+        unarmed = isinstance(c.weapon, Weapons.Fist) and a.world.danger_at(c.location) > 1
+        if hurt or unarmed or self.steps_out >= self.reach:
             return "go home", lambda: self._step(
                 _toward(c.location, a.world.starting_town)
             )
@@ -476,6 +478,22 @@ def test_bots_take_the_class_of_the_first_trade_town_they_are_in():
     act()
     assert isinstance(bot.character.player_class, Actors.Scavenger)
     assert bot.order()[0] != "recruit"  # once is enough
+
+
+def test_an_unarmed_bot_keeps_to_danger_one():
+    world = GameSpace.World("Broke", 256, 256, seed=0)
+    bot = Bot(WorldAdapter(world), 1, reach=80)
+    town = world.starting_town
+    bot.character.location = deep = next(
+        world.space_at(x, town.y) for x in range(town.x + 1, world.width) if world.danger_at(world.space_at(x, town.y)) == 2
+    )
+    assert isinstance(bot.character.weapon, Weapons.Fist)
+    assert bot.order()[0] == "go home"
+    bot.character.location = world.space_at(deep.x - 1, deep.y)  # the first danger-2 square out: this is danger 1
+    assert bot.order()[0] == "raid"  # still raids the shallow end, for a cache or a kill
+    bot.character.location = deep
+    bot.character.equip(Weapons.Hammer())
+    assert bot.order()[0] == "raid"
 
 
 def test_only_some_bots_rob_strangers(monkeypatch):
