@@ -195,11 +195,14 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Extraction points are drawn (a taxi) but the web map's hover and `/look` don't name them, and nothing tells
   a player where the nearest one is. A bearing to it in `/look`, like `/choose talk`'s directions to a town.
 - [ ] Web map: SSE push instead of 2s polling (ponytail note in `WebApp.py`) if it feels laggy.
+  (blocked: waits on players finding the map laggy)
 - [x] Display scrolling for worlds larger than the window (TODO in `ConfigParser.py`).
 
 - [ ] Chunks are never unloaded (~0.4 MB each, ponytail note in `World.__init__`). Evict chunks with nobody in
   them once a long-running server's memory says so; store sales in them would need saving first.
+  (blocked: waits on the live server's memory; see the Linode box)
 - [ ] Terrain repeats every ~2560 squares (`pnoise3` period, ponytail note in `World._terrain_at`).
+  (blocked: waits on someone noticing; it's ~3.5 hours of /move from the spawn to see one repeat)
 
 ## Cleanup
 
@@ -210,6 +213,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
+  (blocked: waits on players asking for it)
 
 - [x] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
   list. Nothing calls it; either fix the slice or delete it.
