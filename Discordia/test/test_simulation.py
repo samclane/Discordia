@@ -35,6 +35,7 @@ from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
 from Discordia.test import sim_history
 
 DIRECTIONS = [d for k, d in DIRECTION_VECTORS.items() if k]
+COMPASS = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]  # clockwise from north
 SLOW_ORDER = 1.0  # seconds; an order this slow is worth a look (CombatEvent can spin)
 HANG = 300  # seconds for a whole run before faulthandler dumps every stack and exits
 # Anomalies already on ROADMAP.md, so the test stays green until they're fixed. Delete one when its fix lands.
@@ -138,9 +139,27 @@ class Bot:
             c.equip(item)
         return []
 
+    def _careful(self, direction):
+        """`direction`, or the step either side of it if that one keeps better cover: ruins over open ground over
+        a plaza (World.prey_in_sight), the way a player reading the map would go."""
+        if direction not in COMPASS:
+            return direction
+        here, world, i = self.character.location, self.adapter.world, COMPASS.index(direction)
+
+        def exposure(d):
+            x, y, size = here.x + d[0], here.y + d[1], GameSpace.CHUNK_SIZE
+            # Only squares already loaded: looking must not generate the map ahead of the walk.
+            rows = world.loaded_chunk(x // size, y // size) if 0 <= x < world.width and 0 <= y < world.height else None
+            terrain = rows[y % size][x % size].terrain if rows else None
+            if isinstance(terrain, GameSpace.RuinsTerrain):
+                return 0
+            return 2 if isinstance(terrain, GameSpace.PlazaTerrain) else 1
+
+        return min([direction, COMPASS[i - 1], COMPASS[(i + 1) % 8]], key=exposure)  # ties keep the bearing
+
     def _step(self, direction):
         """A move, sidestepping water and map edges the way a player would retry another direction."""
-        for d in [direction] + random.sample(DIRECTIONS, len(DIRECTIONS)):
+        for d in [self._careful(direction)] + random.sample(DIRECTIONS, len(DIRECTIONS)):
             if d == (0, 0):
                 continue
             here = self.character.location
@@ -407,6 +426,21 @@ def test_simulated_players_break_no_rules(tmp_path):
     assert not bad, f"{len(bad)} anomalies, first: {bad[:5]}\n{summary(rows)}"
     assert any(r["space"] == "Wilds" for r in rows), "nobody ever left town"
 
+
+
+def test_bots_skirt_plazas_and_cut_through_ruins():
+    world = GameSpace.World("Cover", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 1, reach=5)
+    here = bot.character.location = world.space_at(30, 30)
+    for d, terrain in [((1, 0), GameSpace.PlazaTerrain()), ((1, 1), GameSpace.RuinsTerrain())]:
+        world.space_at(here.x + d[0], here.y + d[1]).terrain = terrain
+    world.space_at(here.x + 1, here.y - 1).terrain = GameSpace.SandTerrain()
+    assert bot._careful((1, 0)) == (1, 1)  # east is a plaza; the ruins to the south-east hide you
+    world.space_at(here.x + 1, here.y + 1).terrain = GameSpace.SandTerrain()
+    assert bot._careful((1, 0)) in [(1, -1), (1, 1)]  # off the plaza either way
+    for d in [(0, 1), (-1, 1)]:
+        world.space_at(here.x + d[0], here.y + d[1]).terrain = GameSpace.SandTerrain()
+    assert bot._careful((0, 1)) == (0, 1)  # nothing better beside it: keep the bearing
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

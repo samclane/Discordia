@@ -88,7 +88,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   (track the depth on the raid, like `raid_start`), so bringing loot home is what levels you. Kill XP unchanged.
 - [x] More classes: each trade town trains one, with one perk (`PlayerClass.perk`).
 - [x] More tile types: ruins (cover) and plazas (exposed), carved out of paving.
-- [ ] Ruins and plazas made raids deadlier in simulation (374c68f): deaths 16 -> 17 (seed 0) and 18 -> 25 (seed 1),
+- [x] Ruins and plazas made raids deadlier in simulation (374c68f): deaths 16 -> 17 (seed 0) and 18 -> 25 (seed 1),
   mean worth 592 -> 468 and 864 -> 768. Simulator bots don't know to cut through ruins or skirt plazas, so they only
   meet the downside; real players can. Teach the bots that first, then see if plazas need to be 1.5x, not 2x.
 - [ ] Extract XP (4f2b1ba) lifted levels as meant (mean 1 -> 2.17 seed 0, 1.83 -> 3 seed 1), but seed 1 got
@@ -457,3 +457,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   `PlayerCharacter.hideout_income`.
 - 2026-10-31 XP on extract: extracting with items or money pays `EXTRACT_XP_PER_DANGER` (10) XP per danger level
   of the deepest square stood on that raid (`PlayerCharacter.raid_deepest`, via the new `World.danger_at`).
+- 2026-10-31 Simulator bots read cover: a step swings 45 degrees onto ruins or off a plaza (`Bot._careful`, only
+  loaded squares). It changes ~8% of steps but not the outcome: over 10 seeds x 2000 ticks, 142 deaths with it
+  and 133 without, worth 747 vs 708, inside seed noise. Sight isn't what kills bots (wilds fights are), so
+  plazas stay at 2x.
