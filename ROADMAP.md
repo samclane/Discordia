@@ -133,7 +133,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   moved nothing in `sim_history`. Have a share of bots enlist at the first base they rest in, so the side rules
   show in the drift numbers.
 
-- [ ] Simulator bots never equip what they find, only what they buy, so cache-only chest armor (7710272) moved
+- [x] Simulator bots never equip what they find, only what they buy, so cache-only chest armor (7710272) moved
   nothing but the random stream in `sim_history` (worth 838 -> 811, level 2.05 -> 1.97, deaths 9.8 -> 9.7). Have a
   bot wear found armor that beats what it has on, so armor shows in the drift numbers.
 
@@ -227,6 +227,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
 
 ## Done
+
+- 2026-10-31 Bots wear found armor: out of a fight, a simulator bot spends its order putting on backpack armor worth
+  more than what's in that slot (`Bot._better_armor`, by `base_value`: `armor_count` is a roll), and a new
+  `mean armor worn (pieces)` metric shows it.
 
 - 2026-10-31 Cache-only chest armor: caches roll for a piece of `GameSpace.CACHE_ONLY` (the 6B45, still
   `"store": false`) at a chance of their level / `WILDS_MAX_LEVEL`, on top of the usual kit: 1 in 8 at danger 1,

@@ -81,6 +81,8 @@ class Bot:
             return f"choose {choice}", lambda: a.resolve_encounter(c, choice)
         if any(n.location == c.location for n in a.get_nearby_npcs(c)):
             return "attack", lambda: [a.attack(c, (0, 0))]
+        if (armor := self._better_armor()) is not None:  # /inventory equip, for what a cache or a corpse gave it
+            return f"equip {armor.name}", lambda: c.equip(armor) or []
         if isinstance(town := c.location, Town):
             self.steps_out = 0
             self.goal = self._pick_goal()
@@ -116,6 +118,17 @@ class Bot:
         self.steps_out += 1
         step = _toward(c.location, self.goal) if random.random() < 0.7 else random.choice(DIRECTIONS)
         return "raid", lambda: self._step(step)
+
+    def _better_armor(self) -> Optional[Items.ArmorAbstract]:
+        """Armor in the pack worth more than what's worn in its slot, or None. Worth, not armor_count: that's a
+        roll against the piece's coverage, a fresh one every hit."""
+        worn = self.character.equipment_set
+        for item in self.character.inventory:
+            if isinstance(item, Items.ArmorAbstract) and not item.is_equipped:
+                slot = next(name for name, kind in Items.EquipmentSet.SLOTS.items() if isinstance(item, kind))
+                if item.base_value > getattr(worn, slot).base_value:
+                    return item
+        return None
 
     def _pick_goal(self) -> GameSpace.Space:
         """Somewhere `reach` squares out from the starting town, at any bearing: where this raid heads."""
@@ -212,6 +225,7 @@ def snapshot(world: GameSpace.World, c) -> dict:
         "class": c.player_class.name,
         "deaths": c.deaths,
         "achievements": len(c.achievements),
+        "armor": sum(isinstance(i, Items.ArmorAbstract) and i.base_value > 0 for i in c.equipment_set),
         "weapon": str(weapon) if weapon else None,
         "ammo": getattr(weapon, "current_capacity", None),
     }
@@ -416,6 +430,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "trade classes (share of bots)": round(mean(r["class"] in TRADES for r in last), 2),
         "raiders (share of bots)": round(mean(r["class"] == Actors.RaiderClass().name for r in last), 2),
         "soldiers (share of bots)": round(mean(r["class"] == Actors.Soldier().name for r in last), 2),
+        "mean armor worn (pieces)": round(mean(r["armor"] for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
@@ -512,6 +527,23 @@ def test_an_unarmed_bot_keeps_to_danger_one():
     bot.character.location = deep
     bot.character.equip(Weapons.Hammer())
     assert bot.order()[0] == "raid"
+
+
+def test_bots_wear_found_armor_that_beats_what_they_have_on():
+    from Discordia.GameLogic import Armor
+
+    world = GameSpace.World("Loot", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 1, reach=5)
+    c = bot.character
+    c.location = world.space_at(30, 30)
+    c.inventory += [Armor.SSh68(), Armor.Chest6B45()]
+    for _ in range(2):
+        label, act = bot.order()
+        assert label.startswith("equip ")
+        act()
+    assert isinstance(c.equipment_set.head, Armor.SSh68) and isinstance(c.equipment_set.chest, Armor.Chest6B45)
+    c.inventory.append(Armor.SSh68())  # no better than the helmet on
+    assert not bot.order()[0].startswith("equip")
 
 
 def test_only_some_bots_rob_strangers(monkeypatch):
