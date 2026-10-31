@@ -65,6 +65,8 @@ class Bot:
         self.adapter = adapter
         self.character = adapter.get_player(member_id)
         self.reach = reach
+        # Half the bots never rob a stranger, so trade classes survive a run as well as Raiders turn up.
+        self.robs = member_id % 2 == 1
         self.goal = self._pick_goal()
         self.steps_out = 0
         self.entered: Optional[GameSpace.Space] = None  # the square this tick's move stepped into, if any
@@ -73,7 +75,7 @@ class Bot:
         """Pick this tick's order: (label, thunk), like a slash command handing the cog an action."""
         c, a = self.character, self.adapter
         if isinstance(c.pending_event, Events.EncounterEvent):
-            choice = random.choice(Events.EncounterEvent.CHOICES)
+            choice = random.choice([c for c in Events.EncounterEvent.CHOICES if self.robs or c != "rob"])
             return f"choose {choice}", lambda: a.resolve_encounter(c, choice)
         if any(n.location == c.location for n in a.get_nearby_npcs(c)):
             return "attack", lambda: [a.attack(c, (0, 0))]
@@ -463,6 +465,16 @@ def test_bots_take_the_class_of_the_first_trade_town_they_are_in():
     act()
     assert isinstance(bot.character.player_class, Actors.Scavenger)
     assert bot.order()[0] != "recruit"  # once is enough
+
+
+def test_only_some_bots_rob_strangers(monkeypatch):
+    adapter = WorldAdapter(GameSpace.World("Strangers", 64, 64, seed=0))
+    honest, robber = Bot(adapter, 0, reach=5), Bot(adapter, 1, reach=5)
+    for bot in (honest, robber):
+        bot.character.pending_event = Events.EncounterEvent(1.0, "<test>", Actors.NPC(adapter.world, 25, "Stranger"))
+    monkeypatch.setattr(random, "choice", lambda options: options[1])  # talk, rob, ignore: the middle one
+    assert honest.order()[0] == "choose ignore"  # "rob" was never on its list
+    assert robber.order()[0] == "choose rob"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
