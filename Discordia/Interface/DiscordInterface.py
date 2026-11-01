@@ -254,6 +254,7 @@ class DiscordInterface(commands.Cog):
         # Discord member id -> the servers they've used a command in: where their deaths and hauls are news.
         # ponytail: in memory, so after a restart a player's news reaches a server once they play there again.
         self._servers: Dict[int, set] = {}
+        self._sent = 0  # messages the bot sent on its own (DMs, posts), for the dashboard
 
     def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
         """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
@@ -294,8 +295,11 @@ class DiscordInterface(commands.Cog):
 
     async def tick(self):
         """Resolve everyone's orders, then let the world act. Same-tick orders resolve in random order."""
+        started, sent = time.perf_counter(), self._sent
+        stats = self.world_adapter.world.stats
+        kills, fallen = stats.kills, stats.deaths_by_level.total()
         orders, self._orders = self._orders, {}
-        self.world_adapter.world.stats.active_players.update(orders)
+        stats.active_players.update(orders)
         for action, future in random.sample(list(orders.values()), len(orders)):
             if future.done():  # the command that asked for it went away
                 continue
@@ -308,6 +312,8 @@ class DiscordInterface(commands.Cog):
         for event in self.world_adapter.world.tick():
             if event.target is not None:
                 news.setdefault(event.target, []).append(event)
+        # Before the DMs: the daily digest can run while they're sent, and start the stats over.
+        kills, fallen = stats.kills - kills, stats.deaths_by_level.total() - fallen
         fights, self._fights = self._fights, {}
         for character, events in news.items():
             if isinstance(character, Actors.PlayerCharacter):  # the website gets the blow-by-blow
@@ -323,6 +329,14 @@ class DiscordInterface(commands.Cog):
             if fresh:
                 await self._dm(character, "\n".join(fresh))
         await self._announce()
+        self.world_adapter.record_tick(
+            orders=len(orders),
+            kills=kills,
+            deaths=fallen,
+            messages=self._sent - sent,
+            seconds=round(time.perf_counter() - started, 4),  # sending included: it holds up the commands too
+            servers=len(self.bot.guilds),
+        )
 
     async def _announce(self):
         """Post the world's announcements in each server where the player plays and the admins picked a channel
@@ -348,6 +362,7 @@ class DiscordInterface(commands.Cog):
         try:
             for chunk in _chunks(text):
                 await channel.send(chunk)  # type: ignore[union-attr]  # the website only offers text channels
+                self._sent += 1
         except discord.HTTPException:  # not allowed to post there
             LOG.info("Could not post in %s", channel_id)
 
@@ -360,6 +375,7 @@ class DiscordInterface(commands.Cog):
             user = self.bot.get_user(member_id) or await self.bot.fetch_user(member_id)
             for chunk in _chunks(text):
                 await user.send(chunk)
+                self._sent += 1
         except discord.HTTPException:  # closed DMs, blocked bot, deleted account
             LOG.info("Could not DM %s", member_id)
 
@@ -404,11 +420,19 @@ class DiscordInterface(commands.Cog):
 
         return asyncio.run_coroutine_threadsafe(look(), self._loop).result(timeout)
 
+    def is_owner(self, member_id: int, timeout: float = 10) -> bool:
+        """For the website's dashboard, from its thread: whether the member owns the bot (or is on its team)."""
+        return asyncio.run_coroutine_threadsafe(
+            self.bot.is_owner(discord.Object(member_id)),  # type: ignore[arg-type]  # it only reads .id
+            self._loop,
+        ).result(timeout)
+
     async def _setup_hook(self):
         self._loop = asyncio.get_running_loop()
         self.world_adapter.place_order = self.order_threadsafe
         self.world_adapter.tick_seconds = self.tick_seconds
         self.world_adapter.guild_for_admin = self.guild_for_admin
+        self.world_adapter.is_owner = self.is_owner
         self.world_adapter.invite_url = discord.utils.oauth_url(
             cast(int, self.bot.application_id),  # login fetched it before this hook
             permissions=INVITE_PERMISSIONS,

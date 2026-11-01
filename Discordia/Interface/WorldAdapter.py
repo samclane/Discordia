@@ -125,6 +125,7 @@ DIRECTION_NAMES = {
 }
 
 NEWS_KEPT = 20  # world events remembered per player, for the website
+SAMPLES_KEPT = 17280  # ticks remembered for the owner's dashboard: a day of them at 5 seconds
 
 
 @dataclass
@@ -157,6 +158,12 @@ class WorldAdapter:
         self.guild_for_admin: Optional[Callable[[int, int], Optional[Tuple[str, List[Tuple[int, str]]]]]] = None
         # And Discord's "add this bot to a server" link, for the website's /invite.
         self.invite_url: Optional[str] = None
+        # And whether a member owns the bot, for the website's dashboard (/admin).
+        self.is_owner: Optional[Callable[[int], bool]] = None
+        # What each tick did, for that dashboard. Appended on the bot loop, read off it with samples().
+        # ponytail: in memory, like _news: a restart starts the charts over.
+        self._samples: Deque[Dict[str, float]] = deque(maxlen=SAMPLES_KEPT)
+        self.started: float = time.time()
         # Seconds per World.tick, set by the running bot; what turns per-tick income into per-hour.
         self.tick_seconds: float = 5.0
         # ponytail: in memory, so a restart forgets it. Save it if anyone misses it.
@@ -169,6 +176,24 @@ class WorldAdapter:
     def news(self, character: Actors.PlayerCharacter) -> List[Tuple[float, str]]:
         """(unix time, text) pairs, oldest first. A snapshot: safe to call off the bot loop."""
         return list(self._news.get(character, ()))
+
+    def record_tick(self, **measures: float):
+        """One row of the dashboard: what the bot measured this tick, and how big the world is after it."""
+        world = self.world
+        self._samples.append(
+            {
+                "at": round(time.time(), 1),
+                "tick": world.ticks,
+                "players": len(world.players),
+                "npcs": len(world.npcs),
+                "chunks": len(world.loaded_chunks()),
+                **measures,
+            }
+        )
+
+    def samples(self, since: int = -1) -> List[Dict[str, float]]:
+        """The rows after tick `since`, oldest first. A snapshot: safe to call off the bot loop."""
+        return [row for row in list(self._samples) if row["tick"] > since]
 
     def income_per_hour(self, character: Actors.PlayerCharacter) -> int:
         """What the hideout pays into the stash an hour, at this server's tick."""

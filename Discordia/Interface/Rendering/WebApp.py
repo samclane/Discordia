@@ -56,6 +56,7 @@ INDEX_HTML = Path(__file__).with_name("index.html")
 SITE_HTML = Path(__file__).with_name("site.html")  # header and footer around every page but the map
 HOME_HTML = Path(__file__).with_name("home.html")
 ME_HTML = Path(__file__).with_name("me.html")
+ADMIN_HTML = Path(__file__).with_name("admin.html")  # the bot owner's dashboard
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 7
@@ -401,6 +402,52 @@ def _me_json(character: PlayerCharacter, news: list) -> bytes:
     ).encode()
 
 
+def _dashboard_json(adapter, since: int) -> bytes:
+    """The owner's dashboard: the ticks after `since`, today's stats, and every player. Read off the bot loop."""
+    world, stats = adapter.world, adapter.world.stats
+
+    def where(loc) -> str:
+        if loc is None:
+            return "off the map"
+        if isinstance(loc, GameSpace.Town):
+            return loc.name
+        if isinstance(loc, GameSpace.Wilds):
+            return f"wilds L{loc.level} ({loc.x}, {loc.y})"
+        return f"road ({loc.x}, {loc.y})"
+
+    players = [
+        {
+            "name": p.name,
+            "class": p.player_class.name,
+            "level": p.level,
+            "where": where(p.location),
+            "hp": round(p.hit_points),
+            "deaths": p.deaths,
+            "kills": p.kills,
+            "worth": p.currency + p.stash_currency,
+            "hideout": p.hideout_level,
+        }
+        for p in list(world.players)
+    ]
+    return json.dumps(
+        {
+            "world": world.name,
+            "started": adapter.started,
+            "tick_seconds": adapter.tick_seconds,
+            # Since the last digest (midnight UTC, or the restart since).
+            "today": {
+                "since": stats.since,
+                "active": len(stats.active_players),
+                "kills": stats.kills,
+                "deaths": sum(list(stats.deaths_by_level.values())),
+            },
+            "samples": adapter.samples(since),
+            "players": players,
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
 class _Handler(BaseHTTPRequestHandler):
     # Keep-alive: a page load is hundreds of chunk requests, and the browser only opens six connections.
     protocol_version = "HTTP/1.1"
@@ -414,7 +461,7 @@ class _Handler(BaseHTTPRequestHandler):
         # The site is public; the map and everything it fetches are for players. Sprites are the game's
         # public art, and the site wears some.
         if path not in ("/", "/login", "/invite") and not path.startswith("/sprites/") and self._member_id() is None:
-            if path in ("/map", "/me") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
+            if path in ("/map", "/me", "/admin") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
                 self._redirect("/#join")
             else:
                 self.send_error(401)
@@ -487,6 +534,14 @@ class _Handler(BaseHTTPRequestHandler):
             else:
                 page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter))
                 self._send(page, "text/html; charset=utf-8")
+        elif path == "/admin":
+            if self._owner():
+                self._send(self._page("Dashboard · Discordia", ADMIN_HTML.read_text(encoding="utf-8")), "text/html; charset=utf-8")
+        elif path == "/admin.json":
+            since = parse_qs(urlsplit(self.path).query).get("since", [""])[0]
+            if self._owner():
+                body = _dashboard_json(self.renderer.world_adapter, int(since) if since.lstrip("-").isdigit() else -1)
+                self._send(body, "application/json")
         elif ADMIN_ROUTE.fullmatch(path):
             guild_id = int(path.rsplit("/", 1)[1])
             guild = self._admin_guild(guild_id)
@@ -622,6 +677,21 @@ class _Handler(BaseHTTPRequestHandler):
         if guild is None:
             self.send_error(403, "You need Manage Server in that Discord server, and the bot has to be in it.")
         return guild
+
+    def _owner(self) -> bool:
+        """Whether the logged-in member owns the bot. If not, answers the request itself."""
+        lookup = self.renderer.world_adapter.is_owner
+        if lookup is None:
+            self.send_error(503, "The bot isn't running right now.")
+            return False
+        try:
+            owner = lookup(self._member_id())
+        except TimeoutError:
+            self.send_error(504, "Discord didn't answer. Try again in a moment.")
+            return False
+        if not owner:
+            self.send_error(403, "This page is for the bot's owner.")
+        return owner
 
     def _admin_page(self, guild_id: int, guild, saved: bool) -> bytes:
         name, channels = guild

@@ -590,6 +590,42 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
         server.shutdown()
 
 
+def test_the_dashboard_is_the_bot_owners_alone():
+    adapter = WorldAdapter(GameSpace.World("Ownerland", 40, 40, seed=7))
+    adapter.register_player(3, "Ann")
+    server = serve(adapter)
+    conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+
+    def request(path, cookie: str | None = COOKIE):
+        conn.request("GET", path, headers={"Cookie": cookie} if cookie else {})
+        response = conn.getresponse()
+        return response.status, response.headers.get("Location"), response.read().decode()
+
+    try:
+        assert request("/admin", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
+        assert request("/admin.json", cookie=None)[0] == 401
+        assert request("/admin")[0] == 503, "no bot to ask who owns it"
+        adapter.is_owner = lambda member: False
+        assert request("/admin")[0] == 403 and request("/admin.json")[0] == 403
+        asked = []
+        adapter.is_owner = lambda member: asked.append(member) or True
+        status, _, page = request("/admin")
+        assert status == 200 and 'id="charts"' in page and asked == [0], "asks about the logged-in member"
+
+        for tick in range(3):
+            adapter.world.ticks = tick
+            adapter.record_tick(orders=1, kills=0, deaths=0, messages=2, seconds=0.01, servers=1)
+        data = json.loads(request("/admin.json")[2])
+        assert [s["tick"] for s in data["samples"]] == [0, 1, 2]
+        assert data["samples"][0]["chunks"] == len(adapter.world.loaded_chunks()) and data["samples"][0]["messages"] == 2
+        assert data["players"][0]["name"] == "Ann" and data["today"]["active"] == 0
+        assert [s["tick"] for s in json.loads(request("/admin.json?since=1")[2])["samples"]] == [2], "only what's new"
+        assert json.loads(request("/admin.json?since=nope")[2])["samples"][0]["tick"] == 0
+    finally:
+        conn.close()
+        server.shutdown()
+
+
 def test_invite_sends_server_owners_to_discord():
     adapter = WorldAdapter(GameSpace.World("Inviteland", 40, 40, seed=7))
     server = serve(adapter)

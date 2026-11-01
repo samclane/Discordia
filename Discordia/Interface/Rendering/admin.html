@@ -1,0 +1,276 @@
+<!-- The bot owner's dashboard: the simulators' dashboards (Discordia/test/*_template.html), fed by the live game.
+     Polls /admin.json for the ticks since the last poll. Plain JS, no build step. -->
+<style>
+  .dash { --s1: #3987e5; --s2: #d95926; } /* the simulators' dark series colours, validated on --card */
+  .dash .sub { margin: 4px 0 24px; color: var(--dim); }
+  .dash .stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .dash .big { font-size: 26px; margin-bottom: 0; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px;
+            margin-bottom: 16px; }
+  .charts .card { position: relative; min-width: 0; }
+  .charts h3 { font-size: 15px; margin-bottom: 8px; }
+  .dash svg { display: block; width: 100%; height: auto; }
+  .dash svg text { fill: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dash .gridline { stroke: var(--line); stroke-width: 1; }
+  .dash .baseline { stroke: #3a3e4a; stroke-width: 1; }
+  .dash .series { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .dash .cross { stroke: var(--dim); stroke-width: 1; visibility: hidden; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--dim); font-size: 13px; margin-top: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .key { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
+  .tip { position: absolute; top: 44px; pointer-events: none; background: var(--raise); border: 1px solid var(--line);
+         border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px #0006; visibility: hidden;
+         min-width: 130px; z-index: 1; }
+  .tip .head { color: var(--dim); margin-bottom: 4px; }
+  .tip .row { display: flex; align-items: center; gap: 8px; }
+  .tip b { font-variant-numeric: tabular-nums; }
+  .dash table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .dash th, .dash td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .dash th { color: var(--dim); font-size: 12px; font-weight: 600; }
+  .dash .num { text-align: right; }
+  .dash th button { all: unset; cursor: pointer; }
+  .dash th button:hover, .dash th button:focus-visible { color: var(--text); text-decoration: underline; }
+  .dash th[aria-sort=ascending] button::after { content: " ▲"; }
+  .dash th[aria-sort=descending] button::after { content: " ▼"; }
+  .scroll { overflow-x: auto; }
+  .empty { color: var(--dim); }
+</style>
+<section class="sheet dash">
+  <div class="wrap">
+    <p class="eyebrow">Owner dashboard</p>
+    <h1 id="title">Loading…</h1>
+    <p class="sub" id="sub"></p>
+    <div class="stats" id="tiles"></div>
+    <div class="charts" id="charts"></div>
+    <div class="card">
+      <h3>Players</h3>
+      <div class="scroll"><table id="players"></table></div>
+    </div>
+  </div>
+</section>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const KEPT = 17280; // as WorldAdapter.SAMPLES_KEPT
+const el = (tag, attrs = {}, parent) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const html = (tag, text, parent, cls) => {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (cls) node.className = cls;
+  if (parent) parent.appendChild(node);
+  return node;
+};
+const fmt = (v) => (Math.abs(v) >= 10000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v * 10) / 10}`);
+const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const ago = (s) => (s < 3600 ? `${Math.round(s / 60)} min` : s < 172800 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} days`);
+
+// One measure a chart; how a bucket of ticks becomes one point: added up, the worst of them, or where it ended.
+const CHARTS = [
+  { title: "Orders given", series: [["orders", "orders"]], agg: "sum" },
+  { title: "Kills and deaths", series: [["kills", "NPCs killed"], ["deaths", "players died"]], agg: "sum" },
+  { title: "Messages the bot sent (DMs, posts)", series: [["messages", "messages"]], agg: "sum" },
+  { title: "Slowest tick (ms)", series: [["seconds", "ms"]], agg: "max", scale: 1000 },
+  { title: "NPCs awake", series: [["npcs", "NPCs"]], agg: "last" },
+  { title: "Chunks explored", series: [["chunks", "chunks"]], agg: "last" },
+];
+const BUCKETS = [60, 300, 900, 1800, 3600]; // seconds a point, the smallest that keeps a chart to ~240 points
+
+let samples = [], data = null;
+
+function bucketed() {
+  if (!samples.length) return { width: 60, points: [] };
+  const span = samples[samples.length - 1].at - samples[0].at;
+  const width = BUCKETS.find((b) => span / b <= 240) || BUCKETS[BUCKETS.length - 1];
+  const points = [];
+  for (const s of samples) {
+    const t = Math.floor(s.at / width) * width;
+    let p = points[points.length - 1];
+    if (!p || p.t !== t) points.push((p = { t, rows: [] }));
+    p.rows.push(s);
+  }
+  if (points.length > 1) points.pop(); // still filling: a half-counted minute would read as a drop
+  return { width, points };
+}
+
+function value(rows, key, agg) {
+  if (agg === "sum") return rows.reduce((n, r) => n + r[key], 0);
+  if (agg === "max") return Math.max(...rows.map((r) => r[key]));
+  return rows[rows.length - 1][key];
+}
+
+function niceTicks(max, n = 4) {
+  if (max <= 0) return [0, 1];
+  const raw = max / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const out = [];
+  for (let v = 0; v < max + step * 0.999; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+
+const W = 520, H = 200, M = { l: 44, r: 12, t: 10, b: 26 };
+let crosshairs = [], tips = [];
+
+function drawCharts() {
+  const root = document.getElementById("charts");
+  root.replaceChildren();
+  crosshairs = [];
+  tips = [];
+  const { width, points } = bucketed();
+  if (!points.length) {
+    html("p", "No ticks yet since the bot started. The charts fill in as the world ticks.", root, "empty");
+    return;
+  }
+  const n = points.length;
+  const xs = (i) => M.l + (i / Math.max(n - 1, 1)) * (W - M.l - M.r);
+  const per = width === 60 ? "a minute" : width < 3600 ? `per ${width / 60} min` : "an hour";
+  const lines = CHARTS.map((c) => c.series.map(([key]) => points.map((p) => value(p.rows, key, c.agg) * (c.scale || 1))));
+  const show = (i, x) => {
+    for (const cross of crosshairs) {
+      cross.setAttribute("x1", xs(i));
+      cross.setAttribute("x2", xs(i));
+      cross.style.visibility = "visible";
+    }
+    tips.forEach((tip, c) => {
+      tip.replaceChildren();
+      html("div", clock(points[i].t), tip, "head");
+      CHARTS[c].series.forEach(([, label], s) => {
+        const row = html("div", undefined, tip, "row");
+        html("i", undefined, row, "key").style.borderColor = `var(--s${s + 1})`;
+        html("b", fmt(lines[c][s][i]), row);
+        html("span", label, row);
+      });
+      tip.style.left = `${Math.min(x + 14, tip.parentElement.clientWidth - tip.offsetWidth - 8)}px`;
+      tip.style.visibility = "visible";
+    });
+  };
+  const hide = () => [...crosshairs, ...tips].forEach((node) => (node.style.visibility = "hidden"));
+
+  CHARTS.forEach((c, ci) => {
+    const card = html("div", undefined, root, "card");
+    html("h3", c.agg === "sum" ? `${c.title}, ${per}` : c.title, card);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": c.title }, card);
+    const yt = niceTicks(Math.max(...lines[ci].flat()));
+    const top = yt[yt.length - 1];
+    const ys = (v) => H - M.b - (v / top) * (H - M.t - M.b);
+    for (const v of yt) {
+      if (v) el("line", { x1: M.l, x2: W - M.r, y1: ys(v), y2: ys(v), class: "gridline" }, svg);
+      el("text", { x: M.l - 6, y: ys(v) + 4, "text-anchor": "end" }, svg).textContent = fmt(v);
+    }
+    el("line", { x1: M.l, x2: W - M.r, y1: ys(0), y2: ys(0), class: "baseline" }, svg);
+    const labels = Math.min(n, 5);
+    for (let k = 0; k < labels; k++) {
+      const i = labels === 1 ? 0 : Math.round((k * (n - 1)) / (labels - 1));
+      const anchor = k === 0 ? "start" : k === labels - 1 ? "end" : "middle";
+      el("text", { x: xs(i), y: H - 8, "text-anchor": anchor }, svg).textContent = clock(points[i].t);
+    }
+    lines[ci].forEach((line, s) => {
+      const pts = line.map((v, i) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(" ");
+      el(n === 1 ? "circle" : "polyline", n === 1 ? { cx: xs(0), cy: ys(line[0]), r: 4 } : { points: pts, class: "series" }, svg)
+        .style[n === 1 ? "fill" : "stroke"] = `var(--s${s + 1})`;
+    });
+    if (c.series.length > 1) {
+      const legend = html("div", undefined, card, "legend");
+      c.series.forEach(([, label], s) => {
+        const item = html("span", undefined, legend);
+        html("i", undefined, item, "key").style.borderColor = `var(--s${s + 1})`;
+        item.appendChild(document.createTextNode(label));
+      });
+    }
+    crosshairs.push(el("line", { y1: M.t, y2: H - M.b, class: "cross" }, svg));
+    tips.push(html("div", undefined, card, "tip"));
+    const hit = el("rect", { x: M.l, y: 0, width: W - M.l - M.r, height: H, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", (ev) => {
+      const box = svg.getBoundingClientRect();
+      const i = Math.round(((((ev.clientX - box.left) / box.width) * W - M.l) / (W - M.l - M.r)) * (n - 1));
+      show(Math.min(Math.max(i, 0), n - 1), ev.clientX - card.getBoundingClientRect().left);
+    });
+    hit.addEventListener("pointerleave", hide);
+  });
+}
+
+function drawTiles() {
+  const now = Date.now() / 1000, last = samples[samples.length - 1];
+  const hour = samples.filter((s) => s.at > now - 3600);
+  document.getElementById("title").textContent = data.world;
+  document.getElementById("sub").textContent =
+    `Up ${ago(now - data.started)}` + (last ? ` · tick ${last.tick.toLocaleString()} · a tick every ${data.tick_seconds}s` : "") +
+    ` · "today" is since ${clock(data.today.since)}, the last digest or restart`;
+  const tiles = document.getElementById("tiles");
+  tiles.replaceChildren();
+  for (const [label, v] of [
+    ["Players", data.players.length],
+    ["Played today", data.today.active],
+    ["Kills today", data.today.kills],
+    ["Deaths today", data.today.deaths],
+    ["Discord servers", last ? last.servers : "–"],
+    ["NPCs awake", last ? last.npcs : "–"],
+    ["Chunks explored", last ? last.chunks : "–"],
+    ["Slowest tick, last hour", hour.length ? `${Math.round(Math.max(...hour.map((s) => s.seconds)) * 1000)} ms` : "–"],
+  ]) {
+    const tile = html("div", undefined, tiles, "card stat");
+    html("h3", label, tile);
+    html("p", typeof v === "number" ? v.toLocaleString() : v, tile, "big");
+  }
+}
+
+// The players, every number sortable: the simulator's bot table, for real players.
+const COLUMNS = [
+  ["name", "Name", false], ["class", "Class", false], ["level", "Level", true], ["where", "Where", false],
+  ["hp", "HP", true], ["kills", "Kills", true], ["deaths", "Deaths", true], ["worth", "Worth", true],
+  ["hideout", "Hideout", true],
+];
+let sort = { key: "level", dir: -1 };
+
+function drawPlayers() {
+  const table = document.getElementById("players");
+  table.replaceChildren();
+  if (!data.players.length) {
+    table.replaceWith(Object.assign(html("p", "Nobody has registered yet."), { id: "players", className: "empty" }));
+    return;
+  }
+  const head = html("tr", undefined, html("thead", undefined, table));
+  for (const [key, label, num] of COLUMNS) {
+    const th = html("th", undefined, head, num ? "num" : "");
+    th.setAttribute("aria-sort", sort.key === key ? (sort.dir > 0 ? "ascending" : "descending") : "none");
+    const button = html("button", label, th);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      // First click: biggest first for numbers, A-Z for text. Again: reverse.
+      sort = sort.key === key ? { key, dir: -sort.dir } : { key, dir: num ? -1 : 1 };
+      drawPlayers();
+    });
+  }
+  const body = html("tbody", undefined, table);
+  const rows = [...data.players].sort((a, b) => {
+    const x = a[sort.key], y = b[sort.key];
+    return (typeof x === "string" ? x.localeCompare(y, undefined, { numeric: true }) : x - y) * sort.dir;
+  });
+  for (const p of rows) {
+    const tr = html("tr", undefined, body);
+    for (const [key, , num] of COLUMNS)
+      html("td", key === "worth" ? `$${p.worth.toLocaleString()}` : p[key].toLocaleString(), tr, num ? "num" : "");
+  }
+}
+
+async function poll() {
+  if (!document.hidden) {
+    const since = samples.length ? samples[samples.length - 1].tick : -1;
+    try {
+      const response = await fetch(`/admin.json?since=${since}`);
+      if (response.ok) {
+        data = await response.json();
+        samples = samples.concat(data.samples).slice(-KEPT);
+        drawTiles();
+        drawCharts();
+        drawPlayers();
+      }
+    } catch (err) {} // the next poll tries again
+  }
+  setTimeout(poll, Math.max(10, (data ? data.tick_seconds : 5) * 2) * 1000);
+}
+poll();
+</script>

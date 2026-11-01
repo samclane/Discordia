@@ -43,6 +43,10 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     `interaction_check` enforces the channel list, `post_digest` posts the daily digest (midnight UTC) to each
     server's `digest_channel`. Checks must raise an `AppCommandError` (`_game_check` wraps game
     exceptions): the command tree lets anything else escape unanswered.
+  - Owner dashboard: `/admin` (`admin.html`, polls `/admin.json?since=<tick>`) is the simulators' dashboards fed
+    by the live game, for whoever owns the bot (`adapter.is_owner`, set by the cog, asks Discord). Each cog tick
+    hands `adapter.record_tick` what it did (orders, kills, deaths, messages sent, seconds); a day of rows is kept
+    in memory. A new live metric is a new `record_tick` keyword and a `CHARTS` entry.
   - `WebLogins.py` web map login: `/weblogin` replies (ephemeral) with a one-time link, the link trades for a session cookie, the map and its data need it (`/`, `/login`, `/sprites/` are public), and `/me.json` serves that player's sheet. No passwords; only SHA-256 digests kept, in memory (a restart logs people out). Prod: nginx + certbot in front, `[Web] PublicUrl` in config.ini.
 - `main.py` wiring, `ConfigParser.py` config.ini/default.ini, `ROADMAP.md` backlog.
 

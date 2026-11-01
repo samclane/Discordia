@@ -255,11 +255,31 @@ PLAYER = cast(Actors.PlayerCharacter, "a player")  # orders only ever key on ide
 
 def ticking_interface(on_world_tick=lambda: []) -> DiscordInterface:
     """A cog whose world does nothing but record that it ticked and report its events."""
+    recorded: list = []  # what each tick hands the dashboard
     adapter = SimpleNamespace(
         world=SimpleNamespace(tick=on_world_tick, stats=GameSpace.Stats(), announcements=[]),
         get_member_id=lambda character: 7,
+        recorded=recorded,
+        record_tick=lambda **measures: recorded.append(measures),
     )
     return DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
+
+
+def test_each_tick_records_what_it_did_for_the_dashboard():
+    sent = []
+
+    def world_tick():
+        interface.world_adapter.world.stats.kills += 2
+        return [GameSpace.PlayerActionResponse(target=PLAYER, text="Raider hits you.")]
+
+    interface = ticking_interface(on_world_tick=world_tick)
+    stub_user(interface, sent)
+    interface.world_adapter.world.stats.kills = 5  # earlier ticks' kills aren't this tick's
+    asyncio.run(interface.tick())
+    (row,) = interface.world_adapter.recorded
+    assert row["kills"] == 2 and row["deaths"] == 0 and row["orders"] == 0
+    assert row["messages"] == len(sent) == 1, "the DM it sent"
+    assert row["seconds"] >= 0 and row["servers"] == 0
 
 
 def test_orders_wait_for_the_tick_instead_of_resolving_when_typed():
@@ -441,10 +461,11 @@ def test_the_digest_goes_to_each_server_that_picked_a_channel():
 
 
 def test_deaths_and_hauls_go_to_the_servers_the_player_plays_in():
-    world = SimpleNamespace(tick=lambda: [], announcements=[], stats=SimpleNamespace(active_players=set()))
+    world = SimpleNamespace(tick=lambda: [], announcements=[], stats=GameSpace.Stats())
     player = SimpleNamespace(name="Vex")
     adapter = SimpleNamespace(
         world=world,
+        record_tick=lambda **measures: None,
         guild_settings={1: GuildSettings(announce_channel=10), 2: GuildSettings(announce_channel=20), 3: GuildSettings()},
         get_member_id=lambda character: 7 if character is player else None,
     )
