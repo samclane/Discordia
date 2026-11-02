@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS character (
     raid_home_at    INTEGER,  -- PlayerCharacter.auto_raid's World.ticks to head home at; NULL when none is on
     raid_depth      INTEGER,  -- and its depth
     camping         INTEGER NOT NULL DEFAULT 0,
+    work_until      INTEGER,  -- PlayerCharacter.work_until: the World.ticks a /town work shift ends at, or NULL
     kills           INTEGER NOT NULL DEFAULT 0,
     extractions     INTEGER NOT NULL DEFAULT 0,
     achievements    TEXT    NOT NULL DEFAULT '[]',  -- JSON list of Actors.ACHIEVEMENTS keys earned
@@ -182,6 +183,7 @@ class Database:
             ("character", "extractions", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "achievements", "TEXT NOT NULL DEFAULT '[]'"),
             ("character", "best_haul", "INTEGER NOT NULL DEFAULT 0"),
+            ("character", "work_until", "INTEGER"),
             ("item", "state", "TEXT"),
             ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
             ("world", "saved_at", "REAL"),
@@ -255,6 +257,7 @@ class Database:
         character.side = row["side"]
         character.location = adapter.world.space_at(row["x"], row["y"])
         character.camping = bool(row["camping"])  # World.advance heals it for the downtime
+        character.work_until = row["work_until"]  # and pays the shift
         character.kills, character.extractions = row["kills"], row["extractions"]
         character.achievements = set(json.loads(row["achievements"]))
         character.best_haul = row["best_haul"]
@@ -336,7 +339,8 @@ class Database:
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
             " currency, experience, stash_currency, hideout_level, prestige, side, raid_home_at, raid_depth, camping,"
-            " kills, extractions, achievements, best_haul, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " kills, extractions, achievements, best_haul, work_until, x, y)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -355,6 +359,7 @@ class Database:
                 character.extractions,
                 json.dumps(sorted(character.achievements)),
                 character.best_haul,
+                character.work_until,
                 character.location.x,
                 character.location.y,
             ),

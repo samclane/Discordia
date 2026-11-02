@@ -877,6 +877,13 @@ class DiscordInterface(commands.Cog):
     @town.command()
     @requires_character()
     @requires_space(GameSpace.Town)
+    async def work(self, interaction: discord.Interaction):
+        """Take odd jobs in town for an hour: a small wage, no fighting, until you leave"""
+        await _send(interaction, self.world_adapter.work(self._player(interaction)))
+
+    @town.command()
+    @requires_character()
+    @requires_space(GameSpace.Town)
     async def recruit(self, interaction: discord.Interaction):
         """Change your player class to the one offered by the town."""
         character = self._player(interaction)

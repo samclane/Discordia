@@ -126,9 +126,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   floor: a free starter weapon from the starting town's store when you own none, a loan, or fist-safe ways to
   earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above). Decided 2026-11-02:
   a non-combat way to earn, like gathering or odd jobs in town. Split into these, in order:
-  - [ ] Odd jobs: `/town work` in any town pays a small wage for a stretch of ticks spent there, enough to buy the
+  - [x] Odd jobs: `/town work` in any town pays a small wage for a stretch of ticks spent there, enough to buy the
     cheapest weapon ($75) in an hour or two, never enough to beat raiding.
   - [ ] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
+  - [ ] Simulator bots never `/town work`, so the odd-jobs floor moves nothing in `sim_history`. Have a broke,
+    bare-fisted bot work shifts until it can buy the cheapest weapon, and check seed 1's spiral bot climbs out.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
@@ -580,3 +582,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-02 Trophies on the hideout wall: a frame per achievement earned and a wider one for the best haul,
   which is the most one extraction brought home (money plus the new items' value). Saved as a migrated
   `character.best_haul` column, and the hideout text names it. Plain frames, not emoji (ponytail note).
+- 2026-11-02 Odd jobs: `/town work` (in town) starts an hour-long shift, `PlayerCharacter.work_until`, that
+  `World.advance` pays $4 carried every 60 ticks ($48 a shift at a 5-second tick, two buy a $75 Stechkin). Moving
+  or dying ends it; saved as a migrated column, so a restart's catch-up pays the rest of the shift, not the downtime.

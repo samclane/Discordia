@@ -200,6 +200,16 @@ class WorldAdapter:
         ticks_an_hour = 3600 / self.tick_seconds
         return int(character.hideout_income * ticks_an_hour / Actors.HIDEOUT_PAY_TICKS)
 
+    def work(self, character: Actors.PlayerCharacter) -> str:
+        """Odd jobs for one shift in the town `character` stands in: World.advance pays it until it ends or they move."""
+        character.work_until = self.world.ticks + Actors.WORK_SHIFT_TICKS
+        wage = Actors.WORK_WAGE * (Actors.WORK_SHIFT_TICKS // Actors.WORK_PAY_TICKS)
+        minutes = Actors.WORK_SHIFT_TICKS * self.tick_seconds / 60
+        return (
+            f"{character.name} takes odd jobs around {character.location.name}: hauling water, mending walls,"
+            f" minding stalls. ${wage} over the next {minutes:.0f} minutes, paid as you go, as long as you stay in town."
+        )
+
     def camp(self, character: Actors.PlayerCharacter) -> str:
         """Rest where `character` stands, out past the towns: World.advance heals it until it moves or dies."""
         if isinstance(character.location, Town):

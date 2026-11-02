@@ -31,6 +31,12 @@ PRESTIGE_BONUS = 0.1
 # A camp out past the towns heals CAMP_HEAL_SHARE of your hit points every CAMP_HEAL_TICKS: full in twenty minutes
 # at a 5-second tick. Slow next to an inn, which is the point: it saves the walk, not the time.
 CAMP_HEAL_TICKS = 12
+# Odd jobs in town (/town work), the way back for someone broke and bare-fisted: WORK_WAGE carried every
+# WORK_PAY_TICKS for one shift of WORK_SHIFT_TICKS. $48 an hour-long shift at the default 5-second tick: two buy
+# the cheapest gun ($75), and a first hideout level pays more. A shift ends, so it's a check-in, not a farm.
+WORK_WAGE = 4
+WORK_PAY_TICKS = 60
+WORK_SHIFT_TICKS = 720
 CAMP_HEAL_SHARE = 0.05
 
 
@@ -561,6 +567,9 @@ class PlayerCharacter(Actor):
         self.auto_raid: Tuple[int, int, int] | None = None
         # Resting where you stand (World.advance heals it), until you move or die.
         self.camping: bool = False
+        # The World.ticks an odd-jobs shift in town ends at (World.advance pays it), or None. Moving or dying ends
+        # it sooner. Saved, like camping.
+        self.work_until: int | None = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
         self.equipment_set.equip(Weapons.Fist(), OffHandEquipment)
@@ -572,6 +581,7 @@ class PlayerCharacter(Actor):
         # the square you land on survives.
         self.pending_event = None
         self.camping = False
+        self.work_until = None
         was_out = not isinstance(self.location, GameSpace.Town)
         if not was_out:
             self.raid_start = (self.currency, self.carried, self.experience)

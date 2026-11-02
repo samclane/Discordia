@@ -2267,3 +2267,19 @@ def test_deaths_and_kills_are_counted_for_the_digest(adapter):
     player.equip(Weapons.Hammer())
     adapter.attack(player, None)
     assert world.stats.kills == 1
+
+
+def test_odd_jobs_pay_a_shift_in_hand_and_end_when_you_walk(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    player.currency = 0
+    text = adapter.work(player)
+    shift = Actors.WORK_WAGE * Actors.WORK_SHIFT_TICKS // Actors.WORK_PAY_TICKS
+    assert f"${shift} over the next 60 minutes" in text
+    world.advance(Actors.WORK_SHIFT_TICKS * 3)  # a restart's catch-up pays the shift, not the downtime
+    assert player.currency == shift and player.work_until is None
+
+    adapter.work(player)
+    world.advance(Actors.WORK_PAY_TICKS)
+    adapter.move_player(player, _quiet_step_out_of_town(world))
+    world.advance(Actors.WORK_SHIFT_TICKS)
+    assert player.currency == shift + Actors.WORK_WAGE, "walking off ends the shift"

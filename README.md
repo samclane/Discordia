@@ -124,6 +124,9 @@ the bot syncs them.
     * Which town you're in, its population, and who runs the place: the shopkeeper, innkeeper and guard.
     * `/town inn`
         * Rest at the inn: back to full health, free.
+    * `/town work`
+        * Odd jobs for an hour: a small wage ($48 a shift) into your pocket as you go, no fighting. Leaving town
+          ends the shift early. The way back to a gun when a death has left you with nothing.
     * `/town recruit`
         * Change your player class to the one the town trains (`/town status` says which). Military bases train
           Soldiers (75 HP) for that base's side, East or West, and there's no switching sides. A soldier pays

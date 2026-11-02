@@ -244,6 +244,7 @@ class TestGeneral(unittest.TestCase):
         for _ in self._move_randomly():
             pass
         player.camping = True  # after the moves, which break camp
+        player.work_until = 10**9  # and end shifts; one that outlasts the save's catch-up
         self.world.npcs = []
         wounded = Actors.Raider.generate(2)
         wounded.hit_points -= 3
@@ -301,6 +302,7 @@ class TestGeneral(unittest.TestCase):
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
         self.assertEqual((restored.hideout_level, restored.prestige, restored.side), (3, 2, "West"))
         self.assertTrue(restored.camping)
+        self.assertEqual(restored.work_until, 10**9)
         self.assertEqual((restored.kills, restored.extractions, restored.best_haul), (7, 3, 640))
         self.assertEqual(restored.achievements, {"first_blood", "home_alive"})
         self.assertEqual(
