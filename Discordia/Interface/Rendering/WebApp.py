@@ -361,6 +361,11 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         "DEATHS": character.deaths,
         "INCOME": f"{adapter.income_per_hour(character):,}",
         "HIDEOUT_NOTE": adapter.hideout_text(character),
+        "HIDEOUT_IMG": Markup(
+            '<img class="px hideout" src="/hideout.png" alt="Your hideout" style="max-width: 100%">'
+            if character.hideout_level
+            else ""
+        ),
         "DEATH_NOTE": death_note,
         "EQUIPMENT": Markup(equipment),
         "NEWS": Markup(_news_rows(news)),
@@ -502,6 +507,13 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(b'{"error": "no character"}', "application/json", status=404)
             else:
                 self._send(body, "application/json")
+        elif path == "/hideout.png":
+            character = self._character()
+            png = self.renderer.hideout_png(character) if character else None
+            if png is None:
+                self.send_error(404)  # no character, or no hideout yet
+            else:
+                self._send(png, "image/png")
         elif path == "/login":
             query = parse_qs(urlsplit(self.path).query)
             token, after = query.get("t", [""])[0], query.get("next", [""])[0]

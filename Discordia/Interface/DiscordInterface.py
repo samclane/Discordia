@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import inspect
+import io
 import logging
 import random
 import time
@@ -729,6 +730,15 @@ class DiscordInterface(commands.Cog):
     ):
         """Take the stashed item at the given index, and/or some money, to carry"""
         await self._stash_move(interaction, self._player(interaction).stash_take, item, money)
+
+    @hideout.command(name="view")
+    @requires_character()
+    async def hideout_view(self, interaction: discord.Interaction):
+        """See your hideout, what it earns and the stash on its floor, from anywhere"""
+        character = self._player(interaction)
+        png = self.world_adapter.hideout_png(character)
+        files = [discord.File(io.BytesIO(png), "hideout.png")] if png else []
+        await _send(interaction, self.world_adapter.hideout_text(character), files=files)
 
     @hideout.command(name="build")
     @requires_character()

@@ -45,6 +45,7 @@ EXPECTED = {
     "stash list",
     "stash put",
     "stash take",
+    "hideout view",
     "hideout build",
     "hideout prestige",
     "raid",
@@ -773,3 +774,29 @@ def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():
     )
     asyncio.run(command_named(interface, "inventory equip").callback(interface, interaction, 0))  # type: ignore[arg-type]
     assert replies.sent == ["9mm rounds isn't something you wear or hold."]
+
+
+def test_hideout_view_shows_the_room_once_built():
+    from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+
+    adapter = WorldAdapter(GameSpace.World("Homes", 40, 40, seed=0))
+    WindowRenderer(adapter)
+    adapter.register_player(1, "Builder")
+    character = adapter.get_player(1)
+    interface = loaded_cog(adapter)
+    sent = []
+
+    async def send_message(content, **kwargs):
+        sent.append((content, kwargs.get("files", [])))
+
+    def view():
+        response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
+        interaction = SimpleNamespace(command="hideout view", user=SimpleNamespace(id=1), response=response)
+        asyncio.run(command_named(interface, "hideout view").callback(interface, interaction))  # type: ignore[arg-type]
+        return sent[-1]
+
+    text, files = view()
+    assert text.startswith("No hideout yet") and files == [], "nothing to draw before the first level"
+    character.hideout_level = 3
+    text, [picture] = view()
+    assert text.startswith("Hideout level 3") and picture.filename == "hideout.png"

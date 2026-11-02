@@ -402,3 +402,7 @@ class WorldAdapter:
             path = self._renderer.get_player_view(character)
             return path
         return "<No Renderer>"
+
+    def hideout_png(self, character: Actors.PlayerCharacter) -> bytes | None:
+        """A picture of the character's hideout, None before they build one or without a renderer."""
+        return self._renderer.hideout_png(character) if self._renderer is not None else None

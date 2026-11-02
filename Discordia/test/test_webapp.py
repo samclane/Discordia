@@ -388,6 +388,9 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
         assert '<li><span class="slot">🛖</span><span class="name">A roof: Build a hideout.' in sheet
         assert "First blood" not in sheet, "locked achievements stay hidden"
         assert "{{" not in sheet, "a placeholder went unfilled"
+        assert 'src="/hideout.png"' in sheet
+        with urllib.request.build_opener().open(urllib.request.Request(base + "/hideout.png", headers={"Cookie": cookie})) as r:
+            assert r.headers["Content-Type"] == "image/png" and r.read().startswith(b"\x89PNG")
     finally:
         server.shutdown()
 
@@ -645,3 +648,18 @@ def test_invite_sends_server_owners_to_discord():
     finally:
         conn.close()
         server.shutdown()
+
+
+def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
+    renderer = WindowRenderer(WorldAdapter(GameSpace.World("Rooms", 8, 8, seed=7)))
+    character = Actors.PlayerCharacter(parent_world=None, name="Keeper")
+    assert renderer.hideout_png(character) is None, "no hideout, no picture"
+
+    def drawn(level):
+        character.hideout_level = level
+        return Image.open(io.BytesIO(renderer.hideout_png(character)))
+
+    empty = drawn(1)
+    assert drawn(2).width > empty.width and drawn(40).width == drawn(16).width, "a square a level, up to a cap"
+    character.stash_currency = 10
+    assert drawn(1).tobytes() != empty.tobytes(), "the stash shows on the floor"

@@ -154,6 +154,9 @@ the bot syncs them.
 * `/camp`
     * Out past the towns: rest where you stand, healing a little every minute (full in about twenty) until you
       move. Raiders can still find you.
+* `/hideout view`
+    * Anywhere: a picture of your hideout, a square wider each level, with your stash on its floor, and what it
+      earns. Your character page on the web map shows it too.
 * `/hideout build`
     * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000
       and each after 15% more; every 5th costs salvage instead, which only caches out in the wilds hold. Each level

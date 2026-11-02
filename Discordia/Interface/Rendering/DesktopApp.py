@@ -38,6 +38,12 @@ GROUND = 117
 BLOCKS = {"water": 170, "grass": 0, "mountain": 81, "ruins": 8, "plaza": 89}
 # Pixels a square in the zoomed-out overview: still reads as coast and towns, at a tenth of the bytes.
 MINI_TILE = 2
+# The hideout: a walled room sliced from one of the sheet's 3x3 blocks, a square wider per level, with the
+# stash's items as crates and its money as a bag.
+HIDEOUT_ROOM = 81
+HIDEOUT_CRATES = (273, 300)
+HIDEOUT_MONEY = 254
+HIDEOUT_SCALE = 3
 
 
 def _png(image: Image.Image) -> bytes:
@@ -223,6 +229,30 @@ class WindowRenderer:
             if loc is not None and x0 <= loc.x < x1 and y0 <= loc.y < y1:
                 self._paste(actor.sprite_path_string, loc.x - x0, loc.y - y0, image)
         return image
+
+    def hideout_png(self, character: Actors.PlayerCharacter) -> bytes | None:
+        """The character's hideout as PNG, None before they build one. Reads only the character, so the
+        web side can call it too."""
+        if not character.hideout_level:
+            return None
+        width, height = 4 + min(character.hideout_level, 16), 5
+        image = Image.new("RGBA", (width * TILE, height * TILE))
+        with self._draw_lock:
+            for y in range(height):
+                for x in range(width):
+                    col = 0 if x == 0 else 2 if x == width - 1 else 1
+                    row = 0 if y == 0 else 2 if y == height - 1 else 1
+                    tile = self._sheet_tile(HIDEOUT_ROOM + row * SHEET_COLUMNS + col)
+                    image.paste(tile, (x * TILE, y * TILE))
+            # The back rows hold the stash, the front row is where you stand.
+            spots = [(x, y) for y in range(1, height - 2) for x in range(1, width - 1)]
+            things = [HIDEOUT_MONEY] if character.stash_currency else []
+            things += [HIDEOUT_CRATES[i % len(HIDEOUT_CRATES)] for i in range(len(character.stash))]
+            for (x, y), index in zip(spots, things):  # ponytail: a full room just stops showing more
+                image.alpha_composite(self._sheet_tile(index), (x * TILE, y * TILE))
+            self._paste(character.sprite_path_string, width // 2, height - 2, image)
+        size = (image.width * HIDEOUT_SCALE, image.height * HIDEOUT_SCALE)
+        return _png(image.resize(size, Image.Resampling.NEAREST))
 
     def get_player_view(self, character: Actors.PlayerCharacter) -> str:
         x, y, fov = character.location.x, character.location.y, character.fov

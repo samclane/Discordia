@@ -67,7 +67,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   15 a new level takes ~3 days of income to pay for itself, where the curve flattens.)
 - [ ] Hideout as a place (asked for 2026-11-02: "player hideouts with stashes, trophies, with their own rendered
   display"). Split into these, in order:
-  - [ ] A rendered hideout: `/hideout` (and `/me`) shows a picture of it, Pillow like `DesktopApp`, rooms that grow
+  - [x] A rendered hideout: `/hideout` (and `/me`) shows a picture of it, Pillow like `DesktopApp`, rooms that grow
     with the level and the stash on its shelves.
   - [ ] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
 
@@ -574,3 +574,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   ganging up on a raider killed each other (seed 7's lone sim error: bot1 killed bot4, whose own attack then ran
   in town). An NPC on the square is now hit before any player. And an attack on a raider another order killed
   this tick says "X is already down." instead of refusing (`NPC.fell_at`). Sim deaths 12 -> 10.5 a seed, errors 0.
+- 2026-11-02 A rendered hideout: `/hideout view` (anywhere) and the `/me` hideout card (`/hideout.png`) show
+  a walled room from the Kenney sheet, a square wider per level up to 16, the stash money as a bag and its
+  items as crates, the player standing in front. Drawn by `WindowRenderer.hideout_png`; reads only the character.
