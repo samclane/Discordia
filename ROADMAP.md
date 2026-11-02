@@ -135,6 +135,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   of guns, so a bare-fisted player there has nothing to work toward (9060 of 11025 simulator `work` orders, before
   the bots learned to skip it). Restock sold-out shelves on a timer, like caches (`CACHE_REFILL_TICKS`), from
   `Store.generate_store`; a saved shelf (`traded`) would need the refill time saved too.
+- [ ] Since a166029 (bots work shifts) mean worth fell 815.5 -> 761.9 and mean level 1.97 -> 1.9 (10 seeds x
+  2000 ticks), while deaths fell 9.8 -> 9.4 as meant. A broke bot in town earns $48 an hour working, less than
+  bare-fisted danger-1 raids paid it (caches, XP). Decide whether that's the floor working (safe and boring, as
+  decided) or `WORK_WAGE` is too low; compare a bot's earnings per hour working vs fist-raiding before tuning.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
