@@ -13,6 +13,9 @@ Requested focus (may be empty): $ARGUMENTS
 
 1. **Orient.** Run `git status --short` and `git log --oneline -5`. If the tree is dirty from a previous run,
    commit it only if tests pass; otherwise `git stash` it and say so in your summary.
+   If `DECISIONS.md` has answers ticked or written in, fold each into its `ROADMAP.md` item as a
+   `Decided YYYY-MM-DD: ...` note, drop its `(blocked: ...)` (or the item, if dropped), remove the answered
+   question from `DECISIONS.md`, and commit that on its own before picking.
 2. **Pick.** Open `ROADMAP.md`. If a focus was requested, take the matching item or theme. Otherwise take the first
    unchecked item, top to bottom, that you can finish in one sitting. If an item turns out too large, split it into
    two lines in the roadmap and do the first half.
