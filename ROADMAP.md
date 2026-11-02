@@ -121,7 +121,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   2000 and 5000 ticks: starting stores are identical (bots never buy armor), and without seed 1 the 5000-tick
   means are 24.4 vs 24.1 deaths. Seed 1's new map put one bot in a death spiral: broke ($0 + $8 stashed from tick
   ~500), bare-fisted, level 1, still raiding at full reach, 34 deaths (28 with fists) where the old map's run had 11.
-- [ ] No way back from broke: a death strips all carried money and gear, and with an empty stash and no hideout
+- [x] No way back from broke: a death strips all carried money and gear, and with an empty stash and no hideout
   a player is left with fists (2 dmg), which lose the fights that would pay for a gun. Needs a decision on the
   floor: a free starter weapon from the starting town's store when you own none, a loan, or fist-safe ways to
   earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above). Decided 2026-11-02:
@@ -129,8 +129,12 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Odd jobs: `/town work` in any town pays a small wage for a stretch of ticks spent there, enough to buy the
     cheapest weapon ($75) in an hour or two, never enough to beat raiding.
   - [x] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
-  - [ ] Simulator bots never `/town work`, so the odd-jobs floor moves nothing in `sim_history`. Have a broke,
+  - [x] Simulator bots never `/town work`, so the odd-jobs floor moves nothing in `sim_history`. Have a broke,
     bare-fisted bot work shifts until it can buy the cheapest weapon, and check seed 1's spiral bot climbs out.
+- [ ] Stores never restock: what's bought is gone for good. Over 5000 ticks on seed 1 the starting town sells out
+  of guns, so a bare-fisted player there has nothing to work toward (9060 of 11025 simulator `work` orders, before
+  the bots learned to skip it). Restock sold-out shelves on a timer, like caches (`CACHE_REFILL_TICKS`), from
+  `Store.generate_store`; a saved shelf (`traded`) would need the refill time saved too.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
@@ -588,3 +592,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-02 Gathering: `/gather` on danger-1 ground out of town starts the same hour-long shift as `/town work`
   (`work_until`, no new column), but `World.advance` pays it in `Items.Firewood` ($10, `"store": false` in
   barter.json) every 120 ticks: six bundles, $60 once carried home and sold, against work's $48 in hand.
+- 2026-11-02 Simulator bots work: broke and bare-fisted in a town whose store still has a gun, a bot takes
+  `/town work` shifts until it can buy one. Seed 1 over 5000 ticks: no bot past 10 deaths (one had 34) and five
+  of six end armed. Found stores never restock (new item): the last bare-fisted bot was in a sold-out town.

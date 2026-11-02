@@ -105,11 +105,14 @@ class Bot:
                 return f"buy {buy.name}", lambda: self._buy(town, buy)
             if wanted is Weapons.Weapon and (short := self._short_for_a_weapon(town)):
                 return f"take ${short}", lambda: c.stash_take(money=short)  # re-arm after a death
+            # Broke and bare-fisted: odd jobs until a gun is in reach, if this store has one left to save for.
+            if wanted is Weapons.Weapon and any(isinstance(i, Weapons.Weapon) for i in town.store.inventory):
+                return "work", (lambda: []) if c.work_until is not None else lambda: a.work(c)
             if c.currency > 100:
                 money = c.currency - 100  # bank all but walking-around money
                 return f"stash ${money}", lambda: c.stash_put(money=money)
         hurt = c.hit_points < c.hit_points_max * 0.4
-        # Bare-fisted and broke, it keeps to danger 1 until a cache or a kill pays for a gun, as a player would.
+        # Bare-fisted out there (a death in town, or a gun sold), it keeps to danger 1 on the way home.
         unarmed = isinstance(c.weapon, Weapons.Fist) and a.world.danger_at(c.location) > 1
         if hurt or unarmed or self.steps_out >= self.reach:
             return "go home", lambda: self._step(
@@ -527,6 +530,21 @@ def test_an_unarmed_bot_keeps_to_danger_one():
     bot.character.location = deep
     bot.character.equip(Weapons.Hammer())
     assert bot.order()[0] == "raid"
+
+
+def test_a_broke_bare_fisted_bot_works_shifts_until_it_can_buy_a_gun():
+    world = GameSpace.World("Broke", 128, 128, seed=0)
+    bot = Bot(WorldAdapter(world), 2, reach=5)  # neither enlists nor recruits first: a Wanderer in a plain town
+    c = bot.character
+    c.location, c.currency, c.player_class = world.starting_town, 0, Actors.Scavenger()
+    assert bot.order()[0] == "work"
+    for _ in range(100):  # a few shifts at most
+        label, act = bot.order()
+        if label != "work":
+            break
+        act()
+        world.advance(Actors.WORK_PAY_TICKS)
+    assert label.startswith("buy") and c.location is world.starting_town, label
 
 
 def test_bots_wear_found_armor_that_beats_what_they_have_on():
