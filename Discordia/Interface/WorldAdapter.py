@@ -232,6 +232,8 @@ class WorldAdapter:
             f"Hideout level {character.hideout_level}: ${self.income_per_hour(character):,} an hour into your stash,"
             f" which is worth ${character.stash_value:,}. The next level costs {price}."
         )
+        if character.best_haul:
+            text += f" Your best haul, ${character.best_haul:,}, hangs on its wall."
         if character.hideout_level >= Actors.PRESTIGE_LEVEL:
             text += " `/hideout prestige` trades it and the stash in for more income for good."
         return text

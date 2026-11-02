@@ -800,3 +800,5 @@ def test_hideout_view_shows_the_room_once_built():
     character.hideout_level = 3
     text, [picture] = view()
     assert text.startswith("Hideout level 3") and picture.filename == "hideout.png"
+    character.best_haul = 1200
+    assert "Your best haul, $1,200, hangs on its wall." in view()[0]

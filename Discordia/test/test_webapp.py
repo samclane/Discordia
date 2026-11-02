@@ -662,4 +662,7 @@ def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
     empty = drawn(1)
     assert drawn(2).width > empty.width and drawn(40).width == drawn(16).width, "a square a level, up to a cap"
     character.stash_currency = 10
-    assert drawn(1).tobytes() != empty.tobytes(), "the stash shows on the floor"
+    stocked = drawn(1)
+    assert stocked.tobytes() != empty.tobytes(), "the stash shows on the floor"
+    character.best_haul, character.achievements = 300, {"a_roof"}
+    assert drawn(1).tobytes() != stocked.tobytes(), "trophies show on the wall"

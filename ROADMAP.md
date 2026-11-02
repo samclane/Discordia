@@ -65,11 +65,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   stash (money and items) for a permanent +10% hideout income per prestige. Character level, worn gear, the
   backpack and the pouch are kept. Saved as a migrated `character.prestige` count. (Decided 2026-10-30: by level
   15 a new level takes ~3 days of income to pay for itself, where the curve flattens.)
-- [ ] Hideout as a place (asked for 2026-11-02: "player hideouts with stashes, trophies, with their own rendered
+- [x] Hideout as a place (asked for 2026-11-02: "player hideouts with stashes, trophies, with their own rendered
   display"). Split into these, in order:
   - [x] A rendered hideout: `/hideout` (and `/me`) shows a picture of it, Pillow like `DesktopApp`, rooms that grow
     with the level and the stash on its shelves.
-  - [ ] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
+  - [x] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
 
 ## Gameplay loop (make it a game)
 
@@ -577,3 +577,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-02 A rendered hideout: `/hideout view` (anywhere) and the `/me` hideout card (`/hideout.png`) show
   a walled room from the Kenney sheet, a square wider per level up to 16, the stash money as a bag and its
   items as crates, the player standing in front. Drawn by `WindowRenderer.hideout_png`; reads only the character.
+- 2026-11-02 Trophies on the hideout wall: a frame per achievement earned and a wider one for the best haul,
+  which is the most one extraction brought home (money plus the new items' value). Saved as a migrated
+  `character.best_haul` column, and the hideout text names it. Plain frames, not emoji (ponytail note).

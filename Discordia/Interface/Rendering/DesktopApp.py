@@ -39,10 +39,13 @@ BLOCKS = {"water": 170, "grass": 0, "mountain": 81, "ruins": 8, "plaza": 89}
 # Pixels a square in the zoomed-out overview: still reads as coast and towns, at a tenth of the bytes.
 MINI_TILE = 2
 # The hideout: a walled room sliced from one of the sheet's 3x3 blocks, a square wider per level, with the
-# stash's items as crates and its money as a bag.
+# stash's items as crates and its money as a bag. Trophies hang on the back wall: a frame per achievement
+# earned and a wider one for the best haul.
 HIDEOUT_ROOM = 81
 HIDEOUT_CRATES = (273, 300)
 HIDEOUT_MONEY = 254
+HIDEOUT_TROPHY = 363
+HIDEOUT_BEST_HAUL = 390
 HIDEOUT_SCALE = 3
 
 
@@ -250,6 +253,11 @@ class WindowRenderer:
             things += [HIDEOUT_CRATES[i % len(HIDEOUT_CRATES)] for i in range(len(character.stash))]
             for (x, y), index in zip(spots, things):  # ponytail: a full room just stops showing more
                 image.alpha_composite(self._sheet_tile(index), (x * TILE, y * TILE))
+            # ponytail: plain frames, not the achievements' emoji: Pillow needs an emoji font the server lacks.
+            trophies = [HIDEOUT_BEST_HAUL] if character.best_haul else []
+            trophies += [HIDEOUT_TROPHY] * len(character.achievements)
+            for x, index in zip(range(1, width - 1), trophies):
+                image.alpha_composite(self._sheet_tile(index), (x * TILE, 0))
             self._paste(character.sprite_path_string, width // 2, height - 2, image)
         size = (image.width * HIDEOUT_SCALE, image.height * HIDEOUT_SCALE)
         return _png(image.resize(size, Image.Resampling.NEAREST))

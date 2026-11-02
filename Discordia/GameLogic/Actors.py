@@ -546,6 +546,8 @@ class PlayerCharacter(Actor):
         self.kills: int = 0
         self.extractions: int = 0
         self.achievements: set[str] = set()
+        # The most one haul has been worth (money brought home plus what the new items sell for), for the hideout wall.
+        self.best_haul: int = 0
         # An Events.EncounterEvent waiting on a /choose, if one is. Typed loosely: Events imports
         # this module, so this module cannot import Events back.
         self.pending_event: Any = None
@@ -589,9 +591,11 @@ class PlayerCharacter(Actor):
         """End the raid in the town you're standing in and say what it brought home."""
         money, pack, experience = self.raid_start  # type: ignore[misc]
         self.raid_start = None
-        found = [str(item) for item in self.carried if not any(item is had for had in pack)]
+        new = [item for item in self.carried if not any(item is had for had in pack)]
+        found = [str(item) for item in new]
         if self.currency > money:
             found.append(f"${self.currency - money}")
+        self.best_haul = max(self.best_haul, max(self.currency - money, 0) + sum(int(i.base_value) for i in new))
         # Bringing loot home is what levels you: the deeper the raid went, the more it pays.
         levels = self.gain_experience(EXTRACT_XP_PER_DANGER * self.raid_deepest) if found else 0
         if self.experience > experience:

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS character (
     kills           INTEGER NOT NULL DEFAULT 0,
     extractions     INTEGER NOT NULL DEFAULT 0,
     achievements    TEXT    NOT NULL DEFAULT '[]',  -- JSON list of Actors.ACHIEVEMENTS keys earned
+    best_haul       INTEGER NOT NULL DEFAULT 0,
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -180,6 +181,7 @@ class Database:
             ("character", "kills", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "extractions", "INTEGER NOT NULL DEFAULT 0"),
             ("character", "achievements", "TEXT NOT NULL DEFAULT '[]'"),
+            ("character", "best_haul", "INTEGER NOT NULL DEFAULT 0"),
             ("item", "state", "TEXT"),
             ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
             ("world", "saved_at", "REAL"),
@@ -255,6 +257,7 @@ class Database:
         character.camping = bool(row["camping"])  # World.advance heals it for the downtime
         character.kills, character.extractions = row["kills"], row["extractions"]
         character.achievements = set(json.loads(row["achievements"]))
+        character.best_haul = row["best_haul"]
         if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
             character.auto_raid = (row["raid_home_at"], character.deaths, row["raid_depth"])
 
@@ -333,7 +336,7 @@ class Database:
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
             " currency, experience, stash_currency, hideout_level, prestige, side, raid_home_at, raid_depth, camping,"
-            " kills, extractions, achievements, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " kills, extractions, achievements, best_haul, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -351,6 +354,7 @@ class Database:
                 character.kills,
                 character.extractions,
                 json.dumps(sorted(character.achievements)),
+                character.best_haul,
                 character.location.x,
                 character.location.y,
             ),
