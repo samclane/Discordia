@@ -843,6 +843,17 @@ class DiscordInterface(commands.Cog):
 
     @app_commands.command()
     @requires_character()
+    async def gather(self, interaction: discord.Interaction):
+        """Gather firewood near town for an hour, no fighting: carry it back to sell"""
+        try:
+            text = self.world_adapter.gather(self._player(interaction))
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, text)
+
+    @app_commands.command()
+    @requires_character()
     async def camp(self, interaction: discord.Interaction):
         """Rest where you stand, out past the towns: you heal slowly until you move"""
         try:

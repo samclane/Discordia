@@ -4,5 +4,11 @@
     "store": false,
     "base_value": 50,
     "weight_lb": 5.0
+  },
+  "Firewood": {
+    "name": "Firewood",
+    "store": false,
+    "base_value": 10,
+    "weight_lb": 10.0
   }
 }

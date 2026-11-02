@@ -128,7 +128,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   a non-combat way to earn, like gathering or odd jobs in town. Split into these, in order:
   - [x] Odd jobs: `/town work` in any town pays a small wage for a stretch of ticks spent there, enough to buy the
     cheapest weapon ($75) in an hour or two, never enough to beat raiding.
-  - [ ] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
+  - [x] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
   - [ ] Simulator bots never `/town work`, so the odd-jobs floor moves nothing in `sim_history`. Have a broke,
     bare-fisted bot work shifts until it can buy the cheapest weapon, and check seed 1's spiral bot climbs out.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
@@ -585,3 +585,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-02 Odd jobs: `/town work` (in town) starts an hour-long shift, `PlayerCharacter.work_until`, that
   `World.advance` pays $4 carried every 60 ticks ($48 a shift at a 5-second tick, two buy a $75 Stechkin). Moving
   or dying ends it; saved as a migrated column, so a restart's catch-up pays the rest of the shift, not the downtime.
+- 2026-11-02 Gathering: `/gather` on danger-1 ground out of town starts the same hour-long shift as `/town work`
+  (`work_until`, no new column), but `World.advance` pays it in `Items.Firewood` ($10, `"store": false` in
+  barter.json) every 120 ticks: six bundles, $60 once carried home and sold, against work's $48 in hand.

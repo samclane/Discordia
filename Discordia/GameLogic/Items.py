@@ -78,6 +78,12 @@ class Salvage(Data.FromData, Equipment):
     STATS = Data.load(Data.DATA_FOLDER / "barter.json")
 
 
+class Firewood(Data.FromData, Equipment):
+    """What /gather turns up on quiet ground near town: no fight for it, but it has to be carried back to sell."""
+
+    STATS = Data.load(Data.DATA_FOLDER / "barter.json")
+
+
 class ArmorAbstract(Equipment, ABC):
 
     def __init__(self, armor_count: float = 0.0, *args, **kwargs):

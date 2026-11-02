@@ -51,6 +51,7 @@ EXPECTED = {
     "hideout prestige",
     "raid",
     "camp",
+    "gather",
     "help",
     "weblogin",
     "settings",

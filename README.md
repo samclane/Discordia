@@ -154,6 +154,9 @@ the bot syncs them.
     * From any town: send your character out alone, no deeper than danger `depth` (default 1: safe, small hauls;
       deeper pays more and kills more). It walks to the nearest stocked cache in reach, fights whatever it meets, and heads for the nearest town when time is up or it's badly hurt. You get one message at the end:
       what it brought home, or what it lost.
+* `/gather`
+    * Out past the towns, on danger 1 ground: gather firewood for an hour, a bundle every ten minutes, no fighting.
+      Carry it back to any store to sell ($10 a bundle); die on the way and it stays where you fell. Moving ends it.
 * `/camp`
     * Out past the towns: rest where you stand, healing a little every minute (full in about twenty) until you
       move. Raiders can still find you.

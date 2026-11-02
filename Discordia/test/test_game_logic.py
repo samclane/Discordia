@@ -2283,3 +2283,26 @@ def test_odd_jobs_pay_a_shift_in_hand_and_end_when_you_walk(adapter):
     adapter.move_player(player, _quiet_step_out_of_town(world))
     world.advance(Actors.WORK_SHIFT_TICKS)
     assert player.currency == shift + Actors.WORK_WAGE, "walking off ends the shift"
+
+
+def test_gathering_turns_up_firewood_on_quiet_ground_to_sell_in_town(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    with pytest.raises(ValueError, match="town work"):
+        adapter.gather(player)
+    d = _quiet_step_out_of_town(world)
+    adapter.move_player(player, d)
+    if world.danger_at(player.location) > Actors.GATHER_MAX_DANGER:
+        pytest.skip("the ground next to the starting town rolled rough")
+    adapter.gather(player)
+    world.advance(Actors.WORK_SHIFT_TICKS * 2)
+    wood = [item for item in player.inventory if isinstance(item, Items.Firewood)]
+    assert len(wood) == Actors.WORK_SHIFT_TICKS // Actors.GATHER_TICKS and player.work_until is None
+
+    adapter.move_player(player, (-d[0], -d[1]))
+    money = player.currency
+    assert world.starting_town.store.buy_item(wood[0], player) == 10 and player.currency == money + 10
+
+    player.location = rough = GameSpace.Wilds(0, 0, "Rough")
+    rough.level = Actors.GATHER_MAX_DANGER + 1
+    with pytest.raises(ValueError, match="Too rough"):
+        adapter.gather(player)

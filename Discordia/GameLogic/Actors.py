@@ -37,6 +37,10 @@ CAMP_HEAL_TICKS = 12
 WORK_WAGE = 4
 WORK_PAY_TICKS = 60
 WORK_SHIFT_TICKS = 720
+# The same shift out past the towns (/gather), on ground no rougher than GATHER_MAX_DANGER, turns up an
+# Items.Firewood every GATHER_TICKS instead: $60 a shift once sold, for the risk of carrying it home.
+GATHER_TICKS = 120
+GATHER_MAX_DANGER = 1
 CAMP_HEAL_SHARE = 0.05
 
 
@@ -567,8 +571,8 @@ class PlayerCharacter(Actor):
         self.auto_raid: Tuple[int, int, int] | None = None
         # Resting where you stand (World.advance heals it), until you move or die.
         self.camping: bool = False
-        # The World.ticks an odd-jobs shift in town ends at (World.advance pays it), or None. Moving or dying ends
-        # it sooner. Saved, like camping.
+        # The World.ticks a shift ends at, or None: odd jobs in a town (/town work) or gathering out of one
+        # (/gather), whichever you stand in. World.advance pays it. Moving or dying ends it sooner. Saved, like camping.
         self.work_until: int | None = None
 
         self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)

@@ -210,6 +210,22 @@ class WorldAdapter:
             f" minding stalls. ${wage} over the next {minutes:.0f} minutes, paid as you go, as long as you stay in town."
         )
 
+    def gather(self, character: Actors.PlayerCharacter) -> str:
+        """Gather firewood for one shift on quiet ground out past the towns: World.advance hands it over."""
+        if isinstance(character.location, Town):
+            raise ValueError("You're in a town: `/town work` pays here.")
+        if self.world.danger_at(character.location) > Actors.GATHER_MAX_DANGER:
+            raise ValueError(
+                f"Too rough here to stop and gather. Only danger {Actors.GATHER_MAX_DANGER} ground, near town, is quiet enough."
+            )
+        character.work_until = self.world.ticks + Actors.WORK_SHIFT_TICKS
+        bundles = Actors.WORK_SHIFT_TICKS // Actors.GATHER_TICKS
+        minutes = Actors.WORK_SHIFT_TICKS * self.tick_seconds / 60
+        return (
+            f"{character.name} gathers firewood: {bundles} bundles over the next {minutes:.0f} minutes, as long as you"
+            f" stay put. Any store buys it, if you get it back to town."
+        )
+
     def camp(self, character: Actors.PlayerCharacter) -> str:
         """Rest where `character` stands, out past the towns: World.advance heals it until it moves or dies."""
         if isinstance(character.location, Town):

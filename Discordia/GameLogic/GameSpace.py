@@ -1286,7 +1286,10 @@ class World:
                 p.hit_points += p.camp_heal * heals
             if p.work_until is not None:
                 end = min(self.ticks, p.work_until)
-                p.currency += Actors.WORK_WAGE * (end // Actors.WORK_PAY_TICKS - start // Actors.WORK_PAY_TICKS)
+                if isinstance(p.location, Town):
+                    p.currency += Actors.WORK_WAGE * (end // Actors.WORK_PAY_TICKS - start // Actors.WORK_PAY_TICKS)
+                else:
+                    p.inventory.extend(Items.Firewood() for _ in range(end // Actors.GATHER_TICKS - start // Actors.GATHER_TICKS))
                 if self.ticks >= p.work_until:
                     p.work_until = None
 

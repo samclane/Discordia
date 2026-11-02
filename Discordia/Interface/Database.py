@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS character (
     raid_home_at    INTEGER,  -- PlayerCharacter.auto_raid's World.ticks to head home at; NULL when none is on
     raid_depth      INTEGER,  -- and its depth
     camping         INTEGER NOT NULL DEFAULT 0,
-    work_until      INTEGER,  -- PlayerCharacter.work_until: the World.ticks a /town work shift ends at, or NULL
+    work_until      INTEGER,  -- PlayerCharacter.work_until: the World.ticks a /town work or /gather shift ends at
     kills           INTEGER NOT NULL DEFAULT 0,
     extractions     INTEGER NOT NULL DEFAULT 0,
     achievements    TEXT    NOT NULL DEFAULT '[]',  -- JSON list of Actors.ACHIEVEMENTS keys earned
