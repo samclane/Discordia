@@ -728,7 +728,7 @@ def test_achievements_lists_earned_and_locked():
     asyncio.run(command_named(interface, "achievements").callback(interface, interaction))  # type: ignore[arg-type]
     [text] = replies.sent
     assert text.startswith(f"Achievements, 1 of {len(Actors.ACHIEVEMENTS)}:\n")
-    assert "✅ **A roof**: Build a hideout." in text and "⬛ First blood:" in text
+    assert "🛖 **A roof**: Build a hideout." in text and "🔒 First blood:" in text
 
 
 def test_help_lists_every_command_privately_starting_with_register():

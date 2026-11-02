@@ -336,11 +336,11 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
     else:
         death_note = "You had nothing on you to lose last time."
     news = adapter.news(character)
+    # Earned only: the rest stay a surprise here, /achievements lists them.
     achievements = "".join(
-        f'<li{"" if key in character.achievements else ' class="empty-slot"'}>'
-        f'<span class="slot">{"earned" if key in character.achievements else "locked"}</span>'
-        f'<span class="name">{html.escape(title)}: {html.escape(how)}</span></li>'
-        for key, (title, how, _) in ACHIEVEMENTS.items()
+        f'<li><span class="slot">{icon}</span><span class="name">{html.escape(title)}: {html.escape(how)}</span></li>'
+        for key, (icon, title, how, _) in ACHIEVEMENTS.items()
+        if key in character.achievements
     )
     hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0
     return {
@@ -364,7 +364,10 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         "DEATH_NOTE": death_note,
         "EQUIPMENT": Markup(equipment),
         "NEWS": Markup(_news_rows(news)),
-        "ACHIEVEMENTS": Markup(achievements),
+        "ACHIEVEMENTS": Markup(
+            achievements
+            or '<li class="empty-slot"><span class="name">None yet. They show here once earned.</span></li>'
+        ),
         "EARNED": sum(key in character.achievements for key in ACHIEVEMENTS),
         "ACHIEVEMENTS_TOTAL": len(ACHIEVEMENTS),
         "INVENTORY": Markup(

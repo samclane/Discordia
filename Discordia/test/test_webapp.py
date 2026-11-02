@@ -385,8 +385,8 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
         assert '<span class="slot">#0</span>' in sheet, "inventory is numbered for /inventory equip"
         assert "A &lt;stranger&gt; blocks the road." in sheet
         assert "$240<span> / hour</span>" in sheet  # two levels at the default 5-second tick
-        assert '<li><span class="slot">earned</span><span class="name">A roof: Build a hideout.' in sheet
-        assert '<li class="empty-slot"><span class="slot">locked</span><span class="name">First blood' in sheet
+        assert '<li><span class="slot">🛖</span><span class="name">A roof: Build a hideout.' in sheet
+        assert "First blood" not in sheet, "locked achievements stay hidden"
         assert "{{" not in sheet, "a placeholder went unfilled"
     finally:
         server.shutdown()

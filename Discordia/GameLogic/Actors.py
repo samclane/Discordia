@@ -493,21 +493,22 @@ class Fixer(PlayerClass):
         return str(SPRITE_FOLDER / "Actors" / "fixer_class.png")
 
 
-# key: (title, how to earn it, whether a player has). Checked every World.tick, kept once earned. The key is what's
+# key: (icon, title, how to earn it, whether a player has). Checked every World.tick, kept once earned. The key is what's
 # saved: retitle freely, but a new key or a removed one is a new achievement or a lost one.
 ACHIEVEMENTS = {
-    "first_blood": ("First blood", "Kill something out past the towns.", lambda p: p.kills >= 1),
-    "veteran": ("Veteran", "Kill fifty.", lambda p: p.kills >= 50),
-    "home_alive": ("Home alive", "Bring a raid's haul back to town.", lambda p: p.extractions >= 1),
-    "old_hand": ("Old hand", "Bring twenty-five hauls home.", lambda p: p.extractions >= 25),
-    "cargo_200": ("Cargo 200", "Die. It happens to everyone.", lambda p: p.deaths >= 1),
-    "seasoned": ("Seasoned", "Reach level 5.", lambda p: p.level >= 5),
-    "hardened": ("Hardened", "Reach level 10.", lambda p: p.level >= 10),
-    "enlisted": ("Enlisted", "Train with either army at a military base.", lambda p: p.side is not None),
-    "gone_rogue": ("Gone rogue", "Live as a Raider.", lambda p: isinstance(p.player_class, RaiderClass)),
-    "a_roof": ("A roof", "Build a hideout.", lambda p: p.hideout_level >= 1),
-    "walk_away": ("Walk away", "Prestige your hideout.", lambda p: p.prestige >= 1),
+    "first_blood": ("🩸", "First blood", "Kill something out past the towns.", lambda p: p.kills >= 1),
+    "veteran": ("🎖️", "Veteran", "Kill fifty.", lambda p: p.kills >= 50),
+    "home_alive": ("🏠", "Home alive", "Bring a raid's haul back to town.", lambda p: p.extractions >= 1),
+    "old_hand": ("🎒", "Old hand", "Bring twenty-five hauls home.", lambda p: p.extractions >= 25),
+    "cargo_200": ("⚰️", "Cargo 200", "Die. It happens to everyone.", lambda p: p.deaths >= 1),
+    "seasoned": ("⭐", "Seasoned", "Reach level 5.", lambda p: p.level >= 5),
+    "hardened": ("🛡️", "Hardened", "Reach level 10.", lambda p: p.level >= 10),
+    "enlisted": ("🪖", "Enlisted", "Train with either army at a military base.", lambda p: p.side is not None),
+    "gone_rogue": ("🏴", "Gone rogue", "Live as a Raider.", lambda p: isinstance(p.player_class, RaiderClass)),
+    "a_roof": ("🛖", "A roof", "Build a hideout.", lambda p: p.hideout_level >= 1),
+    "walk_away": ("🚶", "Walk away", "Prestige your hideout.", lambda p: p.prestige >= 1),
     "fat_stash": (
+        "💰",
         "Fat stash",
         "Hold $10,000, carried and stashed together.",
         lambda p: p.currency + p.stash_currency >= 10_000,
@@ -617,7 +618,7 @@ class PlayerCharacter(Actor):
 
     def check_achievements(self) -> List[str]:
         """Award every ACHIEVEMENTS key you now qualify for. Returns the newly earned keys."""
-        new = [key for key, (_, _, has) in ACHIEVEMENTS.items() if key not in self.achievements and has(self)]
+        new = [key for key, (*_, has) in ACHIEVEMENTS.items() if key not in self.achievements and has(self)]
         self.achievements.update(new)
         return new
 

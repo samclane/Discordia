@@ -585,8 +585,8 @@ class DiscordInterface(commands.Cog):
             interaction,
             f"Achievements, {len(earned & Actors.ACHIEVEMENTS.keys())} of {len(Actors.ACHIEVEMENTS)}:\n"
             + "\n".join(
-                f"✅ **{title}**: {how}" if key in earned else f"⬛ {title}: {how}"
-                for key, (title, how, _) in Actors.ACHIEVEMENTS.items()
+                f"{icon} **{title}**: {how}" if key in earned else f"🔒 {title}: {how}"
+                for key, (icon, title, how, _) in Actors.ACHIEVEMENTS.items()
             ),
         )
 
