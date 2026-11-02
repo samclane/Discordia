@@ -683,12 +683,16 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _owner(self) -> bool:
         """Whether the logged-in member owns the bot. If not, answers the request itself."""
+        member_id = self._member_id()
+        if member_id is None:
+            self.send_error(401, "Log in first.")
+            return False
         lookup = self.renderer.world_adapter.is_owner
         if lookup is None:
             self.send_error(503, "The bot isn't running right now.")
             return False
         try:
-            owner = lookup(self._member_id())
+            owner = lookup(member_id)
         except TimeoutError:
             self.send_error(504, "Discord didn't answer. Try again in a moment.")
             return False

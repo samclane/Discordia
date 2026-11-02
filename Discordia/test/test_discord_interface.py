@@ -276,7 +276,7 @@ def test_each_tick_records_what_it_did_for_the_dashboard():
     stub_user(interface, sent)
     interface.world_adapter.world.stats.kills = 5  # earlier ticks' kills aren't this tick's
     asyncio.run(interface.tick())
-    (row,) = interface.world_adapter.recorded
+    (row,) = cast(Any, interface.world_adapter).recorded
     assert row["kills"] == 2 and row["deaths"] == 0 and row["orders"] == 0
     assert row["messages"] == len(sent) == 1, "the DM it sent"
     assert row["seconds"] >= 0 and row["servers"] == 0
@@ -601,7 +601,7 @@ def test_a_refusal_known_before_the_tick_is_private_and_never_deferred():
         try:
             asyncio.run(command_named(interface, name).callback(interface, interaction, choice))  # type: ignore[arg-type]
         except Exception as exc:  # what the tree hands cog_app_command_error
-            asyncio.run(interface.cog_app_command_error(interaction, cast(Any, SimpleNamespace(original=exc))))
+            asyncio.run(interface.cog_app_command_error(cast(Any, interaction), cast(Any, SimpleNamespace(original=exc))))
         return replies
 
     for name, choice in [("move", app_commands.Choice(name="north", value="n")), ("choose", app_commands.Choice(name="talk", value="talk"))]:
