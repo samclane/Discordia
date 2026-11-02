@@ -65,6 +65,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   stash (money and items) for a permanent +10% hideout income per prestige. Character level, worn gear, the
   backpack and the pouch are kept. Saved as a migrated `character.prestige` count. (Decided 2026-10-30: by level
   15 a new level takes ~3 days of income to pay for itself, where the curve flattens.)
+- [ ] Hideout as a place (asked for 2026-11-02: "player hideouts with stashes, trophies, with their own rendered
+  display"). Split into these, in order:
+  - [ ] A rendered hideout: `/hideout` (and `/me`) shows a picture of it, Pillow like `DesktopApp`, rooms that grow
+    with the level and the stash on its shelves.
+  - [ ] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
 
 ## Gameplay loop (make it a game)
 
@@ -119,8 +124,11 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] No way back from broke: a death strips all carried money and gear, and with an empty stash and no hideout
   a player is left with fists (2 dmg), which lose the fights that would pay for a gun. Needs a decision on the
   floor: a free starter weapon from the starting town's store when you own none, a loan, or fist-safe ways to
-  earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above). (blocked: needs a design
-  decision on which floor; with the bot fix below that bot still ends a 5000-tick run broke, bare-fisted, level 1.)
+  earn (caches already pay). Found as one simulator bot's 34-death spiral on seed 1 (see above). Decided 2026-11-02:
+  a non-combat way to earn, like gathering or odd jobs in town. Split into these, in order:
+  - [ ] Odd jobs: `/town work` in any town pays a small wage for a stretch of ticks spent there, enough to buy the
+    cheapest weapon ($75) in an hour or two, never enough to beat raiding.
+  - [ ] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
@@ -146,7 +154,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Town population: named NPCs that stay in town, give flavor text on `/town status`.
 - [ ] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
   from Kenney's people tiles, if towns feel empty; they'd need to be skipped by `World.attack` and the NPC tick.
-  (blocked: waits on players saying towns feel empty; nothing in the code or the simulators can tell)
+  Decided 2026-11-02: do it now.
 - [x] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
 
 ## Persistence
@@ -157,9 +165,9 @@ existing things to it when an item touches them anyway, not as a sweep.
   (`Items.Ammo.quantity`): both come back full after a restart today.
 - [ ] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
   after a restart. Save `_item_state` per shelf item too if anyone farms it (ponytail note on `Items.Ammo`).
-  (blocked: waits on someone farming it)
+  Decided 2026-11-02: fix it now.
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
-  (blocked: waits on a change that rewrites data; every migration so far adds a column)
+  Decided 2026-11-02: switch now.
 
 ## Discord UX
 
@@ -174,7 +182,8 @@ existing things to it when an item touches them anyway, not as a sweep.
   Discord gives the first followup after a public defer the defer's visibility, whatever `ephemeral` says.
   Try `interaction.delete_original_response()` then an ephemeral followup in `cog_app_command_error`, checked
   against real Discord (the simulator's fake honours `ephemeral` on that followup, so it can't tell).
-  (blocked: needs a live Discord server to check what that followup does; the loop has none)
+  Decided 2026-11-02: build it; the user checks it on the deploy server (a dev server, `deploy/deploy.sh`).
+  Note in the Done line that it is unchecked against real Discord until they do.
 - [x] Decided 2026-10-30, the part that needs no live test: refuse what can be known before the tick (moving into
   water or off the map, `/choose` with no stranger waiting, `/trade` with no trader) privately, before deferring.
   Only refusals that depend on the tick itself stay public.
@@ -200,7 +209,10 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [ ] Chunks are never unloaded (~0.4 MB each, ponytail note in `World.__init__`). Evict chunks with nobody in
   them once a long-running server's memory says so; store sales in them would need saving first.
-  (blocked: waits on the live server's memory; see the Linode box)
+  (blocked: waits on the live server's memory; see the Linode box, ~1 GB RAM, so past ~1,500 chunks. Until
+  the dashboard item below lands, `ssh discordia systemctl status discordia` prints the service's memory.)
+- [ ] The owner dashboard (`/admin`) can't tell when chunk eviction is due: add loaded chunks and the process's
+  memory (`/proc/self/status` VmRSS, stdlib; blank off Linux) as `record_tick` metrics with `CHARTS` entries.
 - [ ] Terrain repeats every ~2560 squares (`pnoise3` period, ponytail note in `World._terrain_at`).
   (blocked: waits on someone noticing; it's ~3.5 hours of /move from the spawn to see one repeat)
 
@@ -213,7 +225,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
 - [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
-  (blocked: waits on players asking for it)
+  Decided 2026-11-02: do it now.
 
 - [x] `Space.closest` returns `sorted(...)[0 : size - 1]`, so the default `size=1` hands back an empty
   list. Nothing calls it; either fix the slice or delete it.
