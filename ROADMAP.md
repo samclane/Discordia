@@ -131,7 +131,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Gathering: something to pick up out in danger-1 wilds without a fight (firewood, scrap) to sell in town.
   - [x] Simulator bots never `/town work`, so the odd-jobs floor moves nothing in `sim_history`. Have a broke,
     bare-fisted bot work shifts until it can buy the cheapest weapon, and check seed 1's spiral bot climbs out.
-- [ ] Stores never restock: what's bought is gone for good. Over 5000 ticks on seed 1 the starting town sells out
+- [x] Stores never restock: what's bought is gone for good. Over 5000 ticks on seed 1 the starting town sells out
   of guns, so a bare-fisted player there has nothing to work toward (9060 of 11025 simulator `work` orders, before
   the bots learned to skip it). Restock sold-out shelves on a timer, like caches (`CACHE_REFILL_TICKS`), from
   `Store.generate_store`; a saved shelf (`traded`) would need the refill time saved too.
@@ -599,3 +599,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-02 Simulator bots work: broke and bare-fisted in a town whose store still has a gun, a bot takes
   `/town work` shifts until it can buy one. Seed 1 over 5000 ticks: no bot past 10 deaths (one had 34) and five
   of six end armed. Found stores never restock (new item): the last bare-fisted bot was in a sold-out town.
+- 2026-11-02 Stores restock: every `STORE_RESTOCK_TICKS` (720, an hour at a 5-second tick) of the world clock,
+  `World.advance` gives each traded store in a loaded town one of every stocked kind it lacks (`Store.restock`).
+  On the global clock, so nothing new is saved and a restart's catch-up restocks too. Seed 1 x 5000 ticks: 30 -> 25
+  deaths, and the bots left bare-fisted at the end are mid-shift, not stuck.

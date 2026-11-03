@@ -48,6 +48,9 @@ DIRECTION_VECTORS: Dict[str | None, Direction] = {
 
 MAX_POPULATION_TOWN = 1000  # Maximum population of a town
 SIDE_DISCOUNT = 0.2  # off for a soldier at their own side's military base store, on at the other side's
+# Every STORE_RESTOCK_TICKS of the world clock (an hour at a 5-second tick) a traded store gets one of every
+# stocked kind it lacks, so a town never runs dry of guns for good. On the clock, not per store: nothing more to save.
+STORE_RESTOCK_TICKS = 720
 
 # Who you meet in every town (Town.residents), and what each might say. Flavor only: they aren't on the map.
 TOWNSFOLK = {
@@ -1279,6 +1282,10 @@ class World:
         a load moves it however many ticks the server was down for, so a restart doesn't eat idle income."""
         paydays = (self.ticks + ticks) // Actors.HIDEOUT_PAY_TICKS - self.ticks // Actors.HIDEOUT_PAY_TICKS
         heals = (self.ticks + ticks) // Actors.CAMP_HEAL_TICKS - self.ticks // Actors.CAMP_HEAL_TICKS
+        if (self.ticks + ticks) // STORE_RESTOCK_TICKS > self.ticks // STORE_RESTOCK_TICKS:
+            for town in self.towns:
+                if town.store.traded:  # an untouched store is still as generated
+                    town.store.restock()
         start, self.ticks = self.ticks, self.ticks + ticks
         for p in self.players:
             p.stash_currency += p.hideout_income * paydays
@@ -1435,6 +1442,11 @@ class Store:
             if isinstance(item, Equipment) and random.random() > 0.2:
                 inventory.append(item)
         return cls(inventory)
+
+    def restock(self):
+        """Put one of every stocked kind the shelf has run out of back on it."""
+        have = {type(item) for item in self.inventory}
+        self.inventory += [cls() for cls in Data.stocked() if cls not in have]
 
     def get_price(self, item: Equipment, buyer: Actors.PlayerCharacter | None = None) -> int:
         """What `item` costs `buyer`: a soldier (only a base's recruit gives you a side) pays SIDE_DISCOUNT less at

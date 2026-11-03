@@ -2306,3 +2306,16 @@ def test_gathering_turns_up_firewood_on_quiet_ground_to_sell_in_town(adapter):
     rough.level = Actors.GATHER_MAX_DANGER + 1
     with pytest.raises(ValueError, match="Too rough"):
         adapter.gather(player)
+
+
+def test_a_sold_out_store_restocks_on_the_hour(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    store, player.currency = world.starting_town.store, 10**6
+    hammers = lambda: [i for i in store.inventory if isinstance(i, Weapons.Hammer)]
+    store.inventory.append(Weapons.Hammer())  # whatever the roll stocked, there's one to sell out
+    while hammers():
+        assert store.sell_item(store.inventory.index(hammers()[0]), player)
+    world.advance(GameSpace.STORE_RESTOCK_TICKS - world.ticks % GameSpace.STORE_RESTOCK_TICKS - 1)
+    assert not hammers(), "not before the hour"
+    world.advance(1)
+    assert len(hammers()) == 1 and {type(i) for i in store.inventory} >= set(Data.stocked())
