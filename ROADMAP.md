@@ -285,6 +285,29 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] `test_webapp.py::test_server_admins_pick_the_channels_on_the_settings_page` failed once in a full run on
   2026-11-03 and passed in the next five (alone and full). A flaky test: find what it races on if it recurs.
 
+## Libraries
+
+Hand-rolled parts an existing library already does. Researched 2026-11-03; in this order.
+
+- [ ] Web server on `aiohttp.web` (installed already, discord.py depends on it) instead of `http.server` threads.
+  Requests then run on the bot loop: `place_order`/`order_threadsafe`'s `run_coroutine_threadsafe` and the
+  torn-read ponytail in `WebApp.py` go away, and `_Handler`'s `do_GET`/`do_POST` dispatch becomes a route table.
+  Same URLs and responses, so `test_webapp.py` and `test_webclient.py` only change how they start the server.
+  Split per commit if it won't fit one: static pages and JSON first, then `/act` and logins.
+- [ ] Then the SSE item under Rendering is a `web.StreamResponse` on the same loop, not a thread per client.
+- [ ] Replace `noise` (`pnoise3`): unmaintained, no wheels for recent Pythons, so a new server or Python upgrade
+  can't install it. `tcod.noise` (python-tcod, also brings pathfinding) or `vnoise` (pure numpy, same Perlin).
+  A world is regenerated from its seed, so a new noise re-rolls every saved map: keep `pnoise3` output for old
+  saves (a `WorldGenerationParameters` field picking the generator, default old) or ask the user before a wipe.
+  Fixes the ~2560-square repeat under Rendering too if the new one doesn't wrap at 256.
+- [ ] Web map on Leaflet (`L.CRS.Simple`, a `GridLayer` whose `createTile` loads the chunk PNGs, actors as
+  markers) instead of `client.js`'s own pan/zoom/tiles. One script tag, no build step. Its tile unloading
+  (`keepBuffer`) clears the ~4000-chunk `<img>` ceiling in `DesktopApp.py`. `test_webclient.py`'s `page.js`
+  checks need rewriting against Leaflet's DOM.
+- [ ] NPC chase via `tcod.path` (Dijkstra map toward the player) instead of greedy steps (ponytail in
+  `NPC.step`), so a coastline doesn't stop them cold; `astar` can go too if `AStarPathfinder` moves over. Only
+  after the noise item brings tcod in, and only if stuck NPCs show up in play or the simulator.
+
 ## Done
 
 - 2026-10-31 Bots wear found armor: out of a fight, a simulator bot spends its order putting on backpack armor worth
