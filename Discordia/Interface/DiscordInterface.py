@@ -483,6 +483,15 @@ class DiscordInterface(commands.Cog):
             )
             msg = "Something went wrong on the server."
         LOG.warning(f"{interaction.user.display_name}: {type(error).__name__}")
+        if interaction.response.type is discord.InteractionResponseType.deferred_channel_message:
+            # The first followup after a public defer fills in its "thinking..." and so shows to everyone,
+            # ephemeral or not. An error lands before any followup, so the placeholder is all there is: drop it,
+            # and the refusal goes out as a message of its own.
+            # ponytail: unchecked against real Discord (ROADMAP); the fakes honour ephemeral either way.
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException as exc:
+                LOG.info("Could not delete the deferred /%s: %s", interaction.command, exc)
         await _send(interaction, msg, ephemeral=True)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:

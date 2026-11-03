@@ -23,6 +23,7 @@ from Discordia.Interface.WorldAdapter import (
     NotSpawnedException,
     GuildSettings,
     WorldAdapter,
+    error_text,
 )
 
 EXPECTED = {
@@ -574,10 +575,14 @@ class Replies:
     def __init__(self):
         self.deferred = False
         self.sent = []
-        self.ephemeral = []  # per send_message: what a followup's visibility depends on is the defer instead
+        self.ephemeral = []  # as asked for: on Discord, the first followup after a public defer is public anyway
 
     def is_done(self):
         return self.deferred
+
+    @property
+    def type(self):
+        return discord.InteractionResponseType.deferred_channel_message if self.deferred else None
 
     async def defer(self):
         self.deferred = True
@@ -586,8 +591,12 @@ class Replies:
         self.sent.append(content)
         self.ephemeral.append(ephemeral)
 
-    async def send(self, content, **kwargs):  # the followup, once deferred
+    async def send(self, content, ephemeral=False, **kwargs):  # the followup, once deferred
         self.sent.append(content)
+        self.ephemeral.append(ephemeral)
+
+    async def delete_original_response(self):
+        self.sent.append("<deleted the deferred reply>")
 
 
 def test_a_refusal_known_before_the_tick_is_private_and_never_deferred():
@@ -611,6 +620,22 @@ def test_a_refusal_known_before_the_tick_is_private_and_never_deferred():
         replies = run(name, choice)
         assert not replies.deferred, f"/{name} deferred before refusing"
         assert replies.ephemeral == [True], f"/{name} refused in public"
+
+
+def test_a_refusal_after_a_public_defer_drops_the_placeholder_first():
+    """The first followup after a public defer takes the defer's visibility, so the refusal is sent as a new
+    message once the "thinking..." placeholder is gone."""
+    interface = loaded_cog(WorldAdapter(GameSpace.World("Late", 40, 40, seed=0)))
+    replies = Replies()
+    asyncio.run(replies.defer())
+    interaction = SimpleNamespace(
+        command="attack", user=SimpleNamespace(display_name="Walker"), response=replies, followup=replies,
+        delete_original_response=replies.delete_original_response,
+    )
+    error = SimpleNamespace(original=InvalidSpaceException())
+    asyncio.run(interface.cog_app_command_error(cast(Any, interaction), cast(Any, error)))
+    assert replies.sent == ["<deleted the deferred reply>", error_text(InvalidSpaceException())]
+    assert replies.ephemeral == [True]
 
 
 def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():

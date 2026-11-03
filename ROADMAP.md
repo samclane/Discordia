@@ -203,7 +203,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Nothing ever shows a player their money: `/equipment` lists gear only, and the store prints prices without a balance. Add currency to `/equipment`.
 - [x] `/help` command generated from the Cog's command descriptions.
 - [x] Ephemeral errors everywhere (`_send(..., ephemeral=True)` is inconsistent).
-- [ ] Refusals from deferred commands (`/move`, `/attack`, `/choose`, `/look`) still show to the whole channel:
+- [x] Refusals from deferred commands (`/move`, `/attack`, `/choose`, `/look`) still show to the whole channel:
   Discord gives the first followup after a public defer the defer's visibility, whatever `ephemeral` says.
   Try `interaction.delete_original_response()` then an ephemeral followup in `cog_app_command_error`, checked
   against real Discord (the simulator's fake honours `ephemeral` on that followup, so it can't tell).
@@ -636,3 +636,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-03 Numbered schema migrations: `Database.MIGRATIONS[n]` takes a file at `PRAGMA user_version` n to n + 1,
   each step in one transaction with its version bump; step 1 is the old column-presence check, for files from
   before. A new file starts at the last version. CLAUDE.md says where a schema change goes.
+- 2026-11-03 Refusals after a public defer: `cog_app_command_error` deletes the deferred "thinking..." reply
+  (`delete_original_response`) before sending the refusal as an ephemeral followup, so a tick-time refusal on
+  `/move`, `/attack`, `/choose` or `/look` should stop showing to the whole channel. Unchecked against real
+  Discord until the user tries it on the deploy server (the fakes honour `ephemeral` either way).

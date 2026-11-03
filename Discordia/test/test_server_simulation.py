@@ -201,6 +201,7 @@ class Interaction:
         self.deferred = False
         self.messages = 0
         self.response = SimpleNamespace(is_done=lambda: self.acknowledged, send_message=self._respond, defer=self._defer)
+        self.response.type = None
         self.followup = SimpleNamespace(send=self._followup)
 
     def _sent(self, where: str, content: str, ephemeral: bool, files=()):
@@ -221,6 +222,12 @@ class Interaction:
         if self.acknowledged:
             raise discord.InteractionResponded(self)  # type: ignore[arg-type]
         self.acknowledged = self.deferred = True
+        self.response.type = discord.InteractionResponseType.deferred_channel_message
+
+    async def delete_original_response(self):
+        # ponytail: a no-op here, as the followup that comes next honours `ephemeral` either way. Real Discord
+        # makes the first followup after a public defer public unless this ran first.
+        pass
 
     async def _followup(self, content: str, ephemeral: bool = False, files=(), **_):
         if not self.acknowledged:
