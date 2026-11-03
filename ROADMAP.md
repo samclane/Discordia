@@ -143,10 +143,17 @@ existing things to it when an item touches them anyway, not as a sweep.
   e78aadb earned $0, 0 XP and 1.7 deaths; working at a166029 earns $47 and no deaths. The wage is not too low. Worth
   is cash only, and a bot that works its way to a gun spends the cash on it; working bots also skip the step
   draws, reshuffling the rest of the run. Left as is.
-- [ ] Since 3dc3036 (stores restock) deaths rose 9.4 -> 10.1 a seed and mean level fell 1.9 -> 1.77 (10 seeds x
+- [x] Since 3dc3036 (stores restock) deaths rose 9.4 -> 10.1 a seed and mean level fell 1.9 -> 1.77 (10 seeds x
   2000 ticks); class shares moved too (raiders 0.25 -> 0.3). Building restocked items draws from `random` (armor
   rolls its coverage), so every run reshuffles after tick 720; re-armed bots also raid more. Compare deaths by
   danger on 10 seeds x 5000 ticks against a166029 before tuning anything.
+  Checked 2026-11-02, 10 seeds x 5000 ticks, a166029 vs 1e1b531: deaths 16.3 vs 16.5 a seed with the same split by
+  danger (mostly 3-4), and deaths bare-fisted 14 -> 0. But mean level 3.25 -> 2.38 across 8 of 10 seeds: bots buy
+  the cheapest gun, and a restocked shelf always has the Stechkin (4 dmg) back, so mean damage held fell 11.06 ->
+  8.56. A bot habit, not a game problem: see the next line.
+- [ ] Simulator bots buy the cheapest gun a store has (`Bot.order`, `_cheapest(town, Weapons.Weapon)`), and since
+  stores restock (3dc3036) that's always the 4-damage Stechkin, so `sim_history` levels sank. Have a bot buy the
+  most damaging gun it can afford (with its ammo, keeping walking-around money), as a player would.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
@@ -613,3 +620,5 @@ existing things to it when an item touches them anyway, not as a sweep.
   deaths, and the bots left bare-fisted at the end are mid-shift, not stuck.
 - 2026-11-02 Checked the work wage: bare-fisted, a bot earned $0 an hour fist-raiding (1.7 deaths an hour) and
   earns $47 working (none). The floor beats the old way out; the worth drop was cash turned into guns. No change.
+- 2026-11-02 Checked the restock death rise on 10 seeds x 5000 ticks: deaths unchanged (16.3 vs 16.5 a seed), none
+  bare-fisted any more; the level drop is bots buying the always-restocked cheapest gun (new item).
