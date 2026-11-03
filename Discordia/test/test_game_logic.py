@@ -269,13 +269,14 @@ def test_changing_class_resets_the_health_pool():
     )
 
 
-def test_unequipping_a_weapon_leaves_the_character_bare_handed():
+def test_unequipping_a_weapon_leaves_the_character_their_fists():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
-    assert character.has_weapon_equipped
-    assert character.weapon is not None
-    character.unequip(character.weapon)
-    assert character.weapon is None
-    assert not character.has_weapon_equipped
+    rifle = Weapons.Jezail()
+    character.equip(rifle)
+    character.unequip(rifle)
+    assert isinstance(character.weapon, Weapons.Fist), "an empty hand punches, like a new character's"
+    character.unequip(character.weapon)  # and you can't take your fists off
+    assert isinstance(character.weapon, Weapons.Fist)
 
 
 def test_equipping_reports_itself_to_the_item():
@@ -451,7 +452,7 @@ def test_selling_what_you_hold_takes_it_out_of_your_hands():
     character.inventory.append(rifle)
     character.equip(rifle)
     Store([]).buy_item(rifle, character)
-    assert character.weapon is None and not rifle.is_equipped  # bare-handed, as /inventory unequip leaves you
+    assert isinstance(character.weapon, Weapons.Fist) and not rifle.is_equipped
 
 
 # --- Wilds and events -------------------------------------------------------------------------------
@@ -887,9 +888,7 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     enemy = Actors.NPC(None, 5, "Mook")
     event = Events.CombatEvent(1.0, "<test>", [enemy])
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
-    assert character.has_weapon_equipped
-    assert character.weapon is not None
-    character.unequip(character.weapon)
+    character.equipment_set.unequip(character.weapon)  # nothing that can hit in hand: unequip would give fists
 
     responses = list(event.run(character))
     assert not enemy.is_dead
@@ -1059,7 +1058,7 @@ def test_walking_into_impassable_terrain_raises(adapter):
 
 def test_attacking_bare_handed_raises(adapter):
     player = adapter.get_player(1)
-    player.unequip(player.weapon)
+    player.equipment_set.unequip(player.weapon)  # nothing that can hit in hand: unequip would give fists
     with pytest.raises(NoWeaponEquippedException):
         adapter.attack(player, None)
 

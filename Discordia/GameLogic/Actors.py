@@ -713,6 +713,8 @@ class PlayerCharacter(Actor):
     def unequip(self, equipment: Equipment):
         self.equipment_set.unequip(equipment)
         equipment.on_unequip(self)
+        if self.weapon is None:  # an empty hand is a fist, as at birth and after a death (decided 2026-11-03)
+            self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
 
     def loot(self, corpse: NPC, response: GameSpace.PlayerActionResponse) -> str:
         """Claim a kill: the corpse's kit, its money, and the experience for it, recorded on `response`.

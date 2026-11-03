@@ -94,7 +94,8 @@ the bot syncs them.
     * `/inventory equip` [`index`]
         * Have your PC equip the item from your inventory with the specified index. 
     * `/inventory unequip` [`index`]
-        * Remove the item from your equipment and put it back into your inventory.
+        * Remove the item from your equipment and put it back into your inventory. Put a weapon away (or sell it)
+          and you fight with your fists.
     * `/inventory pouch` [`index`]
         * Move that item into your secure pouch (one slot, anywhere), which a death leaves on you. Whatever
           was in it goes back to the backpack; no index just empties it.

@@ -266,7 +266,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   (`Cache.run_event`), so give them a small extra pool of `"store": false` gear, salvage aside.
 - [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
-- [ ] Unequipping your weapon (and now selling it) leaves `PlayerCharacter.weapon` None, so `/attack` and fights
+- [x] Unequipping your weapon (and now selling it) leaves `PlayerCharacter.weapon` None, so `/attack` and fights
   refuse with "no weapon equipped" until you equip something, while an empty gun falls back to fists
   (`ready_weapon`). Tests pin the None (`test_unequipping_a_weapon_leaves_the_character_bare_handed`). Decide
   whether an empty hand should be fists, as at birth and after a death.
@@ -652,3 +652,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   discount, through `Store.buy_item`), sharing `_sell` with `/town store sell`. Selling something you hold or
   wear now takes it out of your hands: it used to stay equipped, so you kept firing a gun the store could
   sell back to you. The server simulator's members try `/trade sell` too.
+- 2026-11-03 Empty hands are fists (decided 2026-11-03): `PlayerCharacter.unequip` puts a fist back when the main
+  hand is left without a weapon, so unequipping or selling your gun leaves you punching, as at birth and after a
+  death, instead of "You have no weapon equipped!". The no-weapon guards stay for a non-weapon in hand; their
+  tests now empty the hand through the raw equipment set.
