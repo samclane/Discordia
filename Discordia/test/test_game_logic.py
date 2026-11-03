@@ -42,6 +42,7 @@ from Discordia.Interface.WorldAdapter import (
     attack_text,
     CombatException,
     InvalidSpaceException,
+    move_text,
     NoEncounterException,
     NoMerchantException,
     NoWeaponEquippedException,
@@ -2362,6 +2363,26 @@ def test_a_goat_says_once_when_it_goes_hungry(adapter):
     assert len(beeps()) == 1, "every time it goes hungry"
 
 
+def test_a_fed_dog_fetches_salvage_on_a_quiet_step_and_a_hungry_one_stays_home(adapter, monkeypatch):
+    world, player = adapter.world, adapter.get_player(1)
+    monkeypatch.setattr(Actors, "PET_FETCH_CHANCE", 1)
+    player.adopt_pet("Rex", world.ticks, "dog")
+    here = next(w for w in world.wilds if isinstance(world.space_at(w.x + 1, w.y), GameSpace.Wilds))
+    there = world.space_at(here.x + 1, here.y)
+    here.quiet_until = there.quiet_until = world.ticks + 10**6  # nothing happens on either: quiet steps
+
+    def step(shift):
+        before = len([i for i in player.inventory if isinstance(i, Items.Salvage)])
+        text = move_text(player.attempt_move(shift), "east")
+        return len([i for i in player.inventory if isinstance(i, Items.Salvage)]) - before, text
+
+    player.location = here
+    assert step((1, 0)) == (1, "Rex trots back with a piece of salvage.")
+    world.advance(Actors.PET_FEED_TICKS)
+    assert step((-1, 0)) == (0, "You move east.") and "stays home" in adapter.pet_text(player)
+    assert not any(isinstance(item, Items.GoatMilk) for item in player.stash), "a dog gives no milk"
+
+
 def test_one_goat_each_and_it_has_to_be_paid_for():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     with pytest.raises(ValueError, match="pet adopt"):
@@ -2382,14 +2403,14 @@ def test_a_goat_fed_on_time_gives_twice_the_milk_until_it_goes_hungry(adapter):
     for _ in range(Actors.PET_CARE_MAX):  # each one just before the last meal runs out
         world.advance(Actors.PET_FEED_TICKS - 1)
         player.feed_pet(world.ticks)
-    assert player.pet_jugs == 2 and "happy goat" in adapter.pet_text(player)
+    assert player.pet_yield == 2 and "happy goat" in adapter.pet_text(player)
     before = len(player.stash)
     world.advance(Actors.PET_MILK_TICKS)
     assert len(player.stash) - before == 2
 
     world.advance(Actors.PET_FEED_TICKS)  # hungry now: the next meal starts the count over
     player.feed_pet(world.ticks)
-    assert player.pet_care == 0 and player.pet_jugs == 1
+    assert player.pet_care == 0 and player.pet_yield == 1
 
 
 def test_a_goat_left_hungry_for_days_wanders_off(adapter):

@@ -78,7 +78,9 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Neglect and care: a goat left hungry for days wanders off; one fed on time gives more. The tamagotchi part.
   - [x] A hungry goat says nothing until you ask `/pet status`. A DM when it goes hungry (once, like a fight's
     first hit) would be the tamagotchi's beep, and the reason to check in.
-  - [ ] A dog that comes on raids: fetches (a chance of salvage on a quiet step) or bites what you fight.
+  - [x] A dog that comes on raids, first half: fetches (a chance of salvage on a quiet step). One pet each, goat or
+    dog (`/pet adopt kind:`), fed and cared for the same way.
+  - [ ] The dog's second half: bites what you fight (a little damage on your turn in a fight while it's fed).
   - [ ] More kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
 
 ## Gameplay loop (make it a game)
@@ -706,3 +708,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-03 Hungry goat DM: `World.tick` returns an event on the tick a goat's last meal runs out
   (`pet_fed_until == ticks`), so the cog DMs "Bibi is hungry..." once per hunger. One that goes hungry during
   downtime stays quiet (ponytail note).
+- 2026-11-03 Dog fetches: `/pet adopt kind:dog` buys a dog instead of a goat (`pet_kind`, saved, migration step 4;
+  one pet each). It gives no milk; fed, a quiet step in the wilds has `PET_FETCH_CHANCE` (2%, doubled when cared
+  for) of salvage into the backpack, on auto-raids too. Hungry beep and `/pet status` say which. `pet_jugs` is
+  `pet_yield` now. Biting split off as its own item.

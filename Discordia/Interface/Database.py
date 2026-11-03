@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS character (
     extractions     INTEGER NOT NULL DEFAULT 0,
     achievements    TEXT    NOT NULL DEFAULT '[]',  -- JSON list of Actors.ACHIEVEMENTS keys earned
     best_haul       INTEGER NOT NULL DEFAULT 0,
-    pet_name        TEXT,  -- PlayerCharacter.pet_name: their goat's, or NULL
+    pet_name        TEXT,  -- PlayerCharacter.pet_name: their pet's, or NULL
+    pet_kind        TEXT    NOT NULL DEFAULT 'goat',  -- one of Actors.PET_KINDS
     pet_fed_until   INTEGER NOT NULL DEFAULT 0,  -- the World.ticks it's fed until
     pet_care        INTEGER NOT NULL DEFAULT 0,  -- and the on-time feeds running
     x               INTEGER NOT NULL,
@@ -196,6 +197,7 @@ MIGRATIONS = [
     _add_missing_columns,
     _add_pets,
     lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_care INTEGER NOT NULL DEFAULT 0"),
+    lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_kind TEXT NOT NULL DEFAULT 'goat'"),
 ]
 
 
@@ -294,7 +296,7 @@ class Database:
         character.achievements = set(json.loads(row["achievements"]))
         character.best_haul = row["best_haul"]
         character.pet_name, character.pet_fed_until = row["pet_name"], row["pet_fed_until"]  # milks for the downtime
-        character.pet_care = row["pet_care"]
+        character.pet_care, character.pet_kind = row["pet_care"], row["pet_kind"]
         if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
             character.auto_raid = (row["raid_home_at"], character.deaths, row["raid_depth"])
 
@@ -374,7 +376,7 @@ class Database:
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
             " currency, experience, stash_currency, hideout_level, prestige, side, raid_home_at, raid_depth, camping,"
             " kills, extractions, achievements, best_haul, work_until, pet_name, pet_fed_until, pet_care,"
-            " x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " pet_kind, x, y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -397,6 +399,7 @@ class Database:
                 character.pet_name,
                 character.pet_fed_until,
                 character.pet_care,
+                character.pet_kind,
                 character.location.x,
                 character.location.y,
             ),

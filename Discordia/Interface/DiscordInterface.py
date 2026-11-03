@@ -230,7 +230,7 @@ class DiscordInterface(commands.Cog):
         name="stash", description="Bank items and money in town, safe from whatever kills you out there"
     )
     hideout = app_commands.Group(name="hideout", description="Build up a hideout that earns while you're away")
-    pet = app_commands.Group(name="pet", description="Keep a goat at home that gives milk while it's fed")
+    pet = app_commands.Group(name="pet", description="Keep a goat that gives milk or a dog that fetches, while it's fed")
 
     def __init__(
         self,
@@ -806,11 +806,16 @@ class DiscordInterface(commands.Cog):
     @pet.command(name="adopt")
     @requires_character()
     @requires_space(GameSpace.Town)
-    async def pet_adopt(self, interaction: discord.Interaction, name: Optional[app_commands.Range[str, 1, 32]] = None):
-        """Buy a goat to keep at home (name it, or it comes with one): fed, it gives milk into your stash"""
+    async def pet_adopt(
+        self,
+        interaction: discord.Interaction,
+        name: Optional[app_commands.Range[str, 1, 32]] = None,
+        kind: Literal["goat", "dog"] = "goat",
+    ):
+        """Buy a pet: fed, a goat gives milk into your stash and a dog fetches salvage on raids"""
         character = self._player(interaction)
         try:
-            character.adopt_pet(name, self.world_adapter.world.ticks)
+            character.adopt_pet(name, self.world_adapter.world.ticks, kind)
         except ValueError as exc:
             await _send(interaction, str(exc), ephemeral=True)
             return
@@ -820,7 +825,7 @@ class DiscordInterface(commands.Cog):
     @requires_character()
     @requires_space(GameSpace.Town)
     async def pet_feed(self, interaction: discord.Interaction):
-        """Feed your goat for the next half a day (feeding early wastes what's left of the last meal)"""
+        """Feed your pet for the next half a day (feeding early wastes what's left of the last meal)"""
         character = self._player(interaction)
         try:
             character.feed_pet(self.world_adapter.world.ticks)
@@ -832,7 +837,7 @@ class DiscordInterface(commands.Cog):
     @pet.command(name="status")
     @requires_character()
     async def pet_status(self, interaction: discord.Interaction):
-        """How your goat is doing, from anywhere"""
+        """How your pet is doing, from anywhere"""
         await _send(interaction, self.world_adapter.pet_text(self._player(interaction)))
 
     async def _stash_move(self, interaction: discord.Interaction, move, item, money):

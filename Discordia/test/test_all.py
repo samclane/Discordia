@@ -225,6 +225,7 @@ class TestGeneral(unittest.TestCase):
         player = self.adapter.get_player(0)
         player.player_class = Actors.RaiderClass()
         player.pet_name, player.pet_fed_until, player.pet_care = "Bibi", self.world.ticks + 100, 2
+        player.pet_kind = "dog"
         player.currency = 4321
         player.gain_experience(250)
         player.hit_points -= 7
@@ -296,6 +297,7 @@ class TestGeneral(unittest.TestCase):
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
         self.assertEqual((restored.pet_name, restored.pet_fed_until, restored.pet_care), ("Bibi", player.pet_fed_until, 2))
+        self.assertEqual(restored.pet_kind, "dog")
         self.assertEqual(restored.currency, player.currency)
         self.assertEqual(restored.experience, player.experience)
         self.assertEqual(restored.level, player.level)
@@ -354,6 +356,7 @@ class TestGeneral(unittest.TestCase):
         connection.execute("ALTER TABLE character DROP COLUMN pet_name")
         connection.execute("ALTER TABLE character DROP COLUMN pet_fed_until")
         connection.execute("ALTER TABLE character DROP COLUMN pet_care")
+        connection.execute("ALTER TABLE character DROP COLUMN pet_kind")
         connection.execute("PRAGMA user_version = 0")  # an older build never numbered its files
         connection.commit()
         connection.close()
@@ -372,6 +375,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual((adapter.get_player(0).hideout_level, adapter.get_player(0).prestige), (0, 0))
         self.assertIsNone(adapter.get_player(0).side)
         self.assertIsNone(adapter.get_player(0).pet_name)
+        self.assertEqual(adapter.get_player(0).pet_kind, "goat")
 
     def test_a_new_save_file_starts_at_the_latest_schema_version(self):
         database = Database(Path(self.temp_dir.name) / "new.db")

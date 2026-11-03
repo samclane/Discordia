@@ -53,6 +53,11 @@ PET_MILK_TICKS = 720
 # over. Hungry for PET_RUNAWAY_TICKS (three days), it wanders off for good. The tamagotchi part: check in on time.
 PET_CARE_MAX = 3
 PET_RUNAWAY_TICKS = 51840
+# Or a dog (/pet adopt kind:dog), fed and looked after the same way, that gives no milk but comes on raids: on a
+# quiet step in the wilds it brings back an Items.Salvage one time in 1 / PET_FETCH_CHANCE (twice as often once it's
+# been looked after). At ~50 quiet steps a raid that's a piece a raid ($50, or a hideout barter level's worth).
+PET_KINDS = ("goat", "dog")
+PET_FETCH_CHANCE = 0.02
 
 
 class BodySize(Enum):
@@ -551,8 +556,10 @@ class PlayerCharacter(Actor):
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
         self.stash: Inventory = Inventory()
         self.stash_currency: int = 0
-        # Your goat's name, or None: kept at home, it gives milk into the stash until the World.ticks it's fed until.
+        # Your pet's name, or None: a goat gives milk into the stash until the World.ticks it's fed until, a dog
+        # fetches on raids till then. One pet each, of PET_KINDS.
         self.pet_name: str | None = None
+        self.pet_kind: str = "goat"
         self.pet_fed_until: int = 0
         self.pet_care: int = 0  # on-time feeds running, up to PET_CARE_MAX
         # Levels of hideout, which earn into the stash every so many ticks whether you're playing or not.
@@ -611,6 +618,9 @@ class PlayerCharacter(Actor):
             self.raid_deepest = max(self.raid_deepest, self.parent_world.danger_at(self.location))
         if (found := self.parent_world.pick_up_remains(self)) is not None:
             responses.append(found)
+        quiet = isinstance(self.location, GameSpace.Wilds) and not any(r.text for r in responses)
+        if self.pet_name is not None and quiet and (fetched := self._fetch()) is not None:
+            responses.append(fetched)
         # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
         if was_out and isinstance(self.location, GameSpace.Town) and self.raid_start is not None:
             responses.append(GameSpace.PlayerActionResponse(is_successful=True, source=self, text=self.extract()))
@@ -855,21 +865,23 @@ class PlayerCharacter(Actor):
             f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not."
         )
 
-    def adopt_pet(self, name: str | None, now: int):
-        """Buy a goat, named `name` or whatever the seller called it, fed for its first PET_FEED_TICKS from `now`
-        (World.ticks). Callers check the player is in a town. Raises ValueError if you keep one already or can't
-        pay."""
+    def adopt_pet(self, name: str | None, now: int, kind: str = "goat"):
+        """Buy a pet of PET_KINDS, named `name` or whatever the seller called it, fed for its first PET_FEED_TICKS
+        from `now` (World.ticks). Callers check the player is in a town. Raises ValueError if you keep one already
+        or can't pay."""
+        if kind not in PET_KINDS:
+            raise ValueError(f"Nobody sells a {kind}: {' or '.join(PET_KINDS)}.")
         if self.pet_name is not None and not self.pet_gone(now):
             raise ValueError(f"You keep {self.pet_name} already.")
-        self._pay(PET_PRICE, "A goat")
+        self._pay(PET_PRICE, f"A {kind}")
         name = name or random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name()
-        self.pet_name, self.pet_fed_until, self.pet_care = name, now + PET_FEED_TICKS, 0
+        self.pet_name, self.pet_kind, self.pet_fed_until, self.pet_care = name, kind, now + PET_FEED_TICKS, 0
 
     def feed_pet(self, now: int):
         """Fodder for PET_FEED_TICKS from `now`: a meal doesn't keep, so feeding early wastes what's left of the last.
         Callers check the player is in a town. Raises ValueError with no pet or no money."""
         if self.pet_name is None:
-            raise ValueError("You don't keep a pet. `/pet adopt` in any town buys a goat.")
+            raise ValueError("You don't keep a pet. `/pet adopt` in any town buys a goat or a dog.")
         if self.pet_gone(now):
             raise ValueError(f"{self.pet_name} got tired of waiting and wandered off. `/pet adopt` another in any town.")
         self._pay(PET_FEED_COST, f"Fodder for {self.pet_name}")
@@ -877,13 +889,26 @@ class PlayerCharacter(Actor):
         self.pet_fed_until = now + PET_FEED_TICKS
 
     def pet_gone(self, now: int) -> bool:
-        """Whether your goat has wandered off, hungry for PET_RUNAWAY_TICKS by `now`. Worked out, not stored."""
+        """Whether your pet has wandered off, hungry for PET_RUNAWAY_TICKS by `now`. Worked out, not stored."""
         return self.pet_name is not None and now >= self.pet_fed_until + PET_RUNAWAY_TICKS
 
     @property
-    def pet_jugs(self) -> int:
-        """Jugs of milk a fed goat gives each PET_MILK_TICKS: twice as many once it's been looked after."""
+    def pet_yield(self) -> int:
+        """Jugs of milk a fed goat gives each PET_MILK_TICKS, or times a dog's PET_FETCH_CHANCE: twice as many once
+        it's been looked after."""
         return 2 if self.pet_care >= PET_CARE_MAX else 1
+
+    def _fetch(self) -> GameSpace.PlayerActionResponse | None:
+        """A fed dog's chance of bringing back salvage, on a quiet step in the wilds."""
+        if self.pet_kind != "dog" or self.pet_fed_until <= self.parent_world.ticks:
+            return None  # a hungry dog stays home
+        if random.random() >= PET_FETCH_CHANCE * self.pet_yield:
+            return None
+        salvage = Items.Salvage()
+        self.inventory.append(salvage)
+        return GameSpace.PlayerActionResponse(
+            is_successful=True, source=self, items=[salvage], text=f"{self.pet_name} trots back with a piece of salvage."
+        )
 
     def _pay(self, money: int, what: str):
         """Take `money` from what's carried first and the stash after; ValueError naming `what` if it's short."""

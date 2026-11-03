@@ -279,11 +279,11 @@ class WorldAdapter:
         return text
 
     def pet_text(self, character: Actors.PlayerCharacter) -> str:
-        """How your goat is, from Discord or the web alike."""
+        """How your pet is, from Discord or the web alike."""
         if character.pet_name is None:
             return (
-                f"You don't keep a pet. `/pet adopt` in any town buys a goat for ${Actors.PET_PRICE}: fed, it gives"
-                " milk into your stash while you're away."
+                f"You don't keep a pet. `/pet adopt` in any town buys one for ${Actors.PET_PRICE}: fed, a goat gives"
+                " milk into your stash while you're away, and a dog comes on raids and fetches salvage."
             )
         name, now = character.pet_name, self.world.ticks
         if character.pet_gone(now):
@@ -292,19 +292,23 @@ class WorldAdapter:
         if left <= 0:
             days = math.ceil((left + Actors.PET_RUNAWAY_TICKS * self.tick_seconds) / 86400)
             return (
-                f"{name} is hungry and gives nothing, and wanders off within {days} day{'s' * (days > 1)} if nobody"
-                f" feeds it. `/pet feed` in any town, for ${Actors.PET_FEED_COST}."
+                f"{name} is hungry and {'gives nothing' if character.pet_kind == 'goat' else 'stays home'}, and"
+                f" wanders off within {days} day{'s' * (days > 1)} if nobody feeds it. `/pet feed` in any town, for"
+                f" ${Actors.PET_FEED_COST}."
             )
-        every = round(Actors.PET_MILK_TICKS * self.tick_seconds / 60)
-        jugs = "two jugs" if character.pet_jugs > 1 else "a jug"
-        text = (
-            f"{name} is fed for another {math.ceil(left / 3600)} hours or so, and gives {jugs} of milk into your"
-            f" stash every {every} minutes."
-        )
-        if character.pet_jugs > 1:
-            return text + " It's a happy goat: keep feeding it on time."
+        text = f"{name} is fed for another {math.ceil(left / 3600)} hours or so, and "
+        if character.pet_kind == "goat":
+            every = round(Actors.PET_MILK_TICKS * self.tick_seconds / 60)
+            jugs = "two jugs" if character.pet_yield > 1 else "a jug"
+            text += f"gives {jugs} of milk into your stash every {every} minutes."
+        else:
+            often = "now and then" if character.pet_yield > 1 else "once in a while"
+            text += f"comes on your raids: it brings back salvage {often} when nothing else is going on."
+        if character.pet_yield > 1:
+            return text + f" It's a happy {character.pet_kind}: keep feeding it on time."
         more = Actors.PET_CARE_MAX - character.pet_care
-        return text + f" Feed it before it's hungry {more} more time{'s' * (more > 1)} running and it gives twice that."
+        twice = "gives twice that" if character.pet_kind == "goat" else "fetches twice as often"
+        return text + f" Feed it before it's hungry {more} more time{'s' * (more > 1)} running and it {twice}."
 
     @property
     def width(self):

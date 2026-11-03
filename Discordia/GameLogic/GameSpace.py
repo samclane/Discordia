@@ -1298,10 +1298,10 @@ class World:
                     p.inventory.extend(Items.Firewood() for _ in range(end // Actors.GATHER_TICKS - start // Actors.GATHER_TICKS))
                 if self.ticks >= p.work_until:
                     p.work_until = None
-            if p.pet_name is not None:  # a fed goat milks on the clock, downtime included; a hungry one doesn't
+            if p.pet_name is not None and p.pet_kind == "goat":  # milks on the clock, downtime included, while fed
                 end = max(start, min(self.ticks, p.pet_fed_until))
                 milkings = end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS
-                p.stash.extend(Items.GoatMilk() for _ in range(milkings * p.pet_jugs))
+                p.stash.extend(Items.GoatMilk() for _ in range(milkings * p.pet_yield))
 
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
@@ -1317,12 +1317,13 @@ class World:
             # The tamagotchi's beep: once, on the tick its last meal runs out.
             # ponytail: a goat that goes hungry while the server is down (advance at load) never says so.
             if p.pet_name is not None and p.pet_fed_until == self.ticks:
+                stopped = "giving milk" if p.pet_kind == "goat" else "coming on raids"
                 events.append(
                     PlayerActionResponse(
                         is_successful=True,
                         target=p,
                         source=p,
-                        text=f"{p.pet_name} is hungry and has stopped giving milk. `/pet feed` in any town, for"
+                        text=f"{p.pet_name} is hungry and has stopped {stopped}. `/pet feed` in any town, for"
                         f" ${Actors.PET_FEED_COST}.",
                     )
                 )

@@ -176,17 +176,21 @@ the bot syncs them.
     * In any town, from hideout level 15: trade the hideout and everything in your stash in for +10% hideout
       income for good (it stacks). Your level, gear, backpack and pouch stay. Without `confirm` it only tells you
       what you'd lose.
-* `/pet adopt [name]`
-    * In any town: buy a goat ($300) to keep at home, named whatever you like (or it comes with a name). It
-      arrives fed, and while it's fed it puts a jug of goat's milk ($15 in any store) into your stash every hour,
-      whether you're playing or not. One goat each.
+* `/pet adopt [name] [kind]`
+    * In any town: buy a goat or a dog ($300), named whatever you like (or it comes with a name). It arrives fed.
+      One pet each.
+    * A goat stays at home: while it's fed it puts a jug of goat's milk ($15 in any store) into your stash every
+      hour, whether you're playing or not.
+    * A dog comes on your raids: while it's fed, now and then on a step where nothing else happens it brings back
+      a piece of salvage.
 * `/pet feed`
-    * In any town: feed your goat for the next half a day ($20). A hungry goat gives nothing, and a meal doesn't
+    * In any town: feed your pet for the next half a day ($20). A hungry pet does nothing, and a meal doesn't
       keep, so feeding early wastes what's left of the last one. The bot DMs you once when it goes hungry.
-    * Feed it before it goes hungry three times running and it gives two jugs an hour; letting it go hungry starts
+    * Feed it before it goes hungry three times running and a goat gives two jugs an hour, a dog fetches twice as
+      often; letting it go hungry starts
       that over. Left hungry for three days, it wanders off for good, and you can adopt another.
 * `/pet status`
-    * Anywhere: whether your goat is fed and for how long, how close it is to giving double, or how long a hungry
+    * Anywhere: whether your pet is fed and for how long, how close it is to doing double, or how long a hungry
       one has before it wanders off.
             
 # Attributions
