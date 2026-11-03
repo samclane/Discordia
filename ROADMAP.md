@@ -139,6 +139,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   2000 ticks), while deaths fell 9.8 -> 9.4 as meant. A broke bot in town earns $48 an hour working, less than
   bare-fisted danger-1 raids paid it (caches, XP). Decide whether that's the floor working (safe and boring, as
   decided) or `WORK_WAGE` is too low; compare a bot's earnings per hour working vs fist-raiding before tuning.
+- [ ] Since 3dc3036 (stores restock) deaths rose 9.4 -> 10.1 a seed and mean level fell 1.9 -> 1.77 (10 seeds x
+  2000 ticks); class shares moved too (raiders 0.25 -> 0.3). Building restocked items draws from `random` (armor
+  rolls its coverage), so every run reshuffles after tick 720; re-armed bots also raid more. Compare deaths by
+  danger on 10 seeds x 5000 ticks against a166029 before tuning anything.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
   go for caches) until it can afford a weapon, so `sim_history` deaths measure the game, not one bot's spiral.
 - [x] Faction consequences, decided 2026-10-30. Split into these, in order:
