@@ -1112,6 +1112,26 @@ def test_a_melee_swing_hits_your_own_square_first(adapter):
     assert adapter.attack(player, DIRECTION_VECTORS["n"]).target is here
 
 
+def test_a_fed_dog_bites_what_you_fight_on_your_square(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    player.equip(Weapons.Hammer())
+    player.adopt_pet("Rex", world.ticks, "dog")
+    player.location = _beside(world)
+    here, there = Actors.NPC(None, 100, "Here"), Actors.NPC(None, 100, "There")
+    world.add_actor(here, player.location)
+    response = world.attack(player)
+    assert "Rex bites for 2 of it." in response.text and here.hit_points == 100 - response.damage
+
+    world.add_actor(there, world.space_at(player.location.x, player.location.y - 1))
+    here.location = there.location
+    assert "Rex" not in world.attack(player, DIRECTION_VECTORS["n"]).text, "it stays at your side"
+
+    lines = [r.text for r in Events.CombatEvent(1.0, "<test>", [Actors.NPC(None, 1, "Mook")]).run(player)]
+    assert any("fights Mook" in line and "Rex bites for" in line for line in lines)
+    world.advance(Actors.PET_FEED_TICKS)
+    assert player.pet_bite == 0, "a hungry dog stays home"
+
+
 def test_attacking_an_empty_square_raises(adapter):
     player = adapter.get_player(1)
     with pytest.raises(CombatException):

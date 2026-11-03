@@ -80,7 +80,7 @@ existing things to it when an item touches them anyway, not as a sweep.
     first hit) would be the tamagotchi's beep, and the reason to check in.
   - [x] A dog that comes on raids, first half: fetches (a chance of salvage on a quiet step). One pet each, goat or
     dog (`/pet adopt kind:`), fed and cared for the same way.
-  - [ ] The dog's second half: bites what you fight (a little damage on your turn in a fight while it's fed).
+  - [x] The dog's second half: bites what you fight (a little damage on your turn in a fight while it's fed).
   - [ ] More kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
 
 ## Gameplay loop (make it a game)
@@ -288,6 +288,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   2026-11-03 and passed in the next five (alone and full). A flaky test: find what it races on if it recurs.
 - [ ] `test_webclient.py::test_polls_revalidate_instead_of_redownloading[actors-pollActors]` failed once in a full
   run on 2026-11-03 and passed in the next four. Another flaky one: find what it races on if it recurs.
+- [ ] Two more web tests failed together in one slow (51s, usually ~35s) full run on 2026-11-03 and passed alone and
+  in the next full run: `test_webapp.py::test_web_orders_are_checked_before_they_queue` (failed) and
+  `test_webclient.py::test_selecting_moves_the_highlight_without_rebuilding_the_town_list` (errored). With the two
+  above, the web tests look timing-sensitive under load: look for a shared fixed timeout or sleep first.
 
 ## Libraries
 
@@ -712,3 +716,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   one pet each). It gives no milk; fed, a quiet step in the wilds has `PET_FETCH_CHANCE` (2%, doubled when cared
   for) of salvage into the backpack, on auto-raids too. Hungry beep and `/pet status` say which. `pet_jugs` is
   `pet_yield` now. Biting split off as its own item.
+- 2026-11-03 Dog bites: a fed dog adds `PET_BITE_DAMAGE` (2, 4 when cared for) to each blow you land on your own
+  square, in `/attack` (`World.attack`, not down a line) and in wilds fights (`CombatEvent`); the reply or the
+  fight's summary line says "Rex bites for N of it". `pet_bite`, sharing `_dog_along` with fetching.

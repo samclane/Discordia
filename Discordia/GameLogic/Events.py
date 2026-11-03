@@ -57,7 +57,7 @@ class CombatEvent(Event):
             kill_response = GameSpace.PlayerActionResponse(source=player_character)
             # Each round is still a response with its damage, but untold: a long fistfight is fifty rounds, and
             # a line a blow ran /move past Discord's 2000 characters. One line per enemy sums the exchange up.
-            rounds = dealt = taken = 0
+            rounds = dealt = taken = bitten = 0
             fled = False
 
             while not enemy.is_dead:
@@ -83,9 +83,11 @@ class CombatEvent(Event):
                     fists = weapon
                 # Damage is always calculated at full power (min distance). At least a point a round, so a
                 # weak weapon makes a long fight, never an endless one.
-                dmg = max(1, int(weapon.damage))
+                bite = player_character.pet_bite  # a fed dog along joins in
+                dmg = max(1, int(weapon.damage)) + bite
                 weapon.on_damage()
                 enemy.take_damage(dmg)
+                bitten += bite
                 attack_response.is_successful = True
                 attack_response.damage = dmg
                 attack_response.target = enemy
@@ -118,6 +120,7 @@ class CombatEvent(Event):
                     target=enemy,
                     text=f"{player_character.name} fights {enemy.name}: "
                     f"{rounds} round{'s' * (rounds != 1)}, deals {dealt} dmg, takes {taken}."
+                    + (f" {player_character.pet_name} bites for {bitten} of it." if bitten else "")
                     + (f" {enemy.name} flees the fight." if fled else ""),
                 )
             if enemy.is_dead:

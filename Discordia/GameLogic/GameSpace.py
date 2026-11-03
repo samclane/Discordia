@@ -1154,6 +1154,8 @@ class World:
                 target: Actors.Actor = random.choice(targets)
                 weapon.on_damage()
                 deaths = getattr(target, "deaths", 0)  # a player is revived on the spot: this shows the kill
+                bite = player_character.pet_bite if loc == player_character.location else 0  # it doesn't fetch bullets
+                dmg += bite
                 target.take_damage(dmg)
                 response.is_successful = True
                 response.damage = dmg
@@ -1167,6 +1169,8 @@ class World:
                     )
                 elif isinstance(target, Actors.PlayerCharacter) and target.deaths != deaths:
                     response.text = f"You kill {target.name}." + player_character.turn_raider()
+                if bite:
+                    response.text = f"{response.text} {player_character.pet_name} bites for {bite} of it.".lstrip()
                 break
             else:
                 # A melee weapon reaches your square and the one next to it: a raider beside you is one

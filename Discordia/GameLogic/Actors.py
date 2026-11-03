@@ -58,6 +58,9 @@ PET_RUNAWAY_TICKS = 51840
 # been looked after). At ~50 quiet steps a raid that's a piece a raid ($50, or a hideout barter level's worth).
 PET_KINDS = ("goat", "dog")
 PET_FETCH_CHANCE = 0.02
+# And in a fight on your square it bites, PET_BITE_DAMAGE on top of each of your blows (twice that once looked
+# after): next to a 4-14 damage gun, a help, not a second weapon.
+PET_BITE_DAMAGE = 2
 
 
 class BodySize(Enum):
@@ -898,11 +901,19 @@ class PlayerCharacter(Actor):
         it's been looked after."""
         return 2 if self.pet_care >= PET_CARE_MAX else 1
 
+    @property
+    def pet_bite(self) -> int:
+        """What your dog adds to each of your blows in a fight on your square: nothing unless it came along."""
+        return PET_BITE_DAMAGE * self.pet_yield if self._dog_along else 0
+
+    @property
+    def _dog_along(self) -> bool:
+        """A fed dog comes on raids; a hungry one stays home."""
+        return self.pet_name is not None and self.pet_kind == "dog" and self.pet_fed_until > self.parent_world.ticks
+
     def _fetch(self) -> GameSpace.PlayerActionResponse | None:
         """A fed dog's chance of bringing back salvage, on a quiet step in the wilds."""
-        if self.pet_kind != "dog" or self.pet_fed_until <= self.parent_world.ticks:
-            return None  # a hungry dog stays home
-        if random.random() >= PET_FETCH_CHANCE * self.pet_yield:
+        if not self._dog_along or random.random() >= PET_FETCH_CHANCE * self.pet_yield:
             return None
         salvage = Items.Salvage()
         self.inventory.append(salvage)

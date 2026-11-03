@@ -182,7 +182,7 @@ the bot syncs them.
     * A goat stays at home: while it's fed it puts a jug of goat's milk ($15 in any store) into your stash every
       hour, whether you're playing or not.
     * A dog comes on your raids: while it's fed, now and then on a step where nothing else happens it brings back
-      a piece of salvage.
+      a piece of salvage, and in a fight on your square it bites whatever you hit.
 * `/pet feed`
     * In any town: feed your pet for the next half a day ($20). A hungry pet does nothing, and a meal doesn't
       keep, so feeding early wastes what's left of the last one. The bot DMs you once when it goes hungry.
