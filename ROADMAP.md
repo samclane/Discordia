@@ -151,7 +151,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   danger (mostly 3-4), and deaths bare-fisted 14 -> 0. But mean level 3.25 -> 2.38 across 8 of 10 seeds: bots buy
   the cheapest gun, and a restocked shelf always has the Stechkin (4 dmg) back, so mean damage held fell 11.06 ->
   8.56. A bot habit, not a game problem: see the next line.
-- [ ] Simulator bots buy the cheapest gun a store has (`Bot.order`, `_cheapest(town, Weapons.Weapon)`), and since
+- [x] Simulator bots buy the cheapest gun a store has (`Bot.order`, `_cheapest(town, Weapons.Weapon)`), and since
   stores restock (3dc3036) that's always the 4-damage Stechkin, so `sim_history` levels sank. Have a bot buy the
   most damaging gun it can afford (with its ammo, keeping walking-around money), as a player would.
 - [x] Simulator bots raid at their full `reach` bare-fisted and broke. Have an unarmed bot stay on danger 1 (or
@@ -622,3 +622,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   earns $47 working (none). The floor beats the old way out; the worth drop was cash turned into guns. No change.
 - 2026-11-02 Checked the restock death rise on 10 seeds x 5000 ticks: deaths unchanged (16.3 vs 16.5 a seed), none
   bare-fisted any more; the level drop is bots buying the always-restocked cheapest gun (new item).
+- 2026-11-03 Bots shop like players: a bare-fisted simulator bot buys the most damaging gun it can pay for with a
+  box of its ammo, cash and stash together (`Bot._best_gun`, taking the shortfall from the stash first), instead
+  of the cheapest, which since restocking was always the 4-damage Stechkin.

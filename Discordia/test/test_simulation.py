@@ -93,21 +93,18 @@ class Bot:
                 return "recruit", lambda: [town.recruit(c)]
             if c.hit_points < c.hit_points_max:
                 return "inn", lambda: [town.inn_event(c)]
-            if isinstance(c.weapon, Weapons.Fist):
-                wanted = Weapons.Weapon
-            elif isinstance(gun := c.weapon, Weapons.ProjectileWeapon) and not any(
-                isinstance(i, Items.Ammo) and i.caliber == gun.caliber for i in c.inventory
-            ):
-                wanted = lambda item: isinstance(item, Items.Ammo) and item.caliber == gun.caliber
-            else:
-                wanted = None
-            if wanted and (buy := self._cheapest(town, wanted)) is not None:
-                return f"buy {buy.name}", lambda: self._buy(town, buy)
-            if wanted is Weapons.Weapon and (short := self._short_for_a_weapon(town)):
-                return f"take ${short}", lambda: c.stash_take(money=short)  # re-arm after a death
-            # Broke and bare-fisted: odd jobs until a gun is in reach, if this store has one left to save for.
-            if wanted is Weapons.Weapon and any(isinstance(i, Weapons.Weapon) for i in town.store.inventory):
-                return "work", (lambda: []) if c.work_until is not None else lambda: a.work(c)
+            if isinstance(gun := c.weapon, Weapons.Fist):
+                if (best := self._best_gun(town)) is not None:
+                    gun, cost = best
+                    if cost > c.currency:  # re-arm after a death
+                        return f"take ${cost - c.currency}", lambda: c.stash_take(money=cost - c.currency)
+                    return f"buy {gun.name}", lambda: self._buy(town, gun)
+                # Broke and bare-fisted: odd jobs until a gun is in reach, if this store has one left to save for.
+                if any(isinstance(i, Weapons.Weapon) for i in town.store.inventory):
+                    return "work", (lambda: []) if c.work_until is not None else lambda: a.work(c)
+            elif isinstance(gun, Weapons.ProjectileWeapon) and not any(map(self._ammo_for(gun), c.inventory)):
+                if (buy := self._cheapest(town, self._ammo_for(gun))) is not None:
+                    return f"buy {buy.name}", lambda: self._buy(town, buy)
             if c.currency > 100:
                 money = c.currency - 100  # bank all but walking-around money
                 return f"stash ${money}", lambda: c.stash_put(money=money)
@@ -152,12 +149,24 @@ class Bot:
         ]
         return min(fits, key=lambda item: store.get_price(item, self.character), default=None)
 
-    def _short_for_a_weapon(self, town: Town) -> int:
-        """What to take out of the stash to afford the cheapest weapon here, or 0 if it can't or needn't."""
-        c = self.character
-        prices = [town.store.get_price(i, c) for i in town.store.inventory if isinstance(i, Weapons.Weapon)]
-        price = min(prices, default=0)
-        return price - c.currency if c.currency < price <= c.currency + c.stash_currency else 0
+    @staticmethod
+    def _ammo_for(gun: Weapons.ProjectileWeapon):
+        return lambda item: isinstance(item, Items.Ammo) and item.caliber == gun.caliber
+
+    def _best_gun(self, town: Town):
+        """(gun, cost) for the most damaging weapon here it can pay for with a box of its ammo, cash and stash
+        together, as a player would shop; or None. Guns come loaded, so one with no ammo on the shelf still counts."""
+        c, store = self.character, town.store
+        options = []
+        for gun in store.inventory:
+            if isinstance(gun, Weapons.Weapon):
+                cost = store.get_price(gun, c)
+                if isinstance(gun, Weapons.ProjectileWeapon):
+                    ammo = [store.get_price(i, c) for i in store.inventory if self._ammo_for(gun)(i)]
+                    cost += min(ammo, default=0)
+                if cost <= c.currency + c.stash_currency:
+                    options.append((gun, cost))
+        return max(options, key=lambda option: (option[0].damage, -option[1]), default=None)
 
     def _buy(self, town: Town, item):
         """Buy `item` if it's still there: another bot in the same town may have bought it first this tick."""
@@ -545,6 +554,26 @@ def test_a_broke_bare_fisted_bot_works_shifts_until_it_can_buy_a_gun():
         act()
         world.advance(Actors.WORK_PAY_TICKS)
     assert label.startswith("buy") and c.location is world.starting_town, label
+
+
+def test_a_bare_fisted_bot_buys_the_most_damaging_gun_it_can_pay_for_with_its_ammo():
+    world = GameSpace.World("Shop", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 2, reach=5)
+    c = bot.character
+    town = c.location = world.starting_town
+    c.player_class = Actors.Scavenger()
+    town.store = GameSpace.Store([Weapons.StechkinAPS(), Weapons.L1A1(), Weapons.Ammo9mm(), Weapons.Ammo762()])
+    rifle = town.store.get_price(Weapons.L1A1()) + town.store.get_price(Weapons.Ammo762())
+    c.currency, c.stash_currency = rifle - 1, 0  # the rifle alone, but not its ammo too
+    assert bot.order()[0] == "buy Stechkin Automatic Pistol"
+    c.stash_currency = 1  # with the stash, rifle and ammo
+    label, act = bot.order()
+    assert label == "take $1"
+    act()
+    label, act = bot.order()
+    assert label == "buy L1A1 (FN FAL)"
+    act()
+    assert isinstance(c.weapon, Weapons.L1A1) and bot.order()[0] == "buy 7.62mm rounds", bot.order()[0]
 
 
 def test_bots_wear_found_armor_that_beats_what_they_have_on():
