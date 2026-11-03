@@ -234,9 +234,9 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [ ] Chunks are never unloaded (~0.4 MB each, ponytail note in `World.__init__`). Evict chunks with nobody in
   them once a long-running server's memory says so; store sales in them would need saving first.
-  (blocked: waits on the live server's memory; see the Linode box, ~1 GB RAM, so past ~1,500 chunks. Until
-  the dashboard item below lands, `ssh discordia systemctl status discordia` prints the service's memory.)
-- [ ] The owner dashboard (`/admin`) can't tell when chunk eviction is due: add loaded chunks and the process's
+  (blocked: waits on the live server's memory; see the Linode box, ~1 GB RAM, so past ~1,500 chunks. The owner
+  dashboard, `/admin`, charts both.)
+- [x] The owner dashboard (`/admin`) can't tell when chunk eviction is due: add loaded chunks and the process's
   memory (`/proc/self/status` VmRSS, stdlib; blank off Linux) as `record_tick` metrics with `CHARTS` entries.
 - [ ] Terrain repeats every ~2560 squares (`pnoise3` period, ponytail note in `World._terrain_at`).
   (blocked: waits on someone noticing; it's ~3.5 hours of /move from the spawn to see one repeat)
@@ -640,3 +640,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   (`delete_original_response`) before sending the refusal as an ephemeral followup, so a tick-time refusal on
   `/move`, `/attack`, `/choose` or `/look` should stop showing to the whole channel. Unchecked against real
   Discord until the user tries it on the deploy server (the fakes honour `ephemeral` either way).
+- 2026-11-03 Dashboard memory: each tick's row carries the process's resident memory (`memory_mb`, VmRSS from
+  `/proc/self/status`; blank off Linux), and `/admin` charts it and shows it as a tile next to chunks explored
+  (already charted), so it says when chunk eviction is due. A chart with no data (memory on Windows) is left out.

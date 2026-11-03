@@ -138,6 +138,19 @@ class GuildSettings:
     announce_channel: Optional[int] = None  # where its players' deaths and hauls are posted; None means nowhere
 
 
+PROC_STATUS = "/proc/self/status"
+
+
+def memory_mb(path: str = PROC_STATUS) -> float | None:
+    """The process's resident memory in MB (VmRSS), or None off Linux: the server runs on Linux."""
+    try:
+        with open(path) as status:
+            kb = next(line.split()[1] for line in status if line.startswith("VmRSS:"))
+    except (OSError, StopIteration):
+        return None
+    return round(int(kb) / 1024, 1)
+
+
 class WorldAdapter:
     """
     Provides a public API for the game world for interfaces (like DiscordInterface) to connect to.
@@ -187,6 +200,7 @@ class WorldAdapter:
                 "players": len(world.players),
                 "npcs": len(world.npcs),
                 "chunks": len(world.loaded_chunks()),
+                "memory_mb": memory_mb(),  # with chunks: when it's time to evict some (ROADMAP)
                 **measures,
             }
         )

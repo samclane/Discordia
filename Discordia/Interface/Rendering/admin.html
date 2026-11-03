@@ -76,6 +76,7 @@ const CHARTS = [
   { title: "Slowest tick (ms)", series: [["seconds", "ms"]], agg: "max", scale: 1000 },
   { title: "NPCs awake", series: [["npcs", "NPCs"]], agg: "last" },
   { title: "Chunks explored", series: [["chunks", "chunks"]], agg: "last" },
+  { title: "Memory (MB)", series: [["memory_mb", "MB"]], agg: "max" }, // read on Linux only: blank elsewhere
 ];
 const BUCKETS = [60, 300, 900, 1800, 3600]; // seconds a point, the smallest that keeps a chart to ~240 points
 
@@ -127,7 +128,8 @@ function drawCharts() {
   const n = points.length;
   const xs = (i) => M.l + (i / Math.max(n - 1, 1)) * (W - M.l - M.r);
   const per = width === 60 ? "a minute" : width < 3600 ? `per ${width / 60} min` : "an hour";
-  const lines = CHARTS.map((c) => c.series.map(([key]) => points.map((p) => value(p.rows, key, c.agg) * (c.scale || 1))));
+  const charts = CHARTS.filter((c) => c.series.some(([key]) => samples.some((s) => s[key] != null)));
+  const lines = charts.map((c) => c.series.map(([key]) => points.map((p) => value(p.rows, key, c.agg) * (c.scale || 1))));
   const show = (i, x) => {
     for (const cross of crosshairs) {
       cross.setAttribute("x1", xs(i));
@@ -137,7 +139,7 @@ function drawCharts() {
     tips.forEach((tip, c) => {
       tip.replaceChildren();
       html("div", clock(points[i].t), tip, "head");
-      CHARTS[c].series.forEach(([, label], s) => {
+      charts[c].series.forEach(([, label], s) => {
         const row = html("div", undefined, tip, "row");
         html("i", undefined, row, "key").style.borderColor = `var(--s${s + 1})`;
         html("b", fmt(lines[c][s][i]), row);
@@ -149,7 +151,7 @@ function drawCharts() {
   };
   const hide = () => [...crosshairs, ...tips].forEach((node) => (node.style.visibility = "hidden"));
 
-  CHARTS.forEach((c, ci) => {
+  charts.forEach((c, ci) => {
     const card = html("div", undefined, root, "card");
     html("h3", c.agg === "sum" ? `${c.title}, ${per}` : c.title, card);
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": c.title }, card);
@@ -209,6 +211,7 @@ function drawTiles() {
     ["Discord servers", last ? last.servers : "–"],
     ["NPCs awake", last ? last.npcs : "–"],
     ["Chunks explored", last ? last.chunks : "–"],
+    ["Memory", last?.memory_mb != null ? `${Math.round(last.memory_mb)} MB` : "–"],
     ["Slowest tick, last hour", hour.length ? `${Math.round(Math.max(...hour.map((s) => s.seconds)) * 1000)} ms` : "–"],
   ]) {
     const tile = html("div", undefined, tiles, "card stat");

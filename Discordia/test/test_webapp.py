@@ -26,7 +26,7 @@ from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json, _Handler
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter
+from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter, memory_mb
 
 
 # Every test server shares these logins, so one session cookie gets a test past the gate on any of them.
@@ -627,12 +627,20 @@ def test_the_dashboard_is_the_bot_owners_alone():
         data = json.loads(request("/admin.json")[2])
         assert [s["tick"] for s in data["samples"]] == [0, 1, 2]
         assert data["samples"][0]["chunks"] == len(adapter.world.loaded_chunks()) and data["samples"][0]["messages"] == 2
+        assert "memory_mb" in data["samples"][0]
         assert data["players"][0]["name"] == "Ann" and data["today"]["active"] == 0
         assert [s["tick"] for s in json.loads(request("/admin.json?since=1")[2])["samples"]] == [2], "only what's new"
         assert json.loads(request("/admin.json?since=nope")[2])["samples"][0]["tick"] == 0
     finally:
         conn.close()
         server.shutdown()
+
+
+def test_memory_comes_from_proc_on_linux_and_is_blank_elsewhere(tmp_path):
+    status = tmp_path / "status"
+    status.write_text("Name:\tpython\nVmPeak:\t  999999 kB\nVmRSS:\t  204800 kB\nThreads:\t4\n")
+    assert memory_mb(str(status)) == 200.0
+    assert memory_mb(str(tmp_path / "missing")) is None
 
 
 def test_invite_sends_server_owners_to_discord():
