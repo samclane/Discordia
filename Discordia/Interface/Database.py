@@ -155,6 +155,38 @@ def _resolve(class_path: str, expected: type) -> type:
     return located
 
 
+def _add_missing_columns(connection: sqlite3.Connection):
+    """Before numbered steps, a column-presence check on every start added these, so a file from then has any
+    subset of them."""
+    added = [
+        ("character", "experience", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "stash_currency", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "hideout_level", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "prestige", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "side", "TEXT"),
+        ("character", "raid_home_at", "INTEGER"),
+        ("character", "raid_depth", "INTEGER"),
+        ("character", "camping", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "kills", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "extractions", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "achievements", "TEXT NOT NULL DEFAULT '[]'"),
+        ("character", "best_haul", "INTEGER NOT NULL DEFAULT 0"),
+        ("character", "work_until", "INTEGER"),
+        ("item", "state", "TEXT"),
+        ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
+        ("world", "saved_at", "REAL"),
+    ]
+    for table, column, declaration in added:
+        if column not in {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
+# How a save file catches up with SCHEMA: MIGRATIONS[n] takes a file at PRAGMA user_version n to n + 1. CREATE TABLE
+# IF NOT EXISTS leaves an existing table alone, so a schema change goes in SCHEMA (for new files, which start at
+# the last version) and as a new step at the end of this list (for old ones). A step may rewrite data too.
+MIGRATIONS = [_add_missing_columns]
+
+
 class Database:
     """Loads and saves the whole server. Cheap enough to call save() on a timer; see main.py."""
 
@@ -164,37 +196,21 @@ class Database:
         self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
+        fresh = self.connection.execute("SELECT count(*) FROM sqlite_master").fetchone()[0] == 0
         self.connection.executescript(SCHEMA)
+        if fresh:  # SCHEMA is already the latest version
+            self.connection.execute(f"PRAGMA user_version = {len(MIGRATIONS)}")
         self._migrate()
 
     def _migrate(self):
-        """Add columns a save file predates. CREATE TABLE IF NOT EXISTS leaves an existing table alone,
-        so a schema change reaches old worlds only if something adds the column by hand.
-        """
-        added = [
-            ("character", "experience", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "stash_currency", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "hideout_level", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "prestige", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "side", "TEXT"),
-            ("character", "raid_home_at", "INTEGER"),
-            ("character", "raid_depth", "INTEGER"),
-            ("character", "camping", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "kills", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "extractions", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "achievements", "TEXT NOT NULL DEFAULT '[]'"),
-            ("character", "best_haul", "INTEGER NOT NULL DEFAULT 0"),
-            ("character", "work_until", "INTEGER"),
-            ("item", "state", "TEXT"),
-            ("world", "ticks", "INTEGER NOT NULL DEFAULT 0"),
-            ("world", "saved_at", "REAL"),
-        ]
-        for table, column, declaration in added:
-            columns = {row["name"] for row in self.connection.execute(f"PRAGMA table_info({table})")}
-            if column not in columns:
-                LOG.info(f"Adding {table}.{column} to a save file that predates it")
-                with self.connection:
-                    self.connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+        """Run the MIGRATIONS steps this file hasn't had, each in one transaction with its version bump."""
+        version = self.connection.execute("PRAGMA user_version").fetchone()[0]
+        for step in range(version, len(MIGRATIONS)):
+            LOG.info(f"Migrating the save file to version {step + 1}")
+            with self.connection:
+                self.connection.execute("BEGIN")
+                MIGRATIONS[step](self.connection)
+                self.connection.execute(f"PRAGMA user_version = {step + 1}")
 
     def close(self):
         self.connection.close()

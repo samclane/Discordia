@@ -13,7 +13,7 @@ from Discordia.GameLogic import Behavior, GameSpace, Actors, Weapons, Armor
 from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
-from Discordia.Interface.Database import Database
+from Discordia.Interface.Database import MIGRATIONS, Database
 from Discordia.Interface.Rendering.DesktopApp import RESIDENT_SPRITE, WindowRenderer
 from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 from Discordia.GameLogic.Items import Ammo, Equipment, EquipmentSet, OffHandEquipment
@@ -349,10 +349,13 @@ class TestGeneral(unittest.TestCase):
         connection.execute("ALTER TABLE character DROP COLUMN side")
         connection.execute("ALTER TABLE world DROP COLUMN ticks")
         connection.execute("ALTER TABLE world DROP COLUMN saved_at")
+        connection.execute("PRAGMA user_version = 0")  # an older build never numbered its files
         connection.commit()
         connection.close()
 
         migrated = Database(path)
+        version = migrated.connection.execute("PRAGMA user_version").fetchone()[0]
+        self.assertEqual(version, len(MIGRATIONS))  # caught up, so the steps don't run again
         adapter = migrated.load()
         self.assertIsNotNone(adapter)
         assert adapter is not None  # for the type checker
@@ -363,6 +366,11 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(adapter.get_player(0).level, 1)
         self.assertEqual((adapter.get_player(0).hideout_level, adapter.get_player(0).prestige), (0, 0))
         self.assertIsNone(adapter.get_player(0).side)
+
+    def test_a_new_save_file_starts_at_the_latest_schema_version(self):
+        database = Database(Path(self.temp_dir.name) / "new.db")
+        self.assertEqual(database.connection.execute("PRAGMA user_version").fetchone()[0], len(MIGRATIONS))
+        database.close()
 
     def test_database_loads_a_shelf_saved_as_bare_class_paths(self):
         """Before shelf items kept their state, a store row listed class paths alone."""

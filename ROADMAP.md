@@ -191,7 +191,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
   after a restart. Save `_item_state` per shelf item too if anyone farms it (ponytail note on `Items.Ammo`).
   Decided 2026-11-02: fix it now.
-- [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
+- [x] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
   Decided 2026-11-02: switch now.
 
 ## Discord UX
@@ -633,3 +633,6 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-03 Store shelves keep item state through a restart: a store row lists `[class path, _item_state]` per
   item, so a part-used ammo box sold to a store comes back part-used (and a gun keeps its loaded rounds). Bare
   class paths from older saves still load, so no migration.
+- 2026-11-03 Numbered schema migrations: `Database.MIGRATIONS[n]` takes a file at `PRAGMA user_version` n to n + 1,
+  each step in one transaction with its version bump; step 1 is the old column-presence check, for files from
+  before. A new file starts at the last version. CLAUDE.md says where a schema change goes.
