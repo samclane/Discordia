@@ -176,6 +176,15 @@ the bot syncs them.
     * In any town, from hideout level 15: trade the hideout and everything in your stash in for +10% hideout
       income for good (it stacks). Your level, gear, backpack and pouch stay. Without `confirm` it only tells you
       what you'd lose.
+* `/pet adopt [name]`
+    * In any town: buy a goat ($300) to keep at home, named whatever you like (or it comes with a name). It
+      arrives fed, and while it's fed it puts a jug of goat's milk ($15 in any store) into your stash every hour,
+      whether you're playing or not. One goat each.
+* `/pet feed`
+    * In any town: feed your goat for the next half a day ($20). A hungry goat gives nothing, and a meal doesn't
+      keep, so feeding early wastes what's left of the last one.
+* `/pet status`
+    * Anywhere: whether your goat is fed, and for how long.
             
 # Attributions
 

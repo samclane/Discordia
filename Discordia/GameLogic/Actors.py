@@ -42,6 +42,13 @@ WORK_SHIFT_TICKS = 720
 GATHER_TICKS = 120
 GATHER_MAX_DANGER = 1
 CAMP_HEAL_SHARE = 0.05
+# A goat (/pet adopt) kept at home: fed (/pet feed), it puts an Items.GoatMilk into the stash every PET_MILK_TICKS
+# (an hour at a 5-second tick) for PET_FEED_TICKS (half a day), then nothing until it's fed again. $15 a jug, so
+# $180 a feed for $20 at two check-ins a day: a side income next to a first hideout level ($120 an hour, $1000).
+PET_PRICE = 300
+PET_FEED_COST = 20
+PET_FEED_TICKS = 8640
+PET_MILK_TICKS = 720
 
 
 class BodySize(Enum):
@@ -540,6 +547,9 @@ class PlayerCharacter(Actor):
         # Banked in town: out of reach on a raid, and out of reach of whatever kills you on one.
         self.stash: Inventory = Inventory()
         self.stash_currency: int = 0
+        # Your goat's name, or None: kept at home, it gives milk into the stash until the World.ticks it's fed until.
+        self.pet_name: str | None = None
+        self.pet_fed_until: int = 0
         # Levels of hideout, which earn into the stash every so many ticks whether you're playing or not.
         self.hideout_level: int = 0
         # Hideouts traded in so far (prestige_hideout), each adding PRESTIGE_BONUS to the income.
@@ -839,6 +849,32 @@ class PlayerCharacter(Actor):
             f"Your hideout is level {self.hideout_level}: ${self.hideout_income} into your stash "
             f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not."
         )
+
+    def adopt_pet(self, name: str | None, now: int):
+        """Buy a goat, named `name` or whatever the seller called it, fed for its first PET_FEED_TICKS from `now`
+        (World.ticks). Callers check the player is in a town. Raises ValueError if you keep one already or can't
+        pay."""
+        if self.pet_name is not None:
+            raise ValueError(f"You keep {self.pet_name} already.")
+        self._pay(PET_PRICE, "A goat")
+        name = name or random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name()
+        self.pet_name, self.pet_fed_until = name, now + PET_FEED_TICKS
+
+    def feed_pet(self, now: int):
+        """Fodder for PET_FEED_TICKS from `now`: a meal doesn't keep, so feeding early wastes what's left of the last.
+        Callers check the player is in a town. Raises ValueError with no pet or no money."""
+        if self.pet_name is None:
+            raise ValueError("You don't keep a pet. `/pet adopt` in any town buys a goat.")
+        self._pay(PET_FEED_COST, f"Fodder for {self.pet_name}")
+        self.pet_fed_until = now + PET_FEED_TICKS
+
+    def _pay(self, money: int, what: str):
+        """Take `money` from what's carried first and the stash after; ValueError naming `what` if it's short."""
+        if self.currency + self.stash_currency < money:
+            raise ValueError(f"{what} costs ${money}, carried and stashed together.")
+        from_pocket = min(self.currency, money)
+        self.currency -= from_pocket
+        self.stash_currency -= money - from_pocket
 
     def prestige_hideout(self, confirm: bool = False) -> str:
         """Trade the hideout and the whole stash in for PRESTIGE_BONUS more income for good. Level, gear, the

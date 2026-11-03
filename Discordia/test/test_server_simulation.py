@@ -256,6 +256,8 @@ PLAY: List[Tuple[str, float, Callable[[], Dict[str, Any]]]] = [
     ("stash list", 0.3, lambda: {}),
     ("stash put", 0.3, lambda: {"money": random.randrange(100)}),
     ("hideout build", 0.2, lambda: {}),
+    ("pet adopt", 0.1, lambda: {}),
+    ("pet feed", 0.2, lambda: {}),
     ("weblogin", 0.2, lambda: {}),
 ]
 

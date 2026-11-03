@@ -278,6 +278,22 @@ class WorldAdapter:
             text += " `/hideout prestige` trades it and the stash in for more income for good."
         return text
 
+    def pet_text(self, character: Actors.PlayerCharacter) -> str:
+        """How your goat is, from Discord or the web alike."""
+        if character.pet_name is None:
+            return (
+                f"You don't keep a pet. `/pet adopt` in any town buys a goat for ${Actors.PET_PRICE}: fed, it gives"
+                " milk into your stash while you're away."
+            )
+        name, left = character.pet_name, (character.pet_fed_until - self.world.ticks) * self.tick_seconds
+        if left <= 0:
+            return f"{name} is hungry and gives nothing. `/pet feed` in any town, for ${Actors.PET_FEED_COST}."
+        every = round(Actors.PET_MILK_TICKS * self.tick_seconds / 60)
+        return (
+            f"{name} is fed for another {math.ceil(left / 3600)} hours or so, and gives a jug of milk into your"
+            f" stash every {every} minutes."
+        )
+
     @property
     def width(self):
         return self.world.width

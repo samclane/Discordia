@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS character (
     extractions     INTEGER NOT NULL DEFAULT 0,
     achievements    TEXT    NOT NULL DEFAULT '[]',  -- JSON list of Actors.ACHIEVEMENTS keys earned
     best_haul       INTEGER NOT NULL DEFAULT 0,
+    pet_name        TEXT,  -- PlayerCharacter.pet_name: their goat's, or NULL
+    pet_fed_until   INTEGER NOT NULL DEFAULT 0,  -- the World.ticks it's fed until
     x               INTEGER NOT NULL,
     y               INTEGER NOT NULL
 );
@@ -181,10 +183,15 @@ def _add_missing_columns(connection: sqlite3.Connection):
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
+def _add_pets(connection: sqlite3.Connection):
+    connection.execute("ALTER TABLE character ADD COLUMN pet_name TEXT")
+    connection.execute("ALTER TABLE character ADD COLUMN pet_fed_until INTEGER NOT NULL DEFAULT 0")
+
+
 # How a save file catches up with SCHEMA: MIGRATIONS[n] takes a file at PRAGMA user_version n to n + 1. CREATE TABLE
 # IF NOT EXISTS leaves an existing table alone, so a schema change goes in SCHEMA (for new files, which start at
 # the last version) and as a new step at the end of this list (for old ones). A step may rewrite data too.
-MIGRATIONS = [_add_missing_columns]
+MIGRATIONS = [_add_missing_columns, _add_pets]
 
 
 class Database:
@@ -281,6 +288,7 @@ class Database:
         character.kills, character.extractions = row["kills"], row["extractions"]
         character.achievements = set(json.loads(row["achievements"]))
         character.best_haul = row["best_haul"]
+        character.pet_name, character.pet_fed_until = row["pet_name"], row["pet_fed_until"]  # milks for the downtime
         if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
             character.auto_raid = (row["raid_home_at"], character.deaths, row["raid_depth"])
 
@@ -359,8 +367,8 @@ class Database:
         self.connection.execute(
             "INSERT INTO character (discord_id, name, class_path, hit_points, hit_points_max,"
             " currency, experience, stash_currency, hideout_level, prestige, side, raid_home_at, raid_depth, camping,"
-            " kills, extractions, achievements, best_haul, work_until, x, y)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " kills, extractions, achievements, best_haul, work_until, pet_name, pet_fed_until, x, y)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 discord_id,
                 character.name,
@@ -380,6 +388,8 @@ class Database:
                 json.dumps(sorted(character.achievements)),
                 character.best_haul,
                 character.work_until,
+                character.pet_name,
+                character.pet_fed_until,
                 character.location.x,
                 character.location.y,
             ),

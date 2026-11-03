@@ -2328,3 +2328,34 @@ def test_a_sold_out_store_restocks_on_the_hour(adapter):
     assert not hammers(), "not before the hour"
     world.advance(1)
     assert len(hammers()) == 1 and {type(i) for i in store.inventory} >= set(Data.stocked())
+
+
+def test_a_fed_goat_milks_into_the_stash_until_it_goes_hungry(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    world.ticks = 0  # on a milking boundary, so the count comes out even
+    money = player.currency
+    player.adopt_pet("Bibi", world.ticks)
+    assert player.currency == money - Actors.PET_PRICE and "Bibi is fed" in adapter.pet_text(player)
+
+    world.advance(Actors.PET_FEED_TICKS * 2)  # half of it hungry: downtime runs through advance the same way
+    milk = [item for item in player.stash if isinstance(item, Items.GoatMilk)]
+    assert len(milk) == Actors.PET_FEED_TICKS // Actors.PET_MILK_TICKS
+    assert "hungry" in adapter.pet_text(player)
+
+    player.feed_pet(world.ticks)
+    world.advance(Actors.PET_MILK_TICKS)
+    assert len([item for item in player.stash if isinstance(item, Items.GoatMilk)]) == len(milk) + 1
+    assert world.starting_town.store.buy_item(milk[0], player) == 15  # sold in town, like firewood
+
+
+def test_one_goat_each_and_it_has_to_be_paid_for():
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    with pytest.raises(ValueError, match="pet adopt"):
+        character.feed_pet(0)
+    character.currency, character.stash_currency = Actors.PET_PRICE - 1, 1  # short in the pocket, the stash covers it
+    character.adopt_pet(None, 0)
+    assert character.pet_name and (character.currency, character.stash_currency) == (0, 0)
+    with pytest.raises(ValueError, match="already"):
+        character.adopt_pet("Another", 0)
+    with pytest.raises(ValueError, match="carried and stashed"):
+        character.feed_pet(0)

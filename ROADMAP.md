@@ -72,7 +72,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
 - [ ] Pets (asked for 2026-11-03: "a tamagotchi-like pet for the player that can provide resources in some way:
   fetching, milking, combat"). A reason to check in a few times a day, kept at home like the hideout. Split:
-  - [ ] A goat: `/pet adopt` in town buys one, `/pet feed` in town keeps it fed for half a day, and while fed it
+  - [x] A goat: `/pet adopt` in town buys one, `/pet feed` in town keeps it fed for half a day, and while fed it
     puts goat's milk (a barter item, sold in town) into the stash every hour, downtime included. `/pet status`
     says how it is. Saved, as a migration step.
   - [ ] Neglect and care: a goat left hungry for days wanders off; one fed on time gives more. The tamagotchi part.
@@ -665,3 +665,8 @@ existing things to it when an item touches them anyway, not as a sweep.
   hand is left without a weapon, so unequipping or selling your gun leaves you punching, as at birth and after a
   death, instead of "You have no weapon equipped!". The no-weapon guards stay for a non-weapon in hand; their
   tests now empty the hand through the raw equipment set.
+- 2026-11-03 Pets, first slice: a goat. `/pet adopt [name]` in town ($300, arrives fed), `/pet feed` in town ($20,
+  fed for `PET_FEED_TICKS`, half a day; a meal doesn't keep), `/pet status` anywhere. Fed, it puts an
+  `Items.GoatMilk` ($15, barter, sold in town) into the stash every `PET_MILK_TICKS` (an hour) through
+  `World.advance`, downtime included. Saved as `character.pet_name`/`pet_fed_until`, migration step 2. The server
+  simulator's members adopt and feed too.

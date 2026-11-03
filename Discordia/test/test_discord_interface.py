@@ -53,6 +53,9 @@ EXPECTED = {
     "hideout view",
     "hideout build",
     "hideout prestige",
+    "pet adopt",
+    "pet feed",
+    "pet status",
     "raid",
     "camp",
     "gather",
@@ -660,6 +663,18 @@ def test_a_wilds_trader_buys_for_less_than_a_town():
     assert rifle in trader.inventory and rifle not in character.inventory
     assert 0 < paid < GameSpace.Store().get_price(rifle)  # a town would give the full price
     assert replies.sent == [f"Sold {rifle.name} for ${paid}."]
+
+
+def test_adopting_a_goat_in_town_names_it_and_says_how_it_is():
+    adapter = WorldAdapter(GameSpace.World("Pasture", 40, 40, seed=0))
+    adapter.register_player(1, "Herder")
+    interface = loaded_cog(adapter)
+    replies = Replies()
+    interaction = SimpleNamespace(user=SimpleNamespace(id=1), response=replies)
+    asyncio.run(command_named(interface, "pet adopt").callback(interface, interaction, "Bibi"))  # type: ignore[arg-type]
+    assert replies.sent == [f"Bibi is yours. {adapter.pet_text(adapter.get_player(1))}"]
+    asyncio.run(command_named(interface, "pet adopt").callback(interface, interaction, None))  # type: ignore[arg-type]
+    assert replies.sent[-1] == "You keep Bibi already." and replies.ephemeral[-1]
 
 
 def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():

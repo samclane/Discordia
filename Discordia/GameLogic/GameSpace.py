@@ -1298,6 +1298,9 @@ class World:
                     p.inventory.extend(Items.Firewood() for _ in range(end // Actors.GATHER_TICKS - start // Actors.GATHER_TICKS))
                 if self.ticks >= p.work_until:
                     p.work_until = None
+            if p.pet_name is not None:  # a fed goat milks on the clock, downtime included; a hungry one doesn't
+                end = max(start, min(self.ticks, p.pet_fed_until))
+                p.stash.extend(Items.GoatMilk() for _ in range(end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS))
 
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.

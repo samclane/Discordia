@@ -81,6 +81,12 @@ class Firewood(Data.FromData, Equipment):
     STATS = Data.load(Data.DATA_FOLDER / "barter.json")
 
 
+class GoatMilk(Data.FromData, Equipment):
+    """What a fed goat (PlayerCharacter.pet_name) puts in the stash every Actors.PET_MILK_TICKS: sold in town."""
+
+    STATS = Firewood.STATS
+
+
 class ArmorAbstract(Equipment, ABC):
 
     def __init__(self, armor_count: float = 0.0, *args, **kwargs):

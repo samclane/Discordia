@@ -230,6 +230,7 @@ class DiscordInterface(commands.Cog):
         name="stash", description="Bank items and money in town, safe from whatever kills you out there"
     )
     hideout = app_commands.Group(name="hideout", description="Build up a hideout that earns while you're away")
+    pet = app_commands.Group(name="pet", description="Keep a goat at home that gives milk while it's fed")
 
     def __init__(
         self,
@@ -787,6 +788,38 @@ class DiscordInterface(commands.Cog):
             await _send(interaction, str(exc), ephemeral=True)
             return
         await _send(interaction, text, ephemeral=not confirm)
+
+    @pet.command(name="adopt")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def pet_adopt(self, interaction: discord.Interaction, name: Optional[app_commands.Range[str, 1, 32]] = None):
+        """Buy a goat to keep at home (name it, or it comes with one): fed, it gives milk into your stash"""
+        character = self._player(interaction)
+        try:
+            character.adopt_pet(name, self.world_adapter.world.ticks)
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, f"{character.pet_name} is yours. {self.world_adapter.pet_text(character)}")
+
+    @pet.command(name="feed")
+    @requires_character()
+    @requires_space(GameSpace.Town)
+    async def pet_feed(self, interaction: discord.Interaction):
+        """Feed your goat for the next half a day (feeding early wastes what's left of the last meal)"""
+        character = self._player(interaction)
+        try:
+            character.feed_pet(self.world_adapter.world.ticks)
+        except ValueError as exc:
+            await _send(interaction, str(exc), ephemeral=True)
+            return
+        await _send(interaction, self.world_adapter.pet_text(character))
+
+    @pet.command(name="status")
+    @requires_character()
+    async def pet_status(self, interaction: discord.Interaction):
+        """How your goat is doing, from anywhere"""
+        await _send(interaction, self.world_adapter.pet_text(self._player(interaction)))
 
     async def _stash_move(self, interaction: discord.Interaction, move, item, money):
         try:
