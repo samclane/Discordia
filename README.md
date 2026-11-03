@@ -187,8 +187,8 @@ the bot syncs them.
     * In any town: feed your pet for the next half a day ($20). A hungry pet does nothing, and a meal doesn't
       keep, so feeding early wastes what's left of the last one. The bot DMs you once when it goes hungry.
     * Feed it before it goes hungry three times running and a goat gives two jugs an hour, a dog fetches twice as
-      often; letting it go hungry starts
-      that over. Left hungry for three days, it wanders off for good, and you can adopt another.
+      often; letting it go hungry starts that over. Left hungry for three days, it wanders off for good, and you
+      can adopt another.
 * `/pet status`
     * Anywhere: whether your pet is fed and for how long, how close it is to doing double, or how long a hungry
       one has before it wanders off.
