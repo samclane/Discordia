@@ -135,10 +135,14 @@ existing things to it when an item touches them anyway, not as a sweep.
   of guns, so a bare-fisted player there has nothing to work toward (9060 of 11025 simulator `work` orders, before
   the bots learned to skip it). Restock sold-out shelves on a timer, like caches (`CACHE_REFILL_TICKS`), from
   `Store.generate_store`; a saved shelf (`traded`) would need the refill time saved too.
-- [ ] Since a166029 (bots work shifts) mean worth fell 815.5 -> 761.9 and mean level 1.97 -> 1.9 (10 seeds x
+- [x] Since a166029 (bots work shifts) mean worth fell 815.5 -> 761.9 and mean level 1.97 -> 1.9 (10 seeds x
   2000 ticks), while deaths fell 9.8 -> 9.4 as meant. A broke bot in town earns $48 an hour working, less than
   bare-fisted danger-1 raids paid it (caches, XP). Decide whether that's the floor working (safe and boring, as
   decided) or `WORK_WAGE` is too low; compare a bot's earnings per hour working vs fist-raiding before tuning.
+  Checked 2026-11-02 over the same 10 seeds x 2000 ticks, per hour a bot spends bare-fisted: fist-raiding at
+  e78aadb earned $0, 0 XP and 1.7 deaths; working at a166029 earns $47 and no deaths. The wage is not too low. Worth
+  is cash only, and a bot that works its way to a gun spends the cash on it; working bots also skip the step
+  draws, reshuffling the rest of the run. Left as is.
 - [ ] Since 3dc3036 (stores restock) deaths rose 9.4 -> 10.1 a seed and mean level fell 1.9 -> 1.77 (10 seeds x
   2000 ticks); class shares moved too (raiders 0.25 -> 0.3). Building restocked items draws from `random` (armor
   rolls its coverage), so every run reshuffles after tick 720; re-armed bots also raid more. Compare deaths by
@@ -607,3 +611,5 @@ existing things to it when an item touches them anyway, not as a sweep.
   `World.advance` gives each traded store in a loaded town one of every stocked kind it lacks (`Store.restock`).
   On the global clock, so nothing new is saved and a restart's catch-up restocks too. Seed 1 x 5000 ticks: 30 -> 25
   deaths, and the bots left bare-fisted at the end are mid-shift, not stuck.
+- 2026-11-02 Checked the work wage: bare-fisted, a bot earned $0 an hour fist-raiding (1.7 deaths an hour) and
+  earns $47 working (none). The floor beats the old way out; the worth drop was cash turned into guns. No change.
