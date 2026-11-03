@@ -1314,6 +1314,18 @@ class World:
         for p in self.players:
             if p.auto_raid is not None and (event := self._auto_raid_step(p)) is not None:
                 events.append(event)
+            # The tamagotchi's beep: once, on the tick its last meal runs out.
+            # ponytail: a goat that goes hungry while the server is down (advance at load) never says so.
+            if p.pet_name is not None and p.pet_fed_until == self.ticks:
+                events.append(
+                    PlayerActionResponse(
+                        is_successful=True,
+                        target=p,
+                        source=p,
+                        text=f"{p.pet_name} is hungry and has stopped giving milk. `/pet feed` in any town, for"
+                        f" ${Actors.PET_FEED_COST}.",
+                    )
+                )
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             kind = Actors.Animal if random.random() < ANIMAL_SHARE else Actors.Raider

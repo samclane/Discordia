@@ -2348,6 +2348,20 @@ def test_a_fed_goat_milks_into_the_stash_until_it_goes_hungry(adapter):
     assert world.starting_town.store.buy_item(milk[0], player) == 15  # sold in town, like firewood
 
 
+def test_a_goat_says_once_when_it_goes_hungry(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    player.adopt_pet("Bibi", world.ticks)
+    world.advance(Actors.PET_FEED_TICKS - 1)
+
+    def beeps():
+        return [e for e in world.tick() if e.target is player and "Bibi is hungry" in e.text]
+
+    assert len(beeps()) == 1 and not beeps(), "on the tick it goes hungry, and not again"
+    player.feed_pet(world.ticks)
+    world.advance(Actors.PET_FEED_TICKS - 1)
+    assert len(beeps()) == 1, "every time it goes hungry"
+
+
 def test_one_goat_each_and_it_has_to_be_paid_for():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     with pytest.raises(ValueError, match="pet adopt"):

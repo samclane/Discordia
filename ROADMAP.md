@@ -76,7 +76,7 @@ existing things to it when an item touches them anyway, not as a sweep.
     puts goat's milk (a barter item, sold in town) into the stash every hour, downtime included. `/pet status`
     says how it is. Saved, as a migration step.
   - [x] Neglect and care: a goat left hungry for days wanders off; one fed on time gives more. The tamagotchi part.
-  - [ ] A hungry goat says nothing until you ask `/pet status`. A DM when it goes hungry (once, like a fight's
+  - [x] A hungry goat says nothing until you ask `/pet status`. A DM when it goes hungry (once, like a fight's
     first hit) would be the tamagotchi's beep, and the reason to check in.
   - [ ] A dog that comes on raids: fetches (a chance of salvage on a quiet step) or bites what you fight.
   - [ ] More kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
@@ -284,6 +284,8 @@ existing things to it when an item touches them anyway, not as a sweep.
   Decided 2026-11-03: fists. `PlayerCharacter.unequip` puts a fist back; the two tests change to expect it.
 - [ ] `test_webapp.py::test_server_admins_pick_the_channels_on_the_settings_page` failed once in a full run on
   2026-11-03 and passed in the next five (alone and full). A flaky test: find what it races on if it recurs.
+- [ ] `test_webclient.py::test_polls_revalidate_instead_of_redownloading[actors-pollActors]` failed once in a full
+  run on 2026-11-03 and passed in the next four. Another flaky one: find what it races on if it recurs.
 
 ## Libraries
 
@@ -701,3 +703,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   two jugs an hour; going hungry starts that over (`pet_care`, saved, migration step 3). Hungry for
   `PET_RUNAWAY_TICKS` (three days) it wanders off for good (`pet_gone`, worked out from `pet_fed_until`, not
   stored), and you can adopt another. `/pet status` counts down either way.
+- 2026-11-03 Hungry goat DM: `World.tick` returns an event on the tick a goat's last meal runs out
+  (`pet_fed_until == ticks`), so the cog DMs "Bibi is hungry..." once per hunger. One that goes hungry during
+  downtime stays quiet (ponytail note).
