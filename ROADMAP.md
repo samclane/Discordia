@@ -235,7 +235,8 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Chunks are never unloaded (~0.4 MB each, ponytail note in `World.__init__`). Evict chunks with nobody in
   them once a long-running server's memory says so; store sales in them would need saving first.
   (blocked: waits on the live server's memory; see the Linode box, ~1 GB RAM, so past ~1,500 chunks. The owner
-  dashboard, `/admin`, charts both.)
+  dashboard, `/admin`, charts both. Checked 2026-11-03: runs peak at 47-72 MB RSS with ~640 MB free, and every
+  deploy restarts the process, which drops its chunks, so nothing is near the limit.)
 - [x] The owner dashboard (`/admin`) can't tell when chunk eviction is due: add loaded chunks and the process's
   memory (`/proc/self/status` VmRSS, stdlib; blank off Linux) as `record_tick` metrics with `CHARTS` entries.
 - [ ] Terrain repeats every ~2560 squares (`pnoise3` period, ponytail note in `World._terrain_at`).
