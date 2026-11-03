@@ -241,6 +241,11 @@ def test_a_slow_pinch_still_zooms(page):
     assert page.js("view.scale") == pytest.approx(0.2 * 1.001**100)
 
 
+def test_a_selected_town_lists_its_residents(page):
+    page.js("const [tx, ty] = document.querySelector('#towns .row').dataset.at.split(',').map(Number); selectTile(tx, ty, false); 0")
+    assert page.wait_for("document.getElementById('info').textContent.includes(', the innkeeper: ')")
+
+
 def test_selecting_moves_the_highlight_without_rebuilding_the_town_list(page):
     """Rebuilding a thousand rows on every click took 40ms."""
     result = page.js(

@@ -177,7 +177,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Non-Raider NPC types, second half: merchants and guards in towns (overlaps Town population below).
 - [x] NPCs chase players in sight instead of random walks (greedy steps, not A*: see `NPC.step`).
 - [x] Town population: named NPCs that stay in town, give flavor text on `/town status`.
-- [ ] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
+- [x] Town residents are words only (`Town.residents`). Put them on the map as NPCs that never leave town, drawn
   from Kenney's people tiles, if towns feel empty; they'd need to be skipped by `World.attack` and the NPC tick.
   Decided 2026-11-02: do it now.
 - [x] Wilds respawn / cooldown so a single wilds tile is not farmable every step.
@@ -625,3 +625,8 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-03 Bots shop like players: a bare-fisted simulator bot buys the most damaging gun it can pay for with a
   box of its ammo, cash and stash together (`Bot._best_gun`, taking the shortfall from the stash first), instead
   of the cheapest, which since restocking was always the 4-damage Stechkin.
+- 2026-11-03 Town residents on the map: a townsperson from the Kenney sheet (`resident.png`) stands in every town's
+  doorway, baked into the map art (`WindowRenderer._draw`, so `/look` and the web map both show it; `ART_VERSION`
+  8), and clicking a town on the web map lists its three residents and what they say (from the chunk's JSON,
+  fetched on demand). Not NPCs, so attack, the NPC tick and saves need no skipping. `Town.residents` is now rolled
+  once at construction, since the web side reads it from an HTTP thread and `_seeded` swaps the global RNG.

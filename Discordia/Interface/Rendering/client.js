@@ -19,6 +19,7 @@ let world = null;
 let origin = { x: 0, y: 0 }; // the spawn, in squares
 let tile = 16;
 let towns = [];
+const residents = new Map(); // "x,y" -> [role, name, line] for each of a town's people, from its chunk's JSON
 const structures = new Map(); // "x,y" -> town/wilds record
 const explored = new Set(); // "cx,cy" of every chunk the server has generated
 const chunkEls = new Map(); // "cx,cy" -> <img> of a chunk in view
@@ -109,6 +110,7 @@ async function loadChunkData(key, cx, cy) {
     chunkData.set(key, data);
     for (const w of data.wilds) structures.set(`${w.x},${w.y}`, { kind: "Wilds", ...w });
     for (const p of data.places) structures.set(`${p.x},${p.y}`, p); // extraction points and caches
+    for (const t of data.towns) residents.set(`${t.x},${t.y}`, t.residents);
     // Whoever asked was shown a placeholder; fill it in.
     renderInfo();
     if (hover) showHover(hover);
@@ -472,6 +474,8 @@ function renderInfo() {
         ? `<b>${esc(here.name)}</b> <span class="dim">&mdash; town, pop. ${here.population}, ${esc(here.industry)}</span>`
         : `<b>${esc(here.name)}</b> <span class="dim">&mdash; ${PLACES[here.kind] ?? "wilds"}</span>`
     );
+    const people = residents.get(`${x},${y}`) ?? []; // the town's own, under its name
+    lines.splice(1, 0, ...people.map(([role, name, line]) => `${esc(name)}, the ${esc(role)}: <span class="dim">&ldquo;${esc(line)}&rdquo;</span>`));
   }
   lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(terrainAt(x, y))}</span>`);
   info.innerHTML = lines.join("<br>");

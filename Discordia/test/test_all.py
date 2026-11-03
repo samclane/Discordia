@@ -14,7 +14,7 @@ from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Database import Database
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.DesktopApp import RESIDENT_SPRITE, WindowRenderer
 from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 from Discordia.GameLogic.Items import Ammo, Equipment, EquipmentSet, OffHandEquipment
 
@@ -124,6 +124,13 @@ class TestGeneral(unittest.TestCase):
             )
             self.assertGreater(img.height, 1)
             self.assertGreater(img.width, 1)
+
+    def test_town_residents_are_rendered(self):
+        """Towns shouldn't look empty: a resident stands in each town's doorway."""
+        town = self.world.starting_town
+        drawn = self.display.draw_region(town.x, town.y, town.x + 1, town.y + 1)
+        resident = self.display._sprite_cache[RESIDENT_SPRITE]
+        self.assertEqual(drawn.convert("RGBA").getpixel((8, 8)), resident.getpixel((8, 8)))  # their face
 
     def test_npc_is_rendered(self):
         """NPCs must show up on the map: they attack players, so players need to see them coming."""

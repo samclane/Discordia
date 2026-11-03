@@ -59,7 +59,7 @@ ME_HTML = Path(__file__).with_name("me.html")
 ADMIN_HTML = Path(__file__).with_name("admin.html")  # the bot owner's dashboard
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
-ART_VERSION = 7
+ART_VERSION = 8
 ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
 CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
@@ -190,8 +190,8 @@ def _explored_json(renderer: WindowRenderer) -> bytes:
 
 
 def _chunk_json(rows: list) -> bytes:
-    """What the client needs to say what's under the cursor: terrain names, and which squares are wilds,
-    extraction points or caches."""
+    """What the client needs to say what's under the cursor: terrain names, which squares are wilds,
+    extraction points or caches, and who lives in its towns."""
     return json.dumps(
         {
             "terrain": [[space.terrain.label for space in row] for row in rows],  # read on hover
@@ -206,6 +206,12 @@ def _chunk_json(rows: list) -> bytes:
                 for row in rows
                 for space in row
                 if isinstance(space, (GameSpace.Extract, GameSpace.Cache))
+            ],
+            "towns": [  # who's in the doorway, for the info panel
+                {"x": space.x, "y": space.y, "residents": space.residents}
+                for row in rows
+                for space in row
+                if isinstance(space, GameSpace.Town)
             ],
         }
     ).encode()

@@ -96,6 +96,12 @@ def test_hovering_names_extraction_points_and_caches():
     assert [(p["x"], p["kind"], p["name"]) for p in places] == [(0, "Extract", "an extraction point"), (1, "Cache", "a cache")]
 
 
+def test_clicking_a_town_names_its_residents():
+    town = GameSpace.Town(1, 0, "Hub")
+    towns = json.loads(_chunk_json([[GameSpace.Space(0, 0), town]]))["towns"]
+    assert towns == [{"x": 1, "y": 0, "residents": [list(r) for r in town.residents]}]
+
+
 def test_zoomed_out_map_gets_a_small_overview(base_url):
     """A fit view shows every explored chunk: at full size that was 34 KB each, hundreds of them."""
     explored = json.loads(get(base_url + "/explored.json")[2])

@@ -52,7 +52,8 @@ SIDE_DISCOUNT = 0.2  # off for a soldier at their own side's military base store
 # stocked kind it lacks, so a town never runs dry of guns for good. On the clock, not per store: nothing more to save.
 STORE_RESTOCK_TICKS = 720
 
-# Who you meet in every town (Town.residents), and what each might say. Flavor only: they aren't on the map.
+# Who you meet in every town (Town.residents), and what each might say. Drawn on the map in their town's square,
+# but not NPCs: nothing hits them and they never move.
 TOWNSFOLK = {
     "shopkeeper": [
         "Cash only. Everything on these shelves has been somewhere before.",
@@ -547,13 +548,11 @@ class Town(Space):
         self.store: Store = store if store is not None else Store()
         self.store.side = industry.side  # a base's store knows whose it is; set here, so a load gets it back too
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
-
-    @property
-    def residents(self) -> List[Tuple[str, str, str]]:
-        """(role, name, what they say) for each of TOWNSFOLK. Rolled on its own seed from where the town stands,
-        not in generate_town: drawing there would shift the chunk's generation and move every existing map."""
+        # (role, name, what they say) for each of TOWNSFOLK. Rolled on its own seed from where the town stands, so
+        # drawing it doesn't shift the chunk's generation, and here, not on first use: the web map reads it from
+        # an HTTP thread, and _seeded swaps the game's global RNG.
         with _seeded("residents", self.x, self.y):
-            return [
+            self.residents: List[Tuple[str, str, str]] = [
                 (role, random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name(), random.choice(lines))
                 for role, lines in TOWNSFOLK.items()
             ]
