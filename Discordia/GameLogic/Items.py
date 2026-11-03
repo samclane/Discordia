@@ -42,9 +42,6 @@ class Equipment(ABC):
 class Ammo(Equipment):
     """A box of rounds for one caliber, priced by what's left in it: a half-used box sells for half."""
 
-    # ponytail: a character's boxes keep their `quantity` through a save (Database._item_state), but a store's
-    # shelf is saved by class path alone, so a part-used box sold to a store comes back full. Save it if farmed.
-
     def __init__(
         self,
         name: str = "Ammo",

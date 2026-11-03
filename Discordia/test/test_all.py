@@ -262,7 +262,11 @@ class TestGeneral(unittest.TestCase):
         self.assertTrue(store.sell_item(0, shopper))  # the shelf is one short
         store.buy_item(shopper.inventory[-1], shopper)  # and it's back, at the end of the shelf
         store.sell_item(0, shopper)
-        stock = [type(item) for item in store.inventory]
+        used = Weapons.Ammo9mm()
+        used.take(5)
+        shopper.inventory.append(used)
+        store.buy_item(used, shopper)  # a part-used box on the shelf stays part-used
+        stock = [(type(item), getattr(item, "quantity", None)) for item in store.inventory]
 
         path = Path(self.temp_dir.name) / "roundtrip.db"
         database = Database(path)
@@ -286,7 +290,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
         town = adapter.world.space_at(*self.world.starting_town)
         assert isinstance(town, GameSpace.Town)
-        self.assertEqual([type(item) for item in town.store.inventory], stock)
+        self.assertEqual([(type(item), getattr(item, "quantity", None)) for item in town.store.inventory], stock)
 
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
@@ -359,6 +363,22 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(adapter.get_player(0).level, 1)
         self.assertEqual((adapter.get_player(0).hideout_level, adapter.get_player(0).prestige), (0, 0))
         self.assertIsNone(adapter.get_player(0).side)
+
+    def test_database_loads_a_shelf_saved_as_bare_class_paths(self):
+        """Before shelf items kept their state, a store row listed class paths alone."""
+        path = Path(self.temp_dir.name) / "old_shelf.db"
+        town = self.world.starting_town
+        database = Database(path)
+        database.save(self.adapter)
+        database.connection.execute(
+            "INSERT OR REPLACE INTO store VALUES (?, ?, ?)", (town.x, town.y, '["Discordia.GameLogic.Weapons.Ammo9mm"]')
+        )
+        database.connection.commit()
+        adapter = database.load()
+        database.close()
+        assert adapter is not None  # for the type checker
+        shelf = adapter.world.space_at(town.x, town.y).store.inventory
+        self.assertEqual([(type(i), i.quantity) for i in shelf], [(Weapons.Ammo9mm, Weapons.Ammo9mm().quantity)])
 
     def test_loading_pays_hideouts_for_the_downtime(self):
         """A restart moves the clock on by however long the save sat on disk, so idle income isn't lost."""

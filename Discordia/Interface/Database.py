@@ -87,7 +87,8 @@ CREATE TABLE IF NOT EXISTS npc (
 CREATE TABLE IF NOT EXISTS store (
     x           INTEGER NOT NULL,  -- the town's square
     y           INTEGER NOT NULL,
-    items       TEXT    NOT NULL,  -- JSON list of class paths, in shelf order (the # a player buys by)
+    items       TEXT    NOT NULL,  -- JSON list of [class path, _item_state] in shelf order (the # a player buys
+                                   -- by); a bare class path in saves from before the state
     PRIMARY KEY (x, y)
 );
 
@@ -225,7 +226,10 @@ class Database:
         for store_row in self.connection.execute("SELECT * FROM store"):
             town = world.space_at(store_row["x"], store_row["y"])
             if isinstance(town, GameSpace.Town):  # always, unless the map generator changed under the save
-                town.store.inventory = [_resolve(path, Equipment)() for path in json.loads(store_row["items"])]
+                town.store.inventory = [
+                    _restore_item(*(entry if isinstance(entry, list) else (entry, None)))
+                    for entry in json.loads(store_row["items"])
+                ]
                 town.store.traded = True
         adapter.guild_settings = {
             row["guild_id"]: GuildSettings(**json.loads(row["settings"]))
@@ -321,7 +325,7 @@ class Database:
             self.connection.executemany(
                 "INSERT INTO store VALUES (?, ?, ?)",
                 [
-                    (town.x, town.y, json.dumps([_class_path(item) for item in town.store.inventory]))
+                    (town.x, town.y, json.dumps([[_class_path(i), _item_state(i)] for i in town.store.inventory]))
                     for town in list(world.towns)
                     if town.store.traded
                 ],

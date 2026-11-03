@@ -188,7 +188,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Save store inventories and prices per town.
 - [x] Save weapon state (ammo loaded, jam) for equipped projectile weapons, and how full each ammo box is
   (`Items.Ammo.quantity`): both come back full after a restart today.
-- [ ] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
+- [x] A store's shelf is saved by class path alone, so a part-used ammo box sold to a store comes back full
   after a restart. Save `_item_state` per shelf item too if anyone farms it (ponytail note on `Items.Ammo`).
   Decided 2026-11-02: fix it now.
 - [ ] Schema migrations are a column-presence check in `Database._migrate`. Fine for one column; if a change ever needs to rewrite data, switch to `PRAGMA user_version` and numbered steps.
@@ -630,3 +630,6 @@ existing things to it when an item touches them anyway, not as a sweep.
   8), and clicking a town on the web map lists its three residents and what they say (from the chunk's JSON,
   fetched on demand). Not NPCs, so attack, the NPC tick and saves need no skipping. `Town.residents` is now rolled
   once at construction, since the web side reads it from an HTTP thread and `_seeded` swaps the global RNG.
+- 2026-11-03 Store shelves keep item state through a restart: a store row lists `[class path, _item_state]` per
+  item, so a part-used ammo box sold to a store comes back part-used (and a gun keeps its loaded rounds). Bare
+  class paths from older saves still load, so no migration.
