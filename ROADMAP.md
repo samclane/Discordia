@@ -70,6 +70,14 @@ existing things to it when an item touches them anyway, not as a sweep.
   - [x] A rendered hideout: `/hideout` (and `/me`) shows a picture of it, Pillow like `DesktopApp`, rooms that grow
     with the level and the stash on its shelves.
   - [x] Trophies on its wall: the achievements earned (they have icons since f53ef0d) and the best haul so far.
+- [ ] Pets (asked for 2026-11-03: "a tamagotchi-like pet for the player that can provide resources in some way:
+  fetching, milking, combat"). A reason to check in a few times a day, kept at home like the hideout. Split:
+  - [ ] A goat: `/pet adopt` in town buys one, `/pet feed` in town keeps it fed for half a day, and while fed it
+    puts goat's milk (a barter item, sold in town) into the stash every hour, downtime included. `/pet status`
+    says how it is. Saved, as a migration step.
+  - [ ] Neglect and care: a goat left hungry for days wanders off; one fed on time gives more. The tamagotchi part.
+  - [ ] A dog that comes on raids: fetches (a chance of salvage on a quiet step) or bites what you fight.
+  - [ ] More kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
 
 ## Gameplay loop (make it a game)
 

@@ -9,4 +9,3 @@ Nothing open. (Answers of 2026-11-03 are in `ROADMAP.md`.)
 ## Anything else
 
 New features, directions, or things you want the loop to stop doing:
-
