@@ -48,7 +48,7 @@ NO_STORE = "There's no store here. Find a town that has one."
 INVITE_PERMISSIONS = discord.Permissions(view_channel=True, send_messages=True)
 WELCOME = (
     "Discordia is here: a world of towns and wilds, played with slash commands. "
-    "Start with `/register`. Admins: `/settings` picks the channels it plays in, and where the daily digest goes."
+    "Start with {register}. Admins: {settings} picks the channels it plays in, and where the daily digest goes."
 )
 
 
@@ -267,6 +267,7 @@ class DiscordInterface(commands.Cog):
         # ponytail: in memory, so after a restart a player's news reaches a server once they play there again.
         self._servers: Dict[int, set] = {}
         self._sent = 0  # messages the bot sent on its own (DMs, posts), for the dashboard
+        self._mentions: Dict[str, str] = {}  # command name -> its clickable </name:id>, once synced
 
     def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
         """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
@@ -413,8 +414,9 @@ class DiscordInterface(commands.Cog):
 
     def guild_for_admin(
         self, member_id: int, guild_id: int, timeout: float = 10
-    ) -> Optional[Tuple[str, List[Tuple[int, str]]]]:
-        """For the website's settings page, from its thread: (server name, [(channel id, name)]) if the
+    ) -> Optional[Tuple[str, List[Tuple[int, str, bool]]]]:
+        """For the website's settings page, from its thread: (server name, [(channel id, name, whether the bot
+        may post there)]) if the
         member may manage that server, else None. Asks Discord every time rather than trusting a cache,
         so taking someone's Manage Server away locks them out at once."""
 
@@ -428,7 +430,10 @@ class DiscordInterface(commands.Cog):
                 return None
             if not member.guild_permissions.manage_guild:
                 return None
-            return guild.name, [(channel.id, channel.name) for channel in guild.text_channels]
+            return guild.name, [
+                (channel.id, channel.name, channel.permissions_for(guild.me).send_messages)
+                for channel in guild.text_channels
+            ]
 
         return asyncio.run_coroutine_threadsafe(look(), self._loop).result(timeout)
 
@@ -455,6 +460,7 @@ class DiscordInterface(commands.Cog):
         for every, action, name in self.jobs:
             self._start_job(every, action, name)
         synced = await self.bot.tree.sync()
+        self._mentions = {command.name: command.mention for command in synced}
         LOG.info(
             f"Synced {len(synced)} slash commands (global commands can take up to an hour to appear)."
         )
@@ -468,15 +474,23 @@ class DiscordInterface(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        """Say hello and where to start. Best effort, like _dm: the server may have no system channel, or
-        not let the bot post in it."""
+        """Say hello and where to start: in the system channel, or else the first channel the bot may post in.
+        Best effort, like _dm."""
         LOG.info("Joined server %s <%s>", guild.name, guild.id)
-        if guild.system_channel is None:
-            return
-        try:
-            await guild.system_channel.send(WELCOME)
-        except discord.HTTPException:
-            LOG.info("Could not welcome server %s", guild.id)
+
+        def channels():  # lazily: the system channel usually takes it
+            if guild.system_channel is not None:
+                yield guild.system_channel
+            yield from (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages)
+
+        text = WELCOME.format(**{name: self._mentions.get(name, f"`/{name}`") for name in ("register", "settings")})
+        for channel in channels():
+            try:
+                await channel.send(text)
+                return
+            except discord.HTTPException:  # not allowed to post there after all
+                pass
+        LOG.info("Could not welcome server %s", guild.id)
 
     async def cog_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError

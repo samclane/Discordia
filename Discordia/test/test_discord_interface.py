@@ -766,12 +766,27 @@ def test_joining_a_server_says_where_to_start():
     async def send(text):
         sent.append(text)
 
-    guild = SimpleNamespace(name="S", id=1, system_channel=SimpleNamespace(send=send))
+    async def refuse(text):
+        raise discord.Forbidden(cast(Any, SimpleNamespace(status=403, reason="Forbidden")), "Missing Access")
+
+    def channel(sender, can_post=True):
+        return SimpleNamespace(send=sender, permissions_for=lambda me: SimpleNamespace(send_messages=can_post))
+
+    guild = SimpleNamespace(name="S", id=1, me=None, system_channel=channel(send), text_channels=[])
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
-    assert "/register" in sent[0] and "/settings" in sent[0]
-    guild.system_channel = None  # nowhere to say it
+    assert "`/register`" in sent[0] and "`/settings`" in sent[0]
+    # No system channel, or one the bot may not post in: the first channel it may post in.
+    guild.system_channel = channel(refuse)
+    guild.text_channels = [channel(refuse, can_post=False), channel(send)]
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
-    assert len(sent) == 1
+    assert len(sent) == 2
+    guild.system_channel, guild.text_channels = None, [channel(refuse, can_post=False)]  # nowhere to say it
+    asyncio.run(interface.on_guild_join(cast(Any, guild)))
+    assert len(sent) == 2
+    interface._mentions = {"register": "</register:9>"}  # synced: commands you can click
+    guild.system_channel = channel(send)
+    asyncio.run(interface.on_guild_join(cast(Any, guild)))
+    assert "</register:9>" in sent[-1] and "`/settings`" in sent[-1]
 
 
 def test_town_status_introduces_the_residents():

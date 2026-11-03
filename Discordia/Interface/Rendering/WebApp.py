@@ -89,7 +89,7 @@ SPENT_BODY = f"""<section class="solo"><div class="card">
     <h1>That link has run out</h1>
     <p class="sub">Login links work once, within 10 minutes of asking for them.</p>
     <ol class="steps">
-      <li><span>Run <code>/weblogin</code> in Discord again.</span></li>
+      <li><span>Run <code>{{{{COMMAND}}}}</code> in Discord again.</span></li>
       <li><span>Open the new link.</span></li>
     </ol>
   </div></section>"""
@@ -600,10 +600,11 @@ class _Handler(BaseHTTPRequestHandler):
             return
         form = parse_qs(body)
         session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
-        if session is None:
-            self._send(self._page("Link expired · Discordia", SPENT_BODY), "text/html; charset=utf-8", status=403)
-            return
         after = form.get("next", [""])[0]
+        if session is None:
+            command = "/settings" if ADMIN_ROUTE.fullmatch(after) else "/weblogin"
+            self._send(self._page("Link expired · Discordia", SPENT_BODY, COMMAND=command), "text/html; charset=utf-8", status=403)
+            return
         self.send_response(303)
         # Only to a page of ours that's known: anything else would make the login link an open redirect.
         self.send_header("Location", after if ADMIN_ROUTE.fullmatch(after) else "/map")
@@ -726,14 +727,14 @@ class _Handler(BaseHTTPRequestHandler):
         def options(chosen):
             return '<option value="">Nowhere</option>' + "".join(
                 f'<option value="{channel_id}"{" selected" if channel_id == chosen else ""}>'
-                f"#{html.escape(channel_name)}</option>"
-                for channel_id, channel_name in channels
+                f"#{html.escape(channel_name)}{'' if can_post else ' (the bot may not post here)'}</option>"
+                for channel_id, channel_name, can_post in channels
             )
 
         rows = "".join(
             f'<li><label><input type="checkbox" name="c" value="{channel_id}"{" checked" if channel_id in picked else ""}>'
             f" #{html.escape(channel_name)}</label></li>"
-            for channel_id, channel_name in channels
+            for channel_id, channel_name, _ in channels
         )
         return self._page(
             f"{name} settings · Discordia",
@@ -761,7 +762,7 @@ class _Handler(BaseHTTPRequestHandler):
         guild = self._admin_guild(guild_id)
         if guild is None:
             return
-        real = {channel_id for channel_id, _ in guild[1]}
+        real = {channel[0] for channel in guild[1]}
         form = parse_qs(body)
         picked = [int(c) for c in form.get("c", []) if c.isdigit() and int(c) in real]
         def channel(name):  # one of this server's channels, or None

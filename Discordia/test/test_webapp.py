@@ -565,10 +565,11 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
 
         adapter.guild_for_admin = lambda member, guild: asked.append((member, guild)) or (
             "Test <Server>",
-            [(11, "general"), (12, "raids")],
+            [(11, "general", True), (12, "raids", False)],
         )
         status, _, page = request("GET", "/admin/5")
         assert status == 200 and "Test &lt;Server&gt;" in page and "#raids" in page and " checked" not in page
+        assert "#raids (the bot may not post here)" in page and "#general (" not in page, "says where posts would fail"
         assert asked[-1] == (0, 5), "asks Discord about the logged-in member, every time"
 
         assert request("POST", "/admin/5", "c=12", **{"Sec-Fetch-Site": "cross-site"})[0] == 403, "no forged forms"
@@ -590,6 +591,9 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
             assert f'name="next" value="{html.escape(after)}"' in page
             assert ("Open server settings" in page) == (landing == "/admin/5")
             assert request("POST", "/login", f"t={token}&next={after}", cookie=None)[:2] == (303, landing)
+        # A spent link says which command makes a new one.
+        assert "Run <code>/settings</code>" in request("POST", "/login", "t=spent&next=/admin/5", cookie=None)[2]
+        assert "Run <code>/weblogin</code>" in request("POST", "/login", "t=spent", cookie=None)[2]
         # Already logged in: straight to the settings, and the link stays unspent.
         token = adapter.web_logins.new_link_token(0)
         assert request("GET", f"/login?t={token}&next=/admin/5")[:2] == (303, "/admin/5")
