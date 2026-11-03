@@ -248,7 +248,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] An equipped item stays in the backpack too (`/inventory equip` doesn't move it), so `Database.save` writes
   it twice, as a slot row and a backpack row, and a restart hands back two.
 - [x] `GameSpace.Base`/`BaseLevel` are never placed or used: the hideout is `PlayerCharacter.hideout_level`. Delete them.
-- [ ] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
+- [x] A wilds trader only sells. `Store.buy_item` already exists, so `/trade sell` is a few lines if
   players want to offload loot without walking to a town.
   Decided 2026-11-02: do it now.
 
@@ -266,6 +266,10 @@ existing things to it when an item touches them anyway, not as a sweep.
   (`Cache.run_event`), so give them a small extra pool of `"store": false` gear, salvage aside.
 - [x] `NPC.generate` passes `None` as `parent_world`; `World.add_actor` should own that assignment consistently.
 - [x] README: store buy/sell are no longer placeholders; document `-W` web map and `/attack` DMs.
+- [ ] Unequipping your weapon (and now selling it) leaves `PlayerCharacter.weapon` None, so `/attack` and fights
+  refuse with "no weapon equipped" until you equip something, while an empty gun falls back to fists
+  (`ready_weapon`). Tests pin the None (`test_unequipping_a_weapon_leaves_the_character_bare_handed`). Decide
+  whether an empty hand should be fists, as at birth and after a death.
 
 ## Done
 
@@ -643,3 +647,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - 2026-11-03 Dashboard memory: each tick's row carries the process's resident memory (`memory_mb`, VmRSS from
   `/proc/self/status`; blank off Linux), and `/admin` charts it and shows it as a tile next to chunks explored
   (already charted), so it says when chunk eviction is due. A chart with no data (memory on Windows) is left out.
+- 2026-11-03 `/trade sell`: a wilds trader buys backpack items at two thirds of a town's price (its markup is its
+  discount, through `Store.buy_item`), sharing `_sell` with `/town store sell`. Selling something you hold or
+  wear now takes it out of your hands: it used to stay equipped, so you kept firing a gun the store could
+  sell back to you. The server simulator's members try `/trade sell` too.

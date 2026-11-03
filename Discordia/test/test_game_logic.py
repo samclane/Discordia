@@ -444,6 +444,16 @@ def test_selling_back_returns_the_item_to_the_shelf():
     assert character.currency == purse + price
 
 
+def test_selling_what_you_hold_takes_it_out_of_your_hands():
+    """Or you'd keep firing a gun the store has on its shelf, and could buy it back for a second one."""
+    rifle = Weapons.AK47()
+    character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    character.inventory.append(rifle)
+    character.equip(rifle)
+    Store([]).buy_item(rifle, character)
+    assert character.weapon is None and not rifle.is_equipped  # bare-handed, as /inventory unequip leaves you
+
+
 # --- Wilds and events -------------------------------------------------------------------------------
 
 

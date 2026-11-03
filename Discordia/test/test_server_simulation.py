@@ -252,6 +252,7 @@ PLAY: List[Tuple[str, float, Callable[[], Dict[str, Any]]]] = [
     ("town store buy", 0.5, lambda: {"index": random.randrange(12)}),
     ("town store sell", 0.3, lambda: {"index": random.randrange(3)}),
     ("trade list", 0.3, lambda: {}),
+    ("trade sell", 0.2, lambda: {"index": random.randrange(3)}),
     ("stash list", 0.3, lambda: {}),
     ("stash put", 0.3, lambda: {"money": random.randrange(100)}),
     ("hideout build", 0.2, lambda: {}),

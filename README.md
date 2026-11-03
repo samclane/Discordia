@@ -120,6 +120,9 @@ the bot syncs them.
     * `/trade buy` [`index`]
         * Buy the trader's item at that index (start typing its name to pick it). They are gone as soon as you
           move on.
+    * `/trade sell` [`index`]
+        * Sell the trader the backpack item at that index, for two thirds of what a town would pay: loot off your
+          hands without the walk home.
 * `/town status`
     * Which town you're in, its population, and who runs the place: the shopkeeper, innkeeper and guard.
     * `/town inn`
@@ -142,6 +145,7 @@ the bot syncs them.
               and Discord suggests matches with their prices, so you don't need the list's numbers.
         * `/town store sell` [`index`]
             * Sell the inventory item at that index for what it's worth (a part-used ammo box for what's left in it).
+              Selling what you're holding or wearing takes it off you first.
 * `/stash list`
     * In any town: what you've banked. The stash is one per player, reachable from every town, and
     dying out in the wilds never touches it. Dying anywhere but a town loses everything you were

@@ -194,6 +194,16 @@ async def _send(interaction: discord.Interaction, content: str, **kwargs):
         LOG.info("Could not reply to /%s: %s", interaction.command, exc)
 
 
+async def _sell(interaction: discord.Interaction, character: Actors.PlayerCharacter, store: GameSpace.Store, index: int):
+    """Sell `store` the backpack item at `index`: /town store sell and /trade sell."""
+    if not 0 <= index < len(character.inventory):
+        await _send(interaction, f"Invalid index {index} given.", ephemeral=True)
+        return
+    item = character.inventory[index]
+    price = store.buy_item(item, character)
+    await _send(interaction, f"Sold {item.name} for ${price}.")
+
+
 async def _defer(interaction: discord.Interaction):
     """Buy the full 15 minutes for a slow command. Best effort for the same reason as _send:
     a dead interaction must not abort the order the command was about to queue."""
@@ -704,6 +714,13 @@ class DiscordInterface(commands.Cog):
                 ephemeral=True,
             )
 
+    @trade.command(name="sell")
+    @requires_character()
+    async def trade_sell(self, interaction: discord.Interaction, index: int):
+        """Sell the trader the inventory item at the given index, for less than a town would pay"""
+        character = self._player(interaction)
+        await _sell(interaction, character, self.world_adapter.merchant_store(character), index)
+
     @trade_buy.autocomplete("index")
     async def _trade_choices(self, interaction: discord.Interaction, current: str):
         # No checks run on an autocomplete: anyone not standing at a trader just gets no suggestions.
@@ -963,10 +980,4 @@ class DiscordInterface(commands.Cog):
         if store is None:
             await _send(interaction, NO_STORE, ephemeral=True)
             return
-        try:
-            item: Equipment = character.inventory[index]
-        except IndexError:
-            await _send(interaction, f"Invalid index {index} given.", ephemeral=True)
-            return
-        price = store.buy_item(item, character)
-        await _send(interaction, f"Successfully sold {item.name} for ${price}.")
+        await _sell(interaction, character, store, index)

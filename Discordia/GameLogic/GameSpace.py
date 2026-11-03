@@ -1473,6 +1473,10 @@ class Store:
     def buy_item(
         self, item: Equipment, player_character: Actors.PlayerCharacter
     ) -> int:
+        """Take `item` off `player_character` (out of their hands too, or they'd keep using what they sold) and
+        pay them for it: town price over price_ratio, so a wilds trader's markup is its discount when it buys."""
+        if item.is_equipped:
+            player_character.unequip(item)
         self.inventory.append(item)
         self.traded = True
         price = int(item.base_value / self.price_ratio * (1.25 if isinstance(player_character.player_class, Actors.Fixer) else 1))
