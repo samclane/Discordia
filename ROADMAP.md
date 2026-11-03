@@ -270,6 +270,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   refuse with "no weapon equipped" until you equip something, while an empty gun falls back to fists
   (`ready_weapon`). Tests pin the None (`test_unequipping_a_weapon_leaves_the_character_bare_handed`). Decide
   whether an empty hand should be fists, as at birth and after a death.
+  (blocked: design decision, see DECISIONS.md)
 
 ## Done
 
