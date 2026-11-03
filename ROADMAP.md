@@ -82,6 +82,7 @@ existing things to it when an item touches them anyway, not as a sweep.
     dog (`/pet adopt kind:`), fed and cared for the same way.
   - [x] The dog's second half: bites what you fight (a little damage on your turn in a fight while it's fed).
   - [ ] More kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
+    (blocked: waits on players having had the goat and the dog for a while; nothing records which they adopt yet)
 
 ## Gameplay loop (make it a game)
 
@@ -292,6 +293,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   in the next full run: `test_webapp.py::test_web_orders_are_checked_before_they_queue` (failed) and
   `test_webclient.py::test_selecting_moves_the_highlight_without_rebuilding_the_town_list` (errored). With the two
   above, the web tests look timing-sensitive under load: look for a shared fixed timeout or sleep first.
+  (blocked, all four: no traceback was kept, and they don't reproduce. Checked 2026-11-03: three full runs, and four
+  web-only runs beside two CPU-burning processes, all green; the only fixed waits are generous (30s HTTP, 20s
+  browser start). Ruled out: two test servers sharing a port (`shutdown()` without `server_close()` leaves each
+  listening with `SO_REUSEADDR`, but 3,000 open port-0 binds on this box never repeated). Next time one fails, keep
+  pytest's whole output, not its last lines, and start from the traceback.)
 
 ## Libraries
 
