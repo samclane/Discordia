@@ -1300,7 +1300,8 @@ class World:
                     p.work_until = None
             if p.pet_name is not None:  # a fed goat milks on the clock, downtime included; a hungry one doesn't
                 end = max(start, min(self.ticks, p.pet_fed_until))
-                p.stash.extend(Items.GoatMilk() for _ in range(end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS))
+                milkings = end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS
+                p.stash.extend(Items.GoatMilk() for _ in range(milkings * p.pet_jugs))
 
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.

@@ -49,6 +49,10 @@ PET_PRICE = 300
 PET_FEED_COST = 20
 PET_FEED_TICKS = 8640
 PET_MILK_TICKS = 720
+# Fed again before it goes hungry PET_CARE_MAX times running, a goat gives twice the milk; going hungry starts that
+# over. Hungry for PET_RUNAWAY_TICKS (three days), it wanders off for good. The tamagotchi part: check in on time.
+PET_CARE_MAX = 3
+PET_RUNAWAY_TICKS = 51840
 
 
 class BodySize(Enum):
@@ -550,6 +554,7 @@ class PlayerCharacter(Actor):
         # Your goat's name, or None: kept at home, it gives milk into the stash until the World.ticks it's fed until.
         self.pet_name: str | None = None
         self.pet_fed_until: int = 0
+        self.pet_care: int = 0  # on-time feeds running, up to PET_CARE_MAX
         # Levels of hideout, which earn into the stash every so many ticks whether you're playing or not.
         self.hideout_level: int = 0
         # Hideouts traded in so far (prestige_hideout), each adding PRESTIGE_BONUS to the income.
@@ -854,19 +859,31 @@ class PlayerCharacter(Actor):
         """Buy a goat, named `name` or whatever the seller called it, fed for its first PET_FEED_TICKS from `now`
         (World.ticks). Callers check the player is in a town. Raises ValueError if you keep one already or can't
         pay."""
-        if self.pet_name is not None:
+        if self.pet_name is not None and not self.pet_gone(now):
             raise ValueError(f"You keep {self.pet_name} already.")
         self._pay(PET_PRICE, "A goat")
         name = name or random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name()
-        self.pet_name, self.pet_fed_until = name, now + PET_FEED_TICKS
+        self.pet_name, self.pet_fed_until, self.pet_care = name, now + PET_FEED_TICKS, 0
 
     def feed_pet(self, now: int):
         """Fodder for PET_FEED_TICKS from `now`: a meal doesn't keep, so feeding early wastes what's left of the last.
         Callers check the player is in a town. Raises ValueError with no pet or no money."""
         if self.pet_name is None:
             raise ValueError("You don't keep a pet. `/pet adopt` in any town buys a goat.")
+        if self.pet_gone(now):
+            raise ValueError(f"{self.pet_name} got tired of waiting and wandered off. `/pet adopt` another in any town.")
         self._pay(PET_FEED_COST, f"Fodder for {self.pet_name}")
+        self.pet_care = min(self.pet_care + 1, PET_CARE_MAX) if self.pet_fed_until > now else 0
         self.pet_fed_until = now + PET_FEED_TICKS
+
+    def pet_gone(self, now: int) -> bool:
+        """Whether your goat has wandered off, hungry for PET_RUNAWAY_TICKS by `now`. Worked out, not stored."""
+        return self.pet_name is not None and now >= self.pet_fed_until + PET_RUNAWAY_TICKS
+
+    @property
+    def pet_jugs(self) -> int:
+        """Jugs of milk a fed goat gives each PET_MILK_TICKS: twice as many once it's been looked after."""
+        return 2 if self.pet_care >= PET_CARE_MAX else 1
 
     def _pay(self, money: int, what: str):
         """Take `money` from what's carried first and the stash after; ValueError naming `what` if it's short."""

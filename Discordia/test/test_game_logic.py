@@ -2359,3 +2359,33 @@ def test_one_goat_each_and_it_has_to_be_paid_for():
         character.adopt_pet("Another", 0)
     with pytest.raises(ValueError, match="carried and stashed"):
         character.feed_pet(0)
+
+
+def test_a_goat_fed_on_time_gives_twice_the_milk_until_it_goes_hungry(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    world.ticks = 0
+    player.adopt_pet("Bibi", world.ticks)
+    for _ in range(Actors.PET_CARE_MAX):  # each one just before the last meal runs out
+        world.advance(Actors.PET_FEED_TICKS - 1)
+        player.feed_pet(world.ticks)
+    assert player.pet_jugs == 2 and "happy goat" in adapter.pet_text(player)
+    before = len(player.stash)
+    world.advance(Actors.PET_MILK_TICKS)
+    assert len(player.stash) - before == 2
+
+    world.advance(Actors.PET_FEED_TICKS)  # hungry now: the next meal starts the count over
+    player.feed_pet(world.ticks)
+    assert player.pet_care == 0 and player.pet_jugs == 1
+
+
+def test_a_goat_left_hungry_for_days_wanders_off(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    player.adopt_pet("Bibi", world.ticks)
+    world.advance(Actors.PET_FEED_TICKS + Actors.PET_RUNAWAY_TICKS - 1)
+    assert not player.pet_gone(world.ticks) and "wanders off within 1 day" in adapter.pet_text(player)
+    world.advance(1)
+    assert player.pet_gone(world.ticks) and "wandered off" in adapter.pet_text(player)
+    with pytest.raises(ValueError, match="wandered off"):
+        player.feed_pet(world.ticks)
+    player.adopt_pet("Gul", world.ticks)  # room for another
+    assert player.pet_name == "Gul" and not player.pet_gone(world.ticks)

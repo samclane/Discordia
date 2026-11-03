@@ -285,14 +285,26 @@ class WorldAdapter:
                 f"You don't keep a pet. `/pet adopt` in any town buys a goat for ${Actors.PET_PRICE}: fed, it gives"
                 " milk into your stash while you're away."
             )
-        name, left = character.pet_name, (character.pet_fed_until - self.world.ticks) * self.tick_seconds
+        name, now = character.pet_name, self.world.ticks
+        if character.pet_gone(now):
+            return f"{name} got tired of waiting and wandered off. `/pet adopt` another in any town."
+        left = (character.pet_fed_until - now) * self.tick_seconds
         if left <= 0:
-            return f"{name} is hungry and gives nothing. `/pet feed` in any town, for ${Actors.PET_FEED_COST}."
+            days = math.ceil((left + Actors.PET_RUNAWAY_TICKS * self.tick_seconds) / 86400)
+            return (
+                f"{name} is hungry and gives nothing, and wanders off within {days} day{'s' * (days > 1)} if nobody"
+                f" feeds it. `/pet feed` in any town, for ${Actors.PET_FEED_COST}."
+            )
         every = round(Actors.PET_MILK_TICKS * self.tick_seconds / 60)
-        return (
-            f"{name} is fed for another {math.ceil(left / 3600)} hours or so, and gives a jug of milk into your"
+        jugs = "two jugs" if character.pet_jugs > 1 else "a jug"
+        text = (
+            f"{name} is fed for another {math.ceil(left / 3600)} hours or so, and gives {jugs} of milk into your"
             f" stash every {every} minutes."
         )
+        if character.pet_jugs > 1:
+            return text + " It's a happy goat: keep feeding it on time."
+        more = Actors.PET_CARE_MAX - character.pet_care
+        return text + f" Feed it before it's hungry {more} more time{'s' * (more > 1)} running and it gives twice that."
 
     @property
     def width(self):

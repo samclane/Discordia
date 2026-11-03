@@ -183,8 +183,11 @@ the bot syncs them.
 * `/pet feed`
     * In any town: feed your goat for the next half a day ($20). A hungry goat gives nothing, and a meal doesn't
       keep, so feeding early wastes what's left of the last one.
+    * Feed it before it goes hungry three times running and it gives two jugs an hour; letting it go hungry starts
+      that over. Left hungry for three days, it wanders off for good, and you can adopt another.
 * `/pet status`
-    * Anywhere: whether your goat is fed, and for how long.
+    * Anywhere: whether your goat is fed and for how long, how close it is to giving double, or how long a hungry
+      one has before it wanders off.
             
 # Attributions
 

@@ -224,7 +224,7 @@ class TestGeneral(unittest.TestCase):
         """
         player = self.adapter.get_player(0)
         player.player_class = Actors.RaiderClass()
-        player.pet_name, player.pet_fed_until = "Bibi", self.world.ticks + 100
+        player.pet_name, player.pet_fed_until, player.pet_care = "Bibi", self.world.ticks + 100, 2
         player.currency = 4321
         player.gain_experience(250)
         player.hit_points -= 7
@@ -295,7 +295,7 @@ class TestGeneral(unittest.TestCase):
 
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
-        self.assertEqual((restored.pet_name, restored.pet_fed_until), ("Bibi", player.pet_fed_until))
+        self.assertEqual((restored.pet_name, restored.pet_fed_until, restored.pet_care), ("Bibi", player.pet_fed_until, 2))
         self.assertEqual(restored.currency, player.currency)
         self.assertEqual(restored.experience, player.experience)
         self.assertEqual(restored.level, player.level)
@@ -353,6 +353,7 @@ class TestGeneral(unittest.TestCase):
         connection.execute("ALTER TABLE world DROP COLUMN saved_at")
         connection.execute("ALTER TABLE character DROP COLUMN pet_name")
         connection.execute("ALTER TABLE character DROP COLUMN pet_fed_until")
+        connection.execute("ALTER TABLE character DROP COLUMN pet_care")
         connection.execute("PRAGMA user_version = 0")  # an older build never numbered its files
         connection.commit()
         connection.close()
