@@ -20,9 +20,9 @@ import aiohttp
 import pytest
 
 from Discordia.GameLogic import GameSpace
-from Discordia.Interface.Rendering.WebApp import _Handler
+from Discordia.Interface.Rendering import WebApp
 from Discordia.Interface.WorldAdapter import WorldAdapter
-from Discordia.test.test_webapp import LOGINS, SESSION, serve
+from Discordia.test.test_webapp import LOGINS, SESSION, answers, serve
 
 BROWSERS = [
     "google-chrome",
@@ -281,14 +281,15 @@ def test_a_background_tab_stops_polling(page):
 def test_polls_revalidate_instead_of_redownloading(page, monkeypatch, route, poll):
     """Nothing changes in this world, so after the page's first poll each one should be an empty 304."""
     codes = []
-    send_response = _Handler.send_response
+    send = WebApp._send
 
-    def record(handler, code, *args):
-        if handler.path == f"/{route}.json":
-            codes.append(code)
-        send_response(handler, code, *args)
+    def record(request, *args, **kwargs):
+        response = send(request, *args, **kwargs)
+        if request.path == f"/{route}.json":
+            codes.append(response.status)
+        return response
 
-    monkeypatch.setattr(_Handler, "send_response", record)
+    monkeypatch.setattr(WebApp, "_send", record)
     page.js(f"{poll}(); 0")
     for _ in range(100):
         if codes:
@@ -338,7 +339,7 @@ def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
     adapter.register_player(97, "Pilot")
     orders = []
     swing = GameSpace.PlayerActionResponse(text="You swing at nothing.")
-    adapter.place_order = lambda character, _action: orders.append(character.name) or swing
+    adapter.place_order = answers(lambda character, _action: orders.append(character.name) or swing)
     try:
         session = LOGINS.redeem(LOGINS.new_link_token(97))
         page.send("Network.setCookie", name="session", value=session, url=base_url)

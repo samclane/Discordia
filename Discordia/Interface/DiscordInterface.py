@@ -398,55 +398,30 @@ class DiscordInterface(commands.Cog):
             if settings.digest_channel is not None:
                 await self._post(settings.digest_channel, text)
 
-    def order_threadsafe(
-        self,
-        character: Actors.PlayerCharacter,
-        action: Callable[[], Any],
-        timeout: float = 30,
-    ) -> Any:
-        """order() for a caller on another thread (the web map): queue it on the bot loop, block for the
-        tick. Raises whatever the action raised, or TimeoutError if no tick comes."""
-
-        async def place():
-            return await self.order(character, action)
-
-        return asyncio.run_coroutine_threadsafe(place(), self._loop).result(timeout)
-
-    def guild_for_admin(
-        self, member_id: int, guild_id: int, timeout: float = 10
-    ) -> Optional[Tuple[str, List[Tuple[int, str, bool]]]]:
-        """For the website's settings page, from its thread: (server name, [(channel id, name, whether the bot
-        may post there)]) if the
-        member may manage that server, else None. Asks Discord every time rather than trusting a cache,
+    async def guild_for_admin(self, member_id: int, guild_id: int) -> Optional[Tuple[str, List[Tuple[int, str, bool]]]]:
+        """For the website's settings page: (server name, [(channel id, name, whether the bot may post there)]) if
+        the member may manage that server, else None. Asks Discord every time rather than trusting a cache,
         so taking someone's Manage Server away locks them out at once."""
+        guild = self.bot.get_guild(guild_id)
+        if guild is None:  # not a server the bot is in
+            return None
+        try:
+            member = await guild.fetch_member(member_id)
+        except discord.HTTPException:  # not in that server
+            return None
+        if not member.guild_permissions.manage_guild:
+            return None
+        return guild.name, [
+            (channel.id, channel.name, channel.permissions_for(guild.me).send_messages)
+            for channel in guild.text_channels
+        ]
 
-        async def look():
-            guild = self.bot.get_guild(guild_id)
-            if guild is None:  # not a server the bot is in
-                return None
-            try:
-                member = await guild.fetch_member(member_id)
-            except discord.HTTPException:  # not in that server
-                return None
-            if not member.guild_permissions.manage_guild:
-                return None
-            return guild.name, [
-                (channel.id, channel.name, channel.permissions_for(guild.me).send_messages)
-                for channel in guild.text_channels
-            ]
-
-        return asyncio.run_coroutine_threadsafe(look(), self._loop).result(timeout)
-
-    def is_owner(self, member_id: int, timeout: float = 10) -> bool:
-        """For the website's dashboard, from its thread: whether the member owns the bot (or is on its team)."""
-        return asyncio.run_coroutine_threadsafe(
-            self.bot.is_owner(discord.Object(member_id)),  # type: ignore[arg-type]  # it only reads .id
-            self._loop,
-        ).result(timeout)
+    async def is_owner(self, member_id: int) -> bool:
+        """For the website's dashboard: whether the member owns the bot (or is on its team)."""
+        return await self.bot.is_owner(discord.Object(member_id))  # type: ignore[arg-type]  # it only reads .id
 
     async def _setup_hook(self):
-        self._loop = asyncio.get_running_loop()
-        self.world_adapter.place_order = self.order_threadsafe
+        self.world_adapter.place_order = self.order
         self.world_adapter.tick_seconds = self.tick_seconds
         self.world_adapter.guild_for_admin = self.guild_for_admin
         self.world_adapter.is_owner = self.is_owner

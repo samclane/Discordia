@@ -15,15 +15,14 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from http.server import ThreadingHTTPServer
-from functools import partial
 
 import pytest
 from PIL import Image
 
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
-from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json, _Handler
+from Discordia.Interface.Rendering import WebApp
+from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
 from Discordia.Interface.DiscordInterface import DiscordInterface
 from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter, memory_mb
@@ -36,10 +35,26 @@ COOKIE = f"session={SESSION}"
 
 
 def serve(adapter):
+    """The site on its own loop in a thread, standing in for the bot's: `loop` is where to run a tick."""
     adapter.web_logins = LOGINS
-    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_Handler, WindowRenderer(adapter)))
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    return server
+    loop = asyncio.new_event_loop()
+    threading.Thread(target=loop.run_forever, daemon=True).start()
+    runner = asyncio.run_coroutine_threadsafe(WebApp.serve(WindowRenderer(adapter), 0), loop).result(10)
+
+    def shutdown():
+        asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
+        loop.call_soon_threadsafe(loop.stop)
+
+    return SimpleNamespace(server_port=runner.addresses[0][1], loop=loop, shutdown=shutdown)
+
+
+def answers(fake):
+    """A plain function as the coroutine the site awaits, where the bot would ask Discord or wait for a tick."""
+
+    async def hook(*args):
+        return fake(*args)
+
+    return hook
 
 
 @pytest.fixture(scope="module")
@@ -457,11 +472,11 @@ def test_web_orders_are_checked_before_they_queue():
         assert act(port, {"action": "move", "direction": "up"}, cookie)[0] == 400
         assert act(port, {"action": "move", "direction": "n"}, cookie) == (503, "The game isn't running right now.")
 
-        adapter.place_order = lambda character, action: (_ for _ in ()).throw(InvalidSpaceException())
+        adapter.place_order = answers(lambda character, action: (_ for _ in ()).throw(InvalidSpaceException()))
         assert act(port, {"action": "move", "direction": "n"}, cookie) == (409, "You can't go that way.")
-        adapter.place_order = lambda character, action: SUPERSEDED
+        adapter.place_order = answers(lambda character, action: SUPERSEDED)
         assert "change your mind" in act(port, {"action": "attack", "direction": "e"}, cookie)[1]
-        adapter.place_order = lambda character, action: action()  # no tick to wait for
+        adapter.place_order = answers(lambda character, action: action())  # no tick to wait for
         status, text = act(port, {"action": "choose", "choice": "talk"}, cookie)
         assert (status, text) == (409, "Nobody is waiting on you to decide anything.")
     finally:
@@ -469,7 +484,7 @@ def test_web_orders_are_checked_before_they_queue():
 
 
 def test_a_web_order_waits_for_the_bots_tick_and_moves_you():
-    """The whole bridge: HTTP thread -> the bot's event loop -> the tick -> back to the browser."""
+    """The whole way: the browser's order -> the bot's event loop -> the tick -> back to the browser."""
     adapter, server, cookie = playing()
     player = adapter.get_player(4)
     world = adapter.world
@@ -481,10 +496,7 @@ def test_a_web_order_waits_for_the_bots_tick_and_moves_you():
                                                start.y + GameSpace.DIRECTION_VECTORS[key][1]))
     )
     interface = DiscordInterface(world_adapter=adapter)
-    loop = asyncio.new_event_loop()
-    threading.Thread(target=loop.run_forever, daemon=True).start()
-    interface._loop = loop
-    adapter.place_order = interface.order_threadsafe
+    adapter.place_order = interface.order
     adapter.world.tick = lambda: []  # type: ignore[method-assign]  # just the orders, no NPCs
     try:
         answer = {}
@@ -492,12 +504,29 @@ def test_a_web_order_waits_for_the_bots_tick_and_moves_you():
         browser.start()
         time.sleep(0.3)
         assert player.location is start and browser.is_alive(), "the order waits for the tick"
-        asyncio.run_coroutine_threadsafe(interface.tick(), loop).result(10)
+        asyncio.run_coroutine_threadsafe(interface.tick(), server.loop).result(10)
         browser.join(10)
         assert answer["r"][0] == 200
         assert player.location is not start
     finally:
-        loop.call_soon_threadsafe(loop.stop)
+        server.shutdown()
+
+
+def test_a_web_order_that_times_out_never_happens(monkeypatch):
+    """The browser was told no tick came: a late tick mustn't move them anyway."""
+    monkeypatch.setattr(WebApp, "ORDER_SECONDS", 0.2)
+    adapter, server, cookie = playing()
+    player = adapter.get_player(4)
+    start = player.location
+    interface = DiscordInterface(world_adapter=adapter)
+    adapter.place_order = interface.order
+    adapter.world.tick = lambda: []  # type: ignore[method-assign]
+    try:
+        direction = next(iter(DIRECTION_NAMES))
+        assert act(server.server_port, {"action": "move", "direction": direction}, cookie)[0] == 504
+        asyncio.run_coroutine_threadsafe(interface.tick(), server.loop).result(10)
+        assert player.location is start
+    finally:
         server.shutdown()
 
 
@@ -523,7 +552,7 @@ def test_an_order_whose_answer_breaks_still_gets_one():
     """No reply at all reads as a dropped connection, and browsers send a dropped POST again: a second order."""
     adapter, server, cookie = playing()
     orders = []
-    adapter.place_order = lambda character, action: orders.append(1) or "not a response"
+    adapter.place_order = answers(lambda character, action: orders.append(1) or "not a response")
     try:
         assert act(server.server_port, {"action": "attack", "direction": "n"}, cookie)[0] == 500
         assert orders == [1]
@@ -558,15 +587,15 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
         assert request("GET", "/admin/5", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
         assert request("GET", "/admin/5")[0] == 503, "no bot to ask who's an admin"
 
-        adapter.guild_for_admin = lambda member, guild: asked.append((member, guild))
+        adapter.guild_for_admin = answers(lambda member, guild: asked.append((member, guild)))
         assert request("GET", "/admin/5")[0] == 403, "not an admin there"
         assert request("POST", "/admin/5", "c=11")[0] == 403
         assert adapter.guild_settings == {}
 
-        adapter.guild_for_admin = lambda member, guild: asked.append((member, guild)) or (
+        adapter.guild_for_admin = answers(lambda member, guild: asked.append((member, guild)) or (
             "Test <Server>",
             [(11, "general", True), (12, "raids", False)],
-        )
+        ))
         status, _, page = request("GET", "/admin/5")
         assert status == 200 and "Test &lt;Server&gt;" in page and "#raids" in page and " checked" not in page
         assert "#raids (the bot may not post here)" in page and "#general (" not in page, "says where posts would fail"
@@ -618,10 +647,10 @@ def test_the_dashboard_is_the_bot_owners_alone():
         assert request("/admin", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
         assert request("/admin.json", cookie=None)[0] == 401
         assert request("/admin")[0] == 503, "no bot to ask who owns it"
-        adapter.is_owner = lambda member: False
+        adapter.is_owner = answers(lambda member: False)
         assert request("/admin")[0] == 403 and request("/admin.json")[0] == 403
         asked = []
-        adapter.is_owner = lambda member: asked.append(member) or True
+        adapter.is_owner = answers(lambda member: asked.append(member) or True)
         status, _, page = request("/admin")
         assert status == 200 and 'id="charts"' in page and asked == [0], "asks about the logged-in member"
 

@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (perlin-noise terrain, 
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 324 tests, ~40s, no token needed
+python -m pytest Discordia/test -q                     # 350 tests, ~40s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -31,10 +31,10 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     A schema change goes in `SCHEMA` and as a new step at the end of `MIGRATIONS` (`PRAGMA user_version`).
   - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
     Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
-    `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Handler._page` at `-W PORT` (no build step: plain JS, edit and reload). The web side only reads loaded chunks and never generates: generation stays on the bot loop.
+    `WebApp.py` + `index.html`/`client.js` live map at `/map`; `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Site._page` at `-W PORT` (no build step: plain JS, edit and reload). The site is `aiohttp.web` on the bot's own loop (`_Site.routes`, a login `gate` middleware), so it reads the world between ticks; only the Pillow renders go to `asyncio.to_thread`. It only reads loaded chunks and never generates: generation stays on the tick.
   - Playing from the map: `POST /act` (JSON) builds the same action a slash command would and hands it to
-    `adapter.place_order`, which the running cog sets to `order_threadsafe`: queued on the bot loop, answered after the
-    tick. Result/error wording (`move_text`, `error_text`, ...) lives in `WorldAdapter` so both sides say the same thing.
+    `adapter.place_order`, which the running cog sets to its `order`: awaited until the tick answers it (a timeout
+    cancels it). Result/error wording (`move_text`, `error_text`, ...) lives in `WorldAdapter` so both sides say the same thing.
     What the tick DMs is also kept per player (`adapter.add_news`/`news`, in memory) for `/me` and the map.
   - Adding the bot: the public `/invite` redirects to Discord's add-to-server page (`adapter.invite_url`, built by
     the cog at startup from the application id); `on_guild_join` posts a welcome in the server's system channel.

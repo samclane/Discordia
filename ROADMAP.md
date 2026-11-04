@@ -298,12 +298,16 @@ existing things to it when an item touches them anyway, not as a sweep.
   browser start). Ruled out: two test servers sharing a port (`shutdown()` without `server_close()` leaves each
   listening with `SO_REUSEADDR`, but 3,000 open port-0 binds on this box never repeated). Next time one fails, keep
   pytest's whole output, not its last lines, and start from the traceback.)
+  2026-11-04, on aiohttp: one full run errored `test_webclient.py::test_a_slow_pinch_still_zooms` at setup, the
+  `page` fixture's 10s `wait_for` that every chunk `<img>` is `complete` returning False; four browser-only and two
+  more full runs were green. The same shared wait as the 51s run above: a heavy full run loading 64 chunk images
+  in 10s. Raise that wait (or wait on `load` events, not polling) if it fails again.
 
 ## Libraries
 
 Hand-rolled parts an existing library already does. Researched 2026-11-03; in this order.
 
-- [ ] Web server on `aiohttp.web` (installed already, discord.py depends on it) instead of `http.server` threads.
+- [x] Web server on `aiohttp.web` (installed already, discord.py depends on it) instead of `http.server` threads.
   Requests then run on the bot loop: `place_order`/`order_threadsafe`'s `run_coroutine_threadsafe` and the
   torn-read ponytail in `WebApp.py` go away, and `_Handler`'s `do_GET`/`do_POST` dispatch becomes a route table.
   Same URLs and responses, so `test_webapp.py` and `test_webclient.py` only change how they start the server.
@@ -311,7 +315,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   Decided 2026-11-04: aiohttp on the bot loop, Pillow renders in `run_in_executor` (renders still read the world
   off-loop; cached chunks are most of them).
 - [ ] Then the SSE item under Rendering is a `web.StreamResponse` on the same loop, not a thread per client.
-  (blocked: on the item above, and the SSE item itself waits on players finding the map laggy)
+  (blocked: the SSE item itself waits on players finding the map laggy)
 - [ ] Replace `noise` (`pnoise3`): unmaintained, no wheels for recent Pythons, so a new server or Python upgrade
   can't install it. `tcod.noise` (python-tcod, also brings pathfinding) or `vnoise` (pure numpy, same Perlin).
   A world is regenerated from its seed, so a new noise re-rolls every saved map: keep `pnoise3` output for old
@@ -731,3 +735,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-03 Dog bites: a fed dog adds `PET_BITE_DAMAGE` (2, 4 when cared for) to each blow you land on your own
   square, in `/attack` (`World.attack`, not down a line) and in wilds fights (`CombatEvent`); the reply or the
   fight's summary line says "Rex bites for N of it". `pet_bite`, sharing `_dog_along` with fetching.
+- 2026-11-04 Web server on aiohttp: the site is `aiohttp.web` on the bot's own loop (`WebApp._Site`, a route
+  table with a login `gate` middleware), started from the bot's setup hook in `main.py`. The cog's
+  `order_threadsafe`, `guild_for_admin` and `is_owner` thread bridges are plain coroutines now, so the web reads the
+  world between ticks (the torn-read ponytail is gone); chunk and hideout PNGs render in `asyncio.to_thread`. A
+  web order that times out is cancelled, not left to happen after its 504. Same URLs and responses.

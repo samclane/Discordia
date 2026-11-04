@@ -16,6 +16,7 @@ The home page (/) is public. The map (/map) and everything it fetches want the s
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import html
 import json
@@ -24,11 +25,11 @@ import re
 import time
 import zlib
 from dataclasses import replace
-from functools import partial
 from http.cookies import CookieError, SimpleCookie
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, unquote
+
+from aiohttp import web
 
 from Discordia import SPRITE_FOLDER, VERSION
 from Discordia.GameLogic import Events, GameSpace
@@ -61,7 +62,8 @@ SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
 ART_VERSION = 8
 ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
-CHUNK_ROUTE = re.compile(r"/chunk/(\d+)/(\d+)\.(png|mini\.png|json)")  # mini: the zoomed-out overview
+ORDER_SECONDS = 30  # how long /act waits for a tick
+DISCORD_SECONDS = 10  # how long the admin pages wait on Discord
 # Text this short isn't worth the CPU, and can come out bigger than it went in.
 GZIP_MIN_BYTES = 1024
 # The party on top of the one-card pages.
@@ -219,9 +221,6 @@ def _chunk_json(rows: list) -> bytes:
 
 def _actors_json(renderer: WindowRenderer) -> bytes:
     adapter = renderer.world_adapter
-    # This runs on an HTTP thread while the bot loop mutates the world. list() snapshots each
-    # collection in one step, and location is read once so a death mid-poll can't leave it None.
-    # ponytail: no lock; a stale hp/position for one poll is fine. Lock if torn reads ever matter.
     tagged = [("npc", n) for n in list(adapter.world.npcs)] + [("player", p) for p in list(adapter.iter_players())]
     actors = []
     for kind, actor in tagged:
@@ -311,7 +310,7 @@ def _news_rows(news: list) -> str:
 
 
 def _sheet(character: PlayerCharacter, adapter) -> dict:
-    """me.html's placeholders, for one character. Read off the HTTP thread, like _me_json."""
+    """me.html's placeholders, for one character."""
     loc = character.location
     if loc is None:
         where = "not on the map right now"
@@ -417,7 +416,7 @@ def _me_json(character: PlayerCharacter, news: list) -> bytes:
 
 
 def _dashboard_json(adapter, since: int) -> bytes:
-    """The owner's dashboard: the ticks after `since`, today's stats, and every player. Read off the bot loop."""
+    """The owner's dashboard: the ticks after `since`, today's stats, and every player."""
     world, stats = adapter.world, adapter.world.stats
 
     def where(loc) -> str:
@@ -462,181 +461,180 @@ def _dashboard_json(adapter, since: int) -> bytes:
     ).encode()
 
 
-class _Handler(BaseHTTPRequestHandler):
-    # Keep-alive: a page load is hundreds of chunk requests, and the browser only opens six connections.
-    protocol_version = "HTTP/1.1"
+class _Site:
+    """The site's routes. They run on the bot's event loop, between ticks, so they read the world as the game
+    left it; only the Pillow renders go to a thread, where they'd otherwise hold up the tick."""
 
-    def __init__(self, renderer: WindowRenderer, *args, **kwargs):
+    def __init__(self, renderer: WindowRenderer):
         self.renderer = renderer
-        super().__init__(*args, **kwargs)  # this actually serves the request, so set attrs first
+        self.adapter = renderer.world_adapter
 
-    def do_GET(self):
-        path = urlsplit(self.path).path
-        # The site is public; the map and everything it fetches are for players. Sprites are the game's
-        # public art, and the site wears some.
-        if path not in ("/", "/login", "/invite") and not path.startswith("/sprites/") and self._member_id() is None:
+    @web.middleware
+    async def gate(self, request: web.Request, handler):
+        """The site is public; the map and everything it fetches are for players. Sprites are the game's public
+        art, and the site wears some. Posts check for themselves: /act answers in JSON."""
+        path = request.path
+        if (
+            request.method != "POST"
+            and path not in ("/", "/login", "/invite")
+            and not path.startswith("/sprites/")
+            and self._member_id(request) is None
+        ):
             if path in ("/map", "/me", "/admin") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
-                self._redirect("/#join")
-            else:
-                self.send_error(401)
-            return
+                return _redirect("/#join")
+            raise web.HTTPUnauthorized()
+        return await handler(request)
+
+    def routes(self) -> list:
+        return [
+            web.get(r"/chunk/{cx:\d+}/{cy:\d+}.{ext:png|mini\.png|json}", self.chunk),  # mini: the zoomed-out overview
+            web.get("/world.json", self.world_json),
+            web.get("/explored.json", self.explored_json),
+            web.get("/actors.json", self.actors_json),
+            web.get("/me.json", self.me_json),
+            web.get("/hideout.png", self.hideout),
+            web.get("/login", self.login_page),
+            web.post("/login", self.login),
+            web.post("/logout", self.logout),
+            web.get("/invite", self.invite),
+            web.get("/client.js", self.client_js),
+            web.get("/sprites/{rel:.*}", self.sprite),
+            web.get("/map", self.map),
+            web.get("/me", self.me),
+            web.get("/admin", self.dashboard),
+            web.get("/admin.json", self.dashboard_json),
+            web.get(r"/admin/{guild:\d+}", self.admin),
+            web.post(r"/admin/{guild:\d+}", self.save_admin),
+            web.post("/act", self.act),
+            web.get("/", self.home),
+        ]
+
+    def _etag(self) -> str:
         # A regenerated world or new art reuses these URLs, so tag the static responses with both.
-        etag = f'"{self.renderer.world_adapter.world.seed}-{ART_VERSION}"'
+        return f'"{self.adapter.world.seed}-{ART_VERSION}"'
 
-        chunk = CHUNK_ROUTE.fullmatch(path)
-        if chunk:
-            cx, cy, ext = int(chunk[1]), int(chunk[2]), chunk[3]
-            rows = self.renderer.world_adapter.world.loaded_chunk(cx, cy)
-            if rows is None:
-                self.send_error(404)  # unexplored
-            elif ext.endswith("png"):
-                png = self.renderer.chunk_png(cx, cy, mini=ext == "mini.png")
-                self._send(png or b"", "image/png", etag=etag)
-            else:
-                self._send(_chunk_json(rows), "application/json", etag=etag)
-        elif path == "/world.json":
-            self._send(_world_json(self.renderer), "application/json", etag=etag)
-        elif path == "/explored.json":
-            # Towns live in chunks, so the chunk count says whether anything changed since the last poll.
-            world = self.renderer.world_adapter.world
-            explored_etag = f'"{world.seed}-{len(world.loaded_chunks())}"'
-            self._send(_explored_json(self.renderer), "application/json", etag=explored_etag)
-        elif path == "/actors.json":
-            # Actors only move on a tick, and the client polls faster than that: most polls can be a 304.
-            body = _actors_json(self.renderer)
-            self._send(body, "application/json", etag=f'"{zlib.crc32(body):x}"')
-        elif path == "/me.json":
-            try:
-                character = self.renderer.world_adapter.get_player(self._member_id())
-                body = _me_json(character, self.renderer.world_adapter.news(character))
-            except NotRegisteredException:  # logged in, but no character (yet, or anymore)
-                self._send(b'{"error": "no character"}', "application/json", status=404)
-            else:
-                self._send(body, "application/json")
-        elif path == "/hideout.png":
-            character = self._character()
-            png = self.renderer.hideout_png(character) if character else None
-            if png is None:
-                self.send_error(404)  # no character, or no hideout yet
-            else:
-                self._send(png, "image/png")
-        elif path == "/login":
-            query = parse_qs(urlsplit(self.path).query)
-            token, after = query.get("t", [""])[0], query.get("next", [""])[0]
-            if not ADMIN_ROUTE.fullmatch(after):
-                goal, button = f"the map of {self.renderer.world_adapter.world.name}", "Enter the map"
-            elif self._member_id() is None:
-                goal, button = "this server's settings", "Open server settings"
-            else:  # already logged in: no need to spend the link, the settings page asks Discord itself
-                self._redirect(after)
-                return
-            page = self._page("Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after, GOAL=goal, BUTTON=button)
-            self._send(page, "text/html; charset=utf-8")
-        elif path == "/invite":  # Discord's own page takes it from here: pick a server, approve
-            invite_url = self.renderer.world_adapter.invite_url
-            if invite_url is None:
-                self.send_error(503, "The bot isn't running right now.")
-            else:
-                self._redirect(invite_url)
-        elif path == "/client.js":
-            self._send(CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
-        elif path.startswith("/sprites/"):
-            body = _read_sprite(path[len("/sprites/"):])
-            if body is None:
-                self.send_error(404)
-            else:
-                self._send(body, "image/png", etag=etag)
-        elif path == "/map":
-            self._send(INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
-        elif path == "/me":
-            character = self._character()
-            if character is None:  # logged in, but nothing to show: the home page says how to make one
-                self._redirect("/#join")
-            else:
-                page = self._page(f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.renderer.world_adapter))
-                self._send(page, "text/html; charset=utf-8")
-        elif path == "/admin":
-            if self._owner():
-                self._send(self._page("Dashboard · Discordia", ADMIN_HTML.read_text(encoding="utf-8")), "text/html; charset=utf-8")
-        elif path == "/admin.json":
-            since = parse_qs(urlsplit(self.path).query).get("since", [""])[0]
-            if self._owner():
-                body = _dashboard_json(self.renderer.world_adapter, int(since) if since.lstrip("-").isdigit() else -1)
-                self._send(body, "application/json")
-        elif ADMIN_ROUTE.fullmatch(path):
-            guild_id = int(path.rsplit("/", 1)[1])
-            guild = self._admin_guild(guild_id)
-            if guild is not None:
-                saved = "saved" in parse_qs(urlsplit(self.path).query, keep_blank_values=True)
-                self._send(self._admin_page(guild_id, guild, saved), "text/html; charset=utf-8")
-        elif path == "/":
-            self._send(self._home(), "text/html; charset=utf-8")
-        else:
-            self.send_error(404)
+    async def chunk(self, request: web.Request) -> web.Response:
+        cx, cy, ext = int(request.match_info["cx"]), int(request.match_info["cy"]), request.match_info["ext"]
+        rows = self.adapter.world.loaded_chunk(cx, cy)
+        if rows is None:
+            raise web.HTTPNotFound()  # unexplored
+        if ext.endswith("png"):
+            png = await asyncio.to_thread(self.renderer.chunk_png, cx, cy, mini=ext == "mini.png")
+            return _send(request, png or b"", "image/png", etag=self._etag())
+        return _send(request, _chunk_json(rows), "application/json", etag=self._etag())
 
-    def do_POST(self):
-        path = urlsplit(self.path).path
-        if path == "/logout":
-            session = self._session()
-            if session:
-                self.renderer.world_adapter.web_logins.end(session)
-            self.send_response(303)
-            self.send_header("Location", "/")
-            self.send_header("Set-Cookie", "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            return
-        if path == "/act":
-            self._act()
-            return
-        if ADMIN_ROUTE.fullmatch(path):
-            self._save_admin(int(path.rsplit("/", 1)[1]))
-            return
-        if path != "/login":
-            self.send_error(404)
-            return
-        body = self._body()
-        if body is None:
-            return
-        form = parse_qs(body)
-        session = self.renderer.world_adapter.web_logins.redeem(form.get("t", [""])[0])
+    async def world_json(self, request: web.Request) -> web.Response:
+        return _send(request, _world_json(self.renderer), "application/json", etag=self._etag())
+
+    async def explored_json(self, request: web.Request) -> web.Response:
+        # Towns live in chunks, so the chunk count says whether anything changed since the last poll.
+        world = self.adapter.world
+        explored_etag = f'"{world.seed}-{len(world.loaded_chunks())}"'
+        return _send(request, _explored_json(self.renderer), "application/json", etag=explored_etag)
+
+    async def actors_json(self, request: web.Request) -> web.Response:
+        # Actors only move on a tick, and the client polls faster than that: most polls can be a 304.
+        body = _actors_json(self.renderer)
+        return _send(request, body, "application/json", etag=f'"{zlib.crc32(body):x}"')
+
+    async def me_json(self, request: web.Request) -> web.Response:
+        try:
+            character = self.adapter.get_player(self._member_id(request))
+        except NotRegisteredException:  # logged in, but no character (yet, or anymore)
+            return _send(request, b'{"error": "no character"}', "application/json", status=404)
+        return _send(request, _me_json(character, self.adapter.news(character)), "application/json")
+
+    async def hideout(self, request: web.Request) -> web.Response:
+        character = self._character(request)
+        png = await asyncio.to_thread(self.renderer.hideout_png, character) if character else None
+        if png is None:
+            raise web.HTTPNotFound()  # no character, or no hideout yet
+        return _send(request, png, "image/png")
+
+    async def login_page(self, request: web.Request) -> web.Response:
+        token, after = request.query.get("t", ""), request.query.get("next", "")
+        if not ADMIN_ROUTE.fullmatch(after):
+            goal, button = f"the map of {self.adapter.world.name}", "Enter the map"
+        elif self._member_id(request) is None:
+            goal, button = "this server's settings", "Open server settings"
+        else:  # already logged in: no need to spend the link, the settings page asks Discord itself
+            return _redirect(after)
+        page = self._page(request, "Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after, GOAL=goal, BUTTON=button)
+        return _send(request, page, "text/html; charset=utf-8")
+
+    async def login(self, request: web.Request) -> web.Response:
+        form = parse_qs(await _body(request))
+        session = self.adapter.web_logins.redeem(form.get("t", [""])[0])
         after = form.get("next", [""])[0]
         if session is None:
             command = "/settings" if ADMIN_ROUTE.fullmatch(after) else "/weblogin"
-            self._send(self._page("Link expired · Discordia", SPENT_BODY, COMMAND=command), "text/html; charset=utf-8", status=403)
-            return
-        self.send_response(303)
+            page = self._page(request, "Link expired · Discordia", SPENT_BODY, COMMAND=command)
+            return _send(request, page, "text/html; charset=utf-8", status=403)
         # Only to a page of ours that's known: anything else would make the login link an open redirect.
-        self.send_header("Location", after if ADMIN_ROUTE.fullmatch(after) else "/map")
         # Secure: browsers still let localhost set it over plain HTTP, so a local run logs in too.
-        self.send_header(
-            "Set-Cookie", f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+        return _redirect(
+            after if ADMIN_ROUTE.fullmatch(after) else "/map",
+            **{"Set-Cookie": f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"},
         )
-        self.send_header("Content-Length", "0")
-        self.end_headers()
 
-    def _body(self, max_bytes: int = 1024) -> str | None:
-        """The request body, or None (with a 400 sent) if it's missing or bigger than `max_bytes`."""
-        length = self.headers.get("Content-Length", "")
-        if not length.isdigit() or int(length) > max_bytes:  # a token is 43 characters, an order less
-            self.send_error(400)
-            return None
-        return self.rfile.read(int(length)).decode(errors="replace")
+    async def logout(self, request: web.Request) -> web.Response:
+        session = _session(request)
+        if session:
+            self.adapter.web_logins.end(session)
+        return _redirect("/", **{"Set-Cookie": "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"})
 
-    def _act(self):
+    async def invite(self, request: web.Request) -> web.Response:
+        if self.adapter.invite_url is None:
+            raise web.HTTPServiceUnavailable(text="The bot isn't running right now.")
+        return _redirect(self.adapter.invite_url)  # Discord's own page takes it from here: pick a server, approve
+
+    async def client_js(self, request: web.Request) -> web.Response:
+        return _send(request, CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
+
+    async def sprite(self, request: web.Request) -> web.Response:
+        body = _read_sprite(request.match_info["rel"])
+        if body is None:
+            raise web.HTTPNotFound()
+        return _send(request, body, "image/png", etag=self._etag())
+
+    async def map(self, request: web.Request) -> web.Response:
+        return _send(request, INDEX_HTML.read_bytes(), "text/html; charset=utf-8")
+
+    async def me(self, request: web.Request) -> web.Response:
+        character = self._character(request)
+        if character is None:  # logged in, but nothing to show: the home page says how to make one
+            return _redirect("/#join")
+        page = self._page(request, f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.adapter))
+        return _send(request, page, "text/html; charset=utf-8")
+
+    async def dashboard(self, request: web.Request) -> web.Response:
+        await self._owner(request)
+        page = self._page(request, "Dashboard · Discordia", ADMIN_HTML.read_text(encoding="utf-8"))
+        return _send(request, page, "text/html; charset=utf-8")
+
+    async def dashboard_json(self, request: web.Request) -> web.Response:
+        await self._owner(request)
+        since = request.query.get("since", "")
+        body = _dashboard_json(self.adapter, int(since) if since.lstrip("-").isdigit() else -1)
+        return _send(request, body, "application/json")
+
+    async def admin(self, request: web.Request) -> web.Response:
+        guild_id = int(request.match_info["guild"])
+        guild = await self._admin_guild(request, guild_id)
+        page = self._admin_page(request, guild_id, guild, "saved" in request.query)
+        return _send(request, page, "text/html; charset=utf-8")
+
+    async def act(self, request: web.Request) -> web.Response:
         """Play from the browser: one order, queued like a slash command's, answered after its tick."""
 
-        def reply(status: int, text: str):
-            self._send(json.dumps({"text": text}).encode(), "application/json", status=status)
+        def reply(status: int, text: str) -> web.Response:
+            return _send(request, json.dumps({"text": text}).encode(), "application/json", status=status)
 
-        character = self._character()
+        character = self._character(request)
         # JSON only: a form on another site can post here, but it can't send JSON without asking first.
-        if "application/json" not in self.headers.get("Content-Type", ""):
-            self.send_error(415)
-            return
-        body = self._body()
-        if body is None:
-            return
+        if "application/json" not in request.headers.get("Content-Type", ""):
+            raise web.HTTPUnsupportedMediaType()
+        body = await _body(request)
         if character is None:
             return reply(401, "Log in first: /weblogin in Discord.")
         try:
@@ -644,7 +642,7 @@ class _Handler(BaseHTTPRequestHandler):
             what = order["action"]
         except (ValueError, TypeError, KeyError):
             return reply(400, "That isn't an order.")
-        adapter = self.renderer.world_adapter
+        adapter = self.adapter
         direction, choice = order.get("direction"), order.get("choice")
         if what in ("move", "attack") and direction in DIRECTION_NAMES:
             vector = GameSpace.DIRECTION_VECTORS[direction]
@@ -666,7 +664,8 @@ class _Handler(BaseHTTPRequestHandler):
         if adapter.place_order is None:
             return reply(503, "The game isn't running right now.")
         try:
-            result = adapter.place_order(character, action)  # blocks this thread until the tick
+            # Waits for the tick. A timeout cancels the order too, so it can't still happen after the 504.
+            result = await asyncio.wait_for(adapter.place_order(character, action), ORDER_SECONDS)
             # Inside the try: an answer that fails to format must still be an answer. A dropped
             # connection makes the browser send the order again.
             text = "You change your mind: a newer order took this one's place." if result is SUPERSEDED else say(result)
@@ -678,50 +677,42 @@ class _Handler(BaseHTTPRequestHandler):
                 LOG.exception("Web order %r failed", order)
                 return reply(500, "Something went wrong on the server.")
             return reply(409, text)
-        reply(200, text)
+        return reply(200, text)
 
-    def _admin_guild(self, guild_id: int):
-        """(server name, channels) if the logged-in member may manage that server. Otherwise answers the
-        request itself and returns None."""
-        member_id = self._member_id()
+    async def _admin_guild(self, request: web.Request, guild_id: int):
+        """(server name, channels) if the logged-in member may manage that server. Otherwise raises the answer."""
+        member_id = self._member_id(request)
         if member_id is None:
-            self.send_error(401, "Log in first.")
-            return None
-        lookup = self.renderer.world_adapter.guild_for_admin
+            raise web.HTTPUnauthorized(text="Log in first.")
+        lookup = self.adapter.guild_for_admin
         if lookup is None:
-            self.send_error(503, "The bot isn't running right now.")
-            return None
+            raise web.HTTPServiceUnavailable(text="The bot isn't running right now.")
         try:
-            guild = lookup(member_id, guild_id)
+            guild = await asyncio.wait_for(lookup(member_id, guild_id), DISCORD_SECONDS)
         except TimeoutError:
-            self.send_error(504, "Discord didn't answer. Try again in a moment.")
-            return None
+            raise web.HTTPGatewayTimeout(text="Discord didn't answer. Try again in a moment.")
         if guild is None:
-            self.send_error(403, "You need Manage Server in that Discord server, and the bot has to be in it.")
+            raise web.HTTPForbidden(text="You need Manage Server in that Discord server, and the bot has to be in it.")
         return guild
 
-    def _owner(self) -> bool:
-        """Whether the logged-in member owns the bot. If not, answers the request itself."""
-        member_id = self._member_id()
+    async def _owner(self, request: web.Request):
+        """Raises the answer unless the logged-in member owns the bot."""
+        member_id = self._member_id(request)
         if member_id is None:
-            self.send_error(401, "Log in first.")
-            return False
-        lookup = self.renderer.world_adapter.is_owner
+            raise web.HTTPUnauthorized(text="Log in first.")
+        lookup = self.adapter.is_owner
         if lookup is None:
-            self.send_error(503, "The bot isn't running right now.")
-            return False
+            raise web.HTTPServiceUnavailable(text="The bot isn't running right now.")
         try:
-            owner = lookup(member_id)
+            owner = await asyncio.wait_for(lookup(member_id), DISCORD_SECONDS)
         except TimeoutError:
-            self.send_error(504, "Discord didn't answer. Try again in a moment.")
-            return False
+            raise web.HTTPGatewayTimeout(text="Discord didn't answer. Try again in a moment.")
         if not owner:
-            self.send_error(403, "This page is for the bot's owner.")
-        return owner
+            raise web.HTTPForbidden(text="This page is for the bot's owner.")
 
-    def _admin_page(self, guild_id: int, guild, saved: bool) -> bytes:
+    def _admin_page(self, request: web.Request, guild_id: int, guild, saved: bool) -> bytes:
         name, channels = guild
-        settings = self.renderer.world_adapter.guild_settings.get(guild_id, GuildSettings())
+        settings = self.adapter.guild_settings.get(guild_id, GuildSettings())
         picked = set(settings.channels)
 
         def options(chosen):
@@ -737,6 +728,7 @@ class _Handler(BaseHTTPRequestHandler):
             for channel_id, channel_name, _ in channels
         )
         return self._page(
+            request,
             f"{name} settings · Discordia",
             ADMIN_BODY,
             SERVER=name,
@@ -747,48 +739,37 @@ class _Handler(BaseHTTPRequestHandler):
             SAVED=Markup('<p class="alert"><b>Saved.</b></p>' if saved else ""),
         )
 
-    def _save_admin(self, guild_id: int):
+    async def save_admin(self, request: web.Request) -> web.Response:
+        guild_id = int(request.match_info["guild"])
         # Changing a server's settings is the one thing here worth forging: refuse a form posted from another
         # site whatever the cookie does. Browsers that don't send the header still don't send a Lax cookie.
-        if self.headers.get("Sec-Fetch-Site", "same-origin") != "same-origin":
-            self.send_error(403)
-            return
-        body = self._body(max_bytes=64 * 1024)  # a server's worth of channel ids
-        if body is None:
-            return
-        if self._member_id() is None:
-            self.send_error(401)
-            return
-        guild = self._admin_guild(guild_id)
-        if guild is None:
-            return
+        if request.headers.get("Sec-Fetch-Site", "same-origin") != "same-origin":
+            raise web.HTTPForbidden()
+        body = await _body(request, max_bytes=64 * 1024)  # a server's worth of channel ids
+        if self._member_id(request) is None:
+            raise web.HTTPUnauthorized()
+        guild = await self._admin_guild(request, guild_id)
         real = {channel[0] for channel in guild[1]}
         form = parse_qs(body)
         picked = [int(c) for c in form.get("c", []) if c.isdigit() and int(c) in real]
+
         def channel(name):  # one of this server's channels, or None
             value = form.get(name, [""])[0]
             return int(value) if value.isdigit() and int(value) in real else None
 
-        settings = self.renderer.world_adapter.guild_settings
-        # One assignment, so the bot loop reading it from its thread sees the old settings or the new ones.
+        settings = self.adapter.guild_settings
         settings[guild_id] = replace(
             settings.get(guild_id, GuildSettings()),
             channels=picked,
             digest_channel=channel("digest"),
             announce_channel=channel("announce"),
         )
-        self._redirect(f"/admin/{guild_id}?saved")
+        return _redirect(f"/admin/{guild_id}?saved")
 
-    def _redirect(self, location: str):
-        self.send_response(303)
-        self.send_header("Location", location)
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    def _home(self) -> bytes:
-        member_id = self._member_id()
+    async def home(self, request: web.Request) -> web.Response:
+        member_id = self._member_id(request)
         try:
-            name, join = self.renderer.world_adapter.get_player(member_id).name, JOIN_IN
+            name, join = self.adapter.get_player(member_id).name, JOIN_IN
         except NotRegisteredException:  # logged out, or logged in with no character
             name, join = "", JOIN_OUT if member_id is None else JOIN_NO_CHARACTER
         if member_id is None:
@@ -797,8 +778,9 @@ class _Handler(BaseHTTPRequestHandler):
             cta = '<a class="btn" href="/map">Open the map</a><a class="btn ghost" href="/me">Your character</a>'
         else:
             cta = '<a class="btn" href="/map">Open the map</a>'
-        return self._page(
-            f"{self.renderer.world_adapter.world.name} · Discordia",
+        page = self._page(
+            request,
+            f"{self.adapter.world.name} · Discordia",
             HOME_HTML.read_text(encoding="utf-8"),
             CTA=Markup(cta),
             JOIN=Markup(join),
@@ -807,12 +789,13 @@ class _Handler(BaseHTTPRequestHandler):
             SOLDIER_HP=Soldier().hit_points_max_base,
             TOWN_CLASSES=Markup("".join(_class_card(c(), town) for c, town in TOWN_CLASSES)),
         )
+        return _send(request, page, "text/html; charset=utf-8")
 
-    def _page(self, title: str, body: str, **values) -> bytes:
+    def _page(self, request: web.Request, title: str, body: str, **values) -> bytes:
         """site.html around `body`, with its {{PLACEHOLDERS}} filled in. Markup goes in as it is, first; the rest
         is escaped and goes in after, so a name from Discord can't smuggle in a tag or a placeholder."""
-        character = self._character()
-        if self._member_id() is None:
+        character = self._character(request)
+        if self._member_id(request) is None:
             account = '<a class="btn ghost" href="/#join">Log in</a>'
         elif character is None:
             account = '<a class="btn" href="/map">Open the map</a>'
@@ -824,58 +807,68 @@ class _Handler(BaseHTTPRequestHandler):
                 '<a class="btn" href="/map">Open the map</a></div>'
             )
         page = SITE_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
-        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.renderer.world_adapter.world.name, "VERSION": VERSION, **values}
+        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.adapter.world.name, "VERSION": VERSION, **values}
         for key, value in sorted(values.items(), key=lambda kv: not isinstance(kv[1], Markup)):
             page = page.replace("{{%s}}" % key, value if isinstance(value, Markup) else html.escape(str(value)))
         return page.encode()
 
-    def _session(self) -> str | None:
-        try:
-            morsel = SimpleCookie(self.headers.get("Cookie", "")).get("session")
-        except CookieError:
-            return None
-        return morsel.value if morsel else None
+    def _member_id(self, request: web.Request) -> int | None:
+        session = _session(request)
+        return self.adapter.web_logins.member_id(session) if session else None
 
-    def _member_id(self) -> int | None:
-        session = self._session()
-        return self.renderer.world_adapter.web_logins.member_id(session) if session else None
-
-    def _character(self) -> PlayerCharacter | None:
+    def _character(self, request: web.Request) -> PlayerCharacter | None:
         """The logged-in player's character, or None if logged out or without one."""
         try:
-            return self.renderer.world_adapter.get_player(self._member_id())
+            return self.adapter.get_player(self._member_id(request))
         except NotRegisteredException:
             return None
 
-    def _send(self, body: bytes, ctype: str, etag: str | None = None, status: int = 200):
-        if etag and self.headers.get("If-None-Match") == etag:
-            self.send_response(304)
-            self.send_header("ETag", etag)
-            self.end_headers()
-            return
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
-        if not ctype.startswith("image/"):
-            self.send_header("Vary", "Accept-Encoding")
-            if len(body) >= GZIP_MIN_BYTES and "gzip" in self.headers.get("Accept-Encoding", ""):
-                body = gzip.compress(body, compresslevel=5)
-                self.send_header("Content-Encoding", "gzip")
-        self.send_header("Content-Length", str(len(body)))
-        if etag:
-            self.send_header("ETag", etag)
-            self.send_header("Cache-Control", "no-cache")  # cache it, but revalidate every time
-        else:
-            self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
 
-    def log_message(self, format, *args):
-        LOG.debug(format, *args)
+def _session(request: web.Request) -> str | None:
+    try:
+        morsel = SimpleCookie(request.headers.get("Cookie", "")).get("session")
+    except CookieError:
+        return None
+    return morsel.value if morsel else None
 
 
-def serve(renderer: WindowRenderer, port: int, host: str = "127.0.0.1"):
-    """Blocks forever. Run me in a daemon thread."""
-    # ponytail: client polls actors every 2s. Swap in SSE if that feels laggy.
-    server = ThreadingHTTPServer((host, port), partial(_Handler, renderer))
-    LOG.info("World map: http://%s:%d", host, port)
-    server.serve_forever()
+async def _body(request: web.Request, max_bytes: int = 1024) -> str:
+    """The request body. Raises a 400 if it's missing or bigger than `max_bytes`."""
+    length = request.headers.get("Content-Length", "")
+    if not length.isdigit() or int(length) > max_bytes:  # a token is 43 characters, an order less
+        raise web.HTTPBadRequest()
+    return (await request.read()).decode(errors="replace")
+
+
+def _redirect(location: str, **headers) -> web.Response:
+    return web.Response(status=303, headers={"Location": location, **headers})
+
+
+def _send(request: web.Request, body: bytes, ctype: str, etag: str | None = None, status: int = 200) -> web.Response:
+    if etag and request.headers.get("If-None-Match") == etag:
+        return web.Response(status=304, headers={"ETag": etag})
+    headers = {"Content-Type": ctype}
+    if not ctype.startswith("image/"):
+        headers["Vary"] = "Accept-Encoding"
+        if len(body) >= GZIP_MIN_BYTES and "gzip" in request.headers.get("Accept-Encoding", ""):
+            body = gzip.compress(body, compresslevel=5)
+            headers["Content-Encoding"] = "gzip"
+    if etag:
+        headers["ETag"] = etag
+        headers["Cache-Control"] = "no-cache"  # cache it, but revalidate every time
+    else:
+        headers["Cache-Control"] = "no-store"
+    return web.Response(status=status, body=body, headers=headers)
+
+
+async def serve(renderer: WindowRenderer, port: int, host: str = "127.0.0.1") -> web.AppRunner:
+    """Start serving on the running loop (the bot's) and return; the runner's cleanup() stops it."""
+    # ponytail: client polls actors every 2s. Swap in SSE (a web.StreamResponse) if that feels laggy.
+    site = _Site(renderer)
+    app = web.Application(middlewares=[site.gate])
+    app.add_routes(site.routes())
+    runner = web.AppRunner(app, access_log=None)
+    await runner.setup()
+    await web.TCPSite(runner, host, port).start()
+    LOG.info("World map: http://%s:%d", host, runner.addresses[0][1])
+    return runner

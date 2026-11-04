@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import logging
-import threading
 import argparse
 from typing import Callable, cast
 
@@ -48,7 +47,6 @@ def main():
     web_url = None
     if args.web_port:
         web_url = ConfigParser.WEB_PUBLIC_URL or f"http://localhost:{args.web_port}"
-        threading.Thread(target=serve, args=(display, args.web_port), daemon=True).start()
     # The tick and the autosave run on the bot's event loop, in lockstep with the commands: no locking
     # needed, and a crash loses at most AUTOSAVE_SECONDS of play.
     jobs: list[tuple[float | datetime.time, Callable[[], None], str]] = [
@@ -67,6 +65,14 @@ def main():
     # lose that part; the webhook gets it from the shutdown digest below. Save Stats if the undercount matters.
     jobs.append((Alerts.DIGEST_TIME, cast(Callable[[], None], send_digest), "Daily digest"))
     discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url)
+    if args.web_port:  # the site runs on the bot's loop, between ticks, so it never reads a world mid-change
+        setup_bot = discord_interface.bot.setup_hook
+
+        async def setup_with_site():
+            await serve(display, args.web_port)
+            await setup_bot()
+
+        discord_interface.bot.setup_hook = setup_with_site  # type: ignore[method-assign]
     LOG.info("Discordia %s has successfully started. Press Ctrl+C to quit.", VERSION)
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)

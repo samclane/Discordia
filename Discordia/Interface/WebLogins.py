@@ -22,8 +22,8 @@ def _digest(secret: str) -> str:
 
 
 class WebLogins:
-    """Shared by the bot loop (issuing links) and the HTTP threads (redeeming them). Each dict operation
-    is atomic under the GIL, and pop() is what makes a link good for one use even if two requests race.
+    """Shared by the bot (issuing links) and the website (redeeming them), both on the bot loop. pop() is
+    what makes a link good for one use.
     """
 
     # ponytail: in memory, so a restart logs everyone out and they /weblogin again. Give sessions a

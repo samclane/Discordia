@@ -5,7 +5,7 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Deque, Dict, Tuple, List, Iterator, Optional
+from typing import Any, Awaitable, Callable, Deque, Dict, Tuple, List, Iterator, Optional
 
 from Discordia.GameLogic import Actors, Events
 from Discordia.GameLogic.GameSpace import (
@@ -161,18 +161,18 @@ class WorldAdapter:
         self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
         self.web_logins = WebLogins()  # here because the bot and the web map both hold the adapter
-        # Set by the running bot: queue an order for the next tick from another thread, and block for its
-        # result. None when nothing ticks the world (tests, a bare web server).
-        self.place_order: Optional[Callable[[Actors.PlayerCharacter, Callable[[], Any]], Any]] = None
+        # Set by the running bot: queue an order for the next tick, and await its result. None when nothing
+        # ticks the world (tests, a bare web server).
+        self.place_order: Optional[Callable[[Actors.PlayerCharacter, Callable[[], Any]], Awaitable[Any]]] = None
         # Discord server id -> its settings. Servers nobody has configured aren't in it.
         self.guild_settings: Dict[int, GuildSettings] = {}
         # Also set by the running bot, for the website's settings page: (member id, server id) ->
-        # (server name, [(channel id, channel name)]) if that member may manage that server, else None.
-        self.guild_for_admin: Optional[Callable[[int, int], Optional[Tuple[str, List[Tuple[int, str]]]]]] = None
+        # (server name, [(channel id, channel name, bot may post)]) if that member may manage that server, else None.
+        self.guild_for_admin: Optional[Callable[[int, int], Awaitable[Optional[Tuple[str, List[Tuple[int, str, bool]]]]]]] = None
         # And Discord's "add this bot to a server" link, for the website's /invite.
         self.invite_url: Optional[str] = None
         # And whether a member owns the bot, for the website's dashboard (/admin).
-        self.is_owner: Optional[Callable[[int], bool]] = None
+        self.is_owner: Optional[Callable[[int], Awaitable[bool]]] = None
         # What each tick did, for that dashboard. Appended on the bot loop, read off it with samples().
         # ponytail: in memory, like _news: a restart starts the charts over.
         self._samples: Deque[Dict[str, float]] = deque(maxlen=SAMPLES_KEPT)
