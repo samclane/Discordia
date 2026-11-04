@@ -308,9 +308,10 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   torn-read ponytail in `WebApp.py` go away, and `_Handler`'s `do_GET`/`do_POST` dispatch becomes a route table.
   Same URLs and responses, so `test_webapp.py` and `test_webclient.py` only change how they start the server.
   Split per commit if it won't fit one: static pages and JSON first, then `/act` and logins.
-  (blocked: Pillow renders on the bot loop would hold up the tick; see DECISIONS.md)
+  Decided 2026-11-04: aiohttp on the bot loop, Pillow renders in `run_in_executor` (renders still read the world
+  off-loop; cached chunks are most of them).
 - [ ] Then the SSE item under Rendering is a `web.StreamResponse` on the same loop, not a thread per client.
-  (blocked: on the item above)
+  (blocked: on the item above, and the SSE item itself waits on players finding the map laggy)
 - [ ] Replace `noise` (`pnoise3`): unmaintained, no wheels for recent Pythons, so a new server or Python upgrade
   can't install it. `tcod.noise` (python-tcod, also brings pathfinding) or `vnoise` (pure numpy, same Perlin).
   A world is regenerated from its seed, so a new noise re-rolls every saved map: keep `pnoise3` output for old
