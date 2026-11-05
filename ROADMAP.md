@@ -54,6 +54,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   until its steps run out instead of going on out (less extract XP, fewer kills). Give it a new goal on arrival
   (the next stocked cache in reach, else a random point) and see if level and worth come back.
 
+- [ ] Simulator bots build hideouts (asked 2026-11-05): none ever do, so the price and income tuning never shows in
+  `sim_history`. A bot in town with the next level's price to spare builds it; a metric for mean hideout level.
+- [ ] Simulator bots keep pets (asked 2026-11-05): adopt a goat or a dog once they can afford it, feed it when in
+  town, and a metric for pets kept.
+
 ## NPCs and world
 
 ## Persistence
