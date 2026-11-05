@@ -67,7 +67,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   from the traceback; ruled out so far: port reuse between test servers.)
 - [x] Clean and compact `ROADMAP.md` (asked for 2026-11-05): it's ~760 lines, most of them Done entries and long
   blocked notes. Keep every open item and its decisions; shorten the rest.
-- [ ] Timestamps on every simulation HTML page (asked for 2026-11-05): `sim.html`, `server.html` and
+- [x] Timestamps on every simulation HTML page (asked for 2026-11-05): `sim.html`, `server.html` and
   `history.html` should say when the run (or the chart) was made.
 - [ ] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
   for 2026-11-05: "why?"). Find what that commit changed for bots' armor, and whether it's the bots or the game.
@@ -181,3 +181,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-05 Web map on Leaflet: vendored 1.9.4, one chunk per tile at every zoom; a pinch lands on a whole level.
 - 2026-11-05 Compacted `ROADMAP.md` 764 -> ~190 lines: checked items cleared, each Done entry one line, the blocked
   notes cut to their reason (the five flaky web tests are one item now). Nothing open or decided was dropped.
+- 2026-11-05 Timestamps on the simulation pages: `sim.html` and `server.html` say when the run was (the server's
+  from its log's meta line, so a `--from` redraw keeps it), `history.html` when it was drawn.

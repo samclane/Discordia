@@ -132,7 +132,8 @@ const ticks = bots[0].level.length;
 
 // --- Header and stat tiles ------------------------------------------------------------------------
 document.getElementById("sub").textContent =
-  `${bots.length} bots, ${ticks} ticks, seed ${DATA.seed}, a ${DATA.size}×${DATA.size} world`;
+  `${bots.length} bots, ${ticks} ticks, seed ${DATA.seed}, a ${DATA.size}×${DATA.size} world` +
+  (DATA.at ? `, run ${new Date(DATA.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}` : "");
 const totalDeaths = bots.reduce((n, b) => n + b.deaths[ticks - 1], 0);
 const tiles = document.getElementById("tiles");
 for (const [label, value] of [

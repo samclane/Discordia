@@ -83,7 +83,9 @@ def drift(runs: List[Dict]) -> str:
 def report(runs: List[Dict], path: Path):
     """Fill in history_template.html with every run, so the page stands alone."""
     blob = json.dumps(runs, separators=(",", ":")).replace("</", r"<\/")  # no early </script>
-    path.write_text(TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", blob), encoding="utf-8")
+    drawn = json.dumps(datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    page = TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", blob).replace("/*DRAWN*/null", drawn)
+    path.write_text(page, encoding="utf-8")
 
 
 if __name__ == "__main__":

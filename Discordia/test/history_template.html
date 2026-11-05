@@ -73,6 +73,7 @@ td.num, th.num { text-align: right; }
 </main>
 <script>
 const RUNS = /*DATA*/null;
+const DRAWN = /*DRAWN*/null; // when this page was made
 const NS = "http://www.w3.org/2000/svg";
 const KINDS = { game: "Game simulator", server: "Server simulator" };
 const color = (i) => (i < 8 ? `var(--s${i + 1})` : "var(--muted)"); // past 8 settings: muted, never a made-up hue
@@ -113,7 +114,8 @@ function draw(kind) {
 
   document.getElementById("sub").textContent = runs.length
     ? `${runs.length} ${KINDS[kind].toLowerCase()} runs, ${when(runs[0])} to ${when(runs[runs.length - 1])}. ` +
-      "Each chart plots one number per run, in order; each line is one set of settings, since only like runs compare."
+      "Each chart plots one number per run, in order; each line is one set of settings, since only like runs compare." +
+      ` Drawn ${when({ at: DRAWN })}.`
     : `No ${KINDS[kind].toLowerCase()} runs recorded yet.`;
 
   const legend = document.getElementById("legend");

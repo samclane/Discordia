@@ -22,6 +22,7 @@ import math
 import random
 import time
 from collections import Counter
+from datetime import datetime, timezone
 from statistics import mean
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -377,6 +378,7 @@ def report(rows: List[dict], world: GameSpace.World, players: List[Bot], seed: i
             }
         )
     data = {
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),  # when the run was
         "seed": seed,
         "size": world.width,
         "chunks": len(chunks),
@@ -463,14 +465,16 @@ def test_a_run_is_recorded_and_drawn(tmp_path):
     assert [r["kind"] for r in runs] == ["game", "server"] and "mean level" in runs[0]["metrics"]
     assert runs[0]["at"] and runs[0]["commit"]
     sim_history.report(runs, tmp_path / "history.html")
-    assert '"messages sent":3' in (tmp_path / "history.html").read_text(encoding="utf-8")
+    page = (tmp_path / "history.html").read_text(encoding="utf-8")
+    assert '"messages sent":3' in page and 'const DRAWN = "20' in page, "says when it was drawn"
     sim_history.record("server", {"ticks": 20}, {"messages sent": 5, "run time (s)": 9}, history)
     assert sim_history.drift(sim_history.load(history)).endswith(": messages sent 3 -> 5")  # timings left out
 
 
 def test_simulated_players_break_no_rules(tmp_path):
     rows = simulate(ticks=300, bots=4, html=tmp_path / "sim.html")
-    assert '"name":"bot0"' in (tmp_path / "sim.html").read_text(encoding="utf-8")
+    page = (tmp_path / "sim.html").read_text(encoding="utf-8")
+    assert '"name":"bot0"' in page and '"at":"20' in page, "says when it was run"
     bad = [
         (r["tick"], r["name"], a)
         for r in rows

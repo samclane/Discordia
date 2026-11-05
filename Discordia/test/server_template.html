@@ -201,7 +201,8 @@ function tipRow(tip, value, label, color) {
 // --- Header and tiles ----------------------------------------------------------------------------
 document.getElementById("sub").textContent =
   `${ticks.toLocaleString()} ticks (${Math.round((ticks * (meta.tick_seconds || 5)) / 60)} simulated minutes), ` +
-  `seed ${meta.seed ?? "?"}, ${Object.keys(members).length} members`;
+  `seed ${meta.seed ?? "?"}, ${Object.keys(members).length} members` +
+  (meta.at ? `, run ${new Date(meta.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}` : ""); // older logs have no time
 const count = (kind) => sent.filter((s) => s.kind === kind).length;
 const rules = meta.rules || Object.fromEntries(problems.map((p) => [p.rule, ""]));
 const broken = new Set(problems.map((p) => p.rule));

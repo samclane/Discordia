@@ -24,6 +24,7 @@ import tempfile
 import time
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -403,6 +404,7 @@ def meta(discord_: Discord, seed: int) -> dict:
         allowed = not picked or not picked.channels or bool({channel.id, channel.parent_id} & set(picked.channels))
         channels[channel.id] = {"name": channel.name, "guild": guild.name, "allowed": allowed}
     return {
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),  # when the run was, for a redraw
         "ticks": discord_.tick + 1,
         "seed": seed,
         "tick_seconds": TICK_SECONDS,
@@ -462,7 +464,8 @@ def test_the_bot_keeps_to_server_rules(tmp_path):
     out = tmp_path / "server.jsonl"
     write(discord_, 0, out)
     report(*load(out), tmp_path / "server.html")  # the dashboard builds from what the run wrote
-    assert '"rules":' in (tmp_path / "server.html").read_text(encoding="utf-8")
+    page = (tmp_path / "server.html").read_text(encoding="utf-8")
+    assert '"rules":' in page and '"at":"20' in page, "says when it was run, even redrawn later"
     bad = [p for p in discord_.problems if not p.rule.startswith(KNOWN)]
     assert not bad, f"{len(bad)} problems\n{summary(discord_)}"
     assert any(s.where == "dm" for s in discord_.sent), "nobody was ever DM'd: the run is too tame to show anything"
