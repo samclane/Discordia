@@ -39,6 +39,8 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [ ] Pets, more kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
   (blocked: waits on players having had the goat and the dog a while; nothing records which they adopt yet)
+- [ ] Make the hideout more expensive (asked 2026-11-05). Level 1 is `HIDEOUT_COST` $1000, about 8 hours of what
+  it pays, and each after `HIDEOUT_GROWTH` x1.15.
 
 ## Gameplay loop (make it a game)
 
@@ -67,6 +69,9 @@ existing things to it when an item touches them anyway, not as a sweep.
   2026-11-03: runs peak at 47-72 MB RSS of ~1 GB, and every deploy restarts the process and drops its chunks.)
 - [x] Terrain repeats every ~2560 squares (`pnoise3`'s period, ponytail in `World._terrain_at`). The noise item
   under Libraries fixes it if tcod's noise doesn't wrap. (blocked: on that item)
+- [ ] Don't draw townspeople on town tiles (asked 2026-11-05): drop the doorway townsperson added 2026-11-03.
+- [ ] Map info panel: click an actor's name to target it on the map (asked 2026-11-05).
+- [ ] Map info panel reads like a console (asked 2026-11-05): a scrolling log, newest at the bottom.
 
 ## Cleanup
 
