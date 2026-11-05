@@ -71,7 +71,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   under Libraries fixes it if tcod's noise doesn't wrap. (blocked: on that item)
 - [x] Don't draw townspeople on town tiles (asked 2026-11-05): drop the doorway townsperson added 2026-11-03.
 - [x] Map info panel: click an actor's name to target it on the map (asked 2026-11-05).
-- [ ] Map info panel reads like a console (asked 2026-11-05): a scrolling log, newest at the bottom.
+- [x] Map info panel reads like a console (asked 2026-11-05): a scrolling log, newest at the bottom.
 
 ## Cleanup
 
@@ -217,3 +217,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   still named in the map's info panel and on `/town status`.
 - 2026-11-05 Names in the map's info panel are buttons: a click selects that actor and follows it, so one of a crowd
   on a square can be picked out (clicking the selected one's name re-centres after a drag).
+- 2026-11-05 The map's info panel is a console: monospace, scrolling, each pick's description kept above the next
+  (dimmed, the last 50), the live one at the bottom and scrolled to unless you've scrolled up to read.

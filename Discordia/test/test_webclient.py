@@ -276,6 +276,27 @@ def test_clicking_a_name_in_the_info_panel_picks_that_actor_out_of_a_crowd(page)
     assert result == {"selected": {"actor": "npc:2"}, "follow": True, "marked": True}
 
 
+def test_the_info_panel_keeps_earlier_picks_above_the_live_one_and_scrolls_to_it(page):
+    result = page.js(
+        """(() => {
+          const { x, y } = world.spawn;
+          for (let i = 0; i < 60; i++) selectTile(x + i, y, false);
+          selectTile(x + 59, y, false);  // the same square again adds nothing
+          const entries = [...info.querySelectorAll('.entry')];
+          return {
+            count: entries.length,
+            first: entries[0].textContent, last: entries.at(-1).textContent,
+            old: entries.slice(0, -1).every((e) => e.classList.contains('old')),
+            bottom: info.scrollHeight - info.scrollTop - info.clientHeight,
+            scrolls: info.scrollHeight > info.clientHeight,
+          };
+        })()"""
+    )
+    assert result["count"] == 51  # INFO_LOG old ones and the live one
+    assert f"({page.js('world.spawn.x') + 9}, " in result["first"] and f"({page.js('world.spawn.x') + 59}, " in result["last"]
+    assert result["old"] and result["scrolls"] and result["bottom"] < 2
+
+
 def test_selecting_moves_the_highlight_without_rebuilding_the_town_list(page):
     """Rebuilding a thousand rows on every click took 40ms."""
     result = page.js(

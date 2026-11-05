@@ -82,7 +82,10 @@
   .you { padding: 0 14px 6px 42px; color: var(--dim); font-size: 11px; }
   .you a { color: var(--accent); }
 
-  #info { border-top: 1px solid var(--line); padding: 10px 14px; min-height: 64px; }
+  #info { border-top: 1px solid var(--line); padding: 8px 14px; min-height: 64px; max-height: 35vh; flex: none;
+          overflow-y: auto; background: #0b0c10; font: 12px/1.5 ui-monospace, Consolas, monospace; }
+  #info .entry + .entry { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+  #info .entry.old { opacity: .55; }
   #info b { color: #fff; }
   #info .who { padding: 0; border: 0; background: none; font-weight: 700; color: #fff; cursor: pointer; }
   #info .who:hover, #info .who:focus-visible { color: var(--accent); text-decoration: underline; outline: none; }

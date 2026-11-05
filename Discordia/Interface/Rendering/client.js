@@ -422,23 +422,32 @@ info.addEventListener("click", (e) => {
   selectActor(who.dataset.actor, true);
 });
 
+// The panel is a console: each pick's description stays above the next, oldest scrolled off past INFO_LOG.
+// Only the bottom entry is live, redrawn every poll; the rest are what they said when the pick moved on.
+const INFO_LOG = 50;
+const infoLog = []; // frozen HTML, oldest first
+let infoKey = null; // what the live entry describes: an actor id, "x,y", or null for the hint
+let infoLive = "";
+
+function showInfo(key, html, note = "") {
+  if (key !== infoKey && infoKey !== null) infoLog.push(infoLive);
+  infoLog.splice(0, infoLog.length - INFO_LOG);
+  [infoKey, infoLive] = [key, html];
+  const atBottom = info.scrollTop + info.clientHeight >= info.scrollHeight - 4; // not if you've scrolled up to read
+  info.innerHTML = [...infoLog.map((h) => `<div class="entry old">${h}</div>`), `<div class="entry">${html}${note}</div>`].join("");
+  if (atBottom) info.scrollTop = info.scrollHeight;
+}
+
 function renderInfo() {
   if (!world) return;
-  if (!selected) {
-    info.innerHTML = `<span class="dim">Click a tile or a name. Arrows pan, +/- zoom, F fits, / searches.</span>`;
-    return;
-  }
+  if (!selected) return showInfo(null, `<span class="dim">Click a tile or a name. Arrows pan, +/- zoom, F fits, / searches.</span>`);
   let x, y;
   const lines = [];
   if (selected.actor) {
     const a = actors.find((a) => a.id === selected.actor);
-    if (!a) {
-      info.innerHTML = `<span class="dim">Gone from the map.</span>`;
-      return;
-    }
+    if (!a) return showInfo(selected.actor, `<span class="dim">Gone from the map.</span>`);
     ({ x, y } = a);
     lines.push(describeActor(a));
-    if (follow) lines.push(`<span class="dim">Following &middot; drag to stop</span>`);
   } else {
     ({ x, y } = selected);
     for (const a of actors) if (a.x === x && a.y === y) lines.push(describeActor(a));
@@ -454,7 +463,9 @@ function renderInfo() {
     lines.splice(1, 0, ...people.map(([role, name, line]) => `${esc(name)}, the ${esc(role)}: <span class="dim">&ldquo;${esc(line)}&rdquo;</span>`));
   }
   lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(terrainAt(x, y))}</span>`);
-  info.innerHTML = lines.join("<br>");
+  // "Following" is only true of the live entry: it stays out of what goes up into the log.
+  const note = selected.actor && follow ? `<br><span class="dim">Following &middot; drag to stop</span>` : "";
+  showInfo(selected.actor ?? `${x},${y}`, lines.join("<br>"), note);
 }
 
 search.addEventListener("input", () => {
