@@ -30,8 +30,6 @@ VIEW_FOLDER = Path("./Discordia/PlayerViews")
 TILESHEET = SPRITE_FOLDER / "Terrain" / "kenney_rpg_urban.png"
 SHEET_COLUMNS = 27
 TILE = 16
-# A town's residents (Town.residents) stand in its doorway: one of the sheet's townsfolk, part of the map's art.
-RESIDENT_SPRITE = str(SPRITE_FOLDER / "Actors" / "resident.png")
 # Pavement goes down under every square; other terrain is laid on top of it, kerbed where it meets
 # something else.
 GROUND = 117
@@ -184,8 +182,6 @@ class WindowRenderer:
                     space, (GameSpace.Town, GameSpace.Wilds, GameSpace.Cache, GameSpace.Extract)
                 ):
                     self._paste(space.sprite_path_string, x, y, image)
-                if isinstance(space, GameSpace.Town):
-                    self._paste(RESIDENT_SPRITE, x, y, image)
         return image
 
     def chunk_png(self, cx: int, cy: int, mini: bool = False) -> bytes | None:

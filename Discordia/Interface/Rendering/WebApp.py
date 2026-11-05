@@ -212,7 +212,7 @@ def _chunk_json(rows: list) -> bytes:
                 for space in row
                 if isinstance(space, (GameSpace.Extract, GameSpace.Cache))
             ],
-            "towns": [  # who's in the doorway, for the info panel
+            "towns": [  # who lives there, for the info panel
                 {"x": space.x, "y": space.y, "residents": space.residents}
                 for row in rows
                 for space in row

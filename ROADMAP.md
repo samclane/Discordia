@@ -69,7 +69,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   2026-11-03: runs peak at 47-72 MB RSS of ~1 GB, and every deploy restarts the process and drops its chunks.)
 - [x] Terrain repeats every ~2560 squares (`pnoise3`'s period, ponytail in `World._terrain_at`). The noise item
   under Libraries fixes it if tcod's noise doesn't wrap. (blocked: on that item)
-- [ ] Don't draw townspeople on town tiles (asked 2026-11-05): drop the doorway townsperson added 2026-11-03.
+- [x] Don't draw townspeople on town tiles (asked 2026-11-05): drop the doorway townsperson added 2026-11-03.
 - [ ] Map info panel: click an actor's name to target it on the map (asked 2026-11-05).
 - [ ] Map info panel reads like a console (asked 2026-11-05): a scrolling log, newest at the bottom.
 
@@ -213,3 +213,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   the starting town. The next deploy does that to the live world.
 - 2026-11-05 Dearer hideout: `HIDEOUT_COST` $1000 -> $2000, x1.15 a level as before, so a level takes twice as long
   to pay for itself (the first ~16 hours, level 15 ~6 days). Bots never build one, so the simulators won't show it.
+- 2026-11-05 No townspeople on the map: town squares draw just the town, the resident sprite is gone. Residents are
+  still named in the map's info panel and on `/town status`.

@@ -52,8 +52,8 @@ SIDE_DISCOUNT = 0.2  # off for a soldier at their own side's military base store
 # stocked kind it lacks, so a town never runs dry of guns for good. On the clock, not per store: nothing more to save.
 STORE_RESTOCK_TICKS = 720
 
-# Who you meet in every town (Town.residents), and what each might say. Drawn on the map in their town's square,
-# but not NPCs: nothing hits them and they never move.
+# Who you meet in every town (Town.residents), and what each might say. Named in the map's info panel, not drawn,
+# and not NPCs: nothing hits them and they never move.
 TOWNSFOLK = {
     "shopkeeper": [
         "Cash only. Everything on these shelves has been somewhere before.",
