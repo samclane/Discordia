@@ -321,16 +321,19 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   A world is regenerated from its seed, so a new noise re-rolls every saved map: keep `pnoise3` output for old
   saves (a `WorldGenerationParameters` field picking the generator, default old) or ask the user before a wipe.
   Fixes the ~2560-square repeat under Rendering too if the new one doesn't wrap at 256.
-  (blocked: which way, and a new dependency; see DECISIONS.md)
+  Decided 2026-11-05: python-tcod (`tcod.noise`), and build around it (its pathfinding for the NPC item below).
+  Whether old saves may re-roll wasn't said, so they keep `pnoise3` as planned above (see DECISIONS.md).
+  (blocked: tcod isn't installed in the venv, and the loop doesn't touch `venv/`: `pip install tcod` there, and the
+  item adds it to `requirements.txt`)
 - [ ] Web map on Leaflet (`L.CRS.Simple`, a `GridLayer` whose `createTile` loads the chunk PNGs, actors as
   markers) instead of `client.js`'s own pan/zoom/tiles. One script tag, no build step. Its tile unloading
   (`keepBuffer`) clears the ~4000-chunk `<img>` ceiling in `DesktopApp.py`. `test_webclient.py`'s `page.js`
   checks need rewriting against Leaflet's DOM.
-  (blocked: a new dependency, vendored or CDN; see DECISIONS.md)
+  Decided 2026-11-05: vendored into `Rendering/`, served by our own server (no CDN, works offline).
 - [ ] NPC chase via `tcod.path` (Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go too if `AStarPathfinder` moves over. Only
   after the noise item brings tcod in, and only if stuck NPCs show up in play or the simulator.
-  (blocked: on the noise item choosing tcod)
+  (blocked: on the noise item installing tcod)
 
 ## Done
 
