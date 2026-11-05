@@ -42,6 +42,11 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 ## Gameplay loop (make it a game)
 
+- [ ] Simulator bots raid toward a random point `reach` squares out (`Bot._pick_goal`), never a cache: 2 caches
+  opened in 10 seeds x 2000 ticks, so caches, found armor and the 6B45 barely show in `sim_history`. Have them
+  head for the nearest stocked cache within reach, as `/raid` does (`World._auto_raid_step`). Expect every game
+  metric to move; `mean armor worn` should leave 0.
+
 ## NPCs and world
 
 ## Persistence
@@ -69,7 +74,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   blocked notes. Keep every open item and its decisions; shorten the rest.
 - [x] Timestamps on every simulation HTML page (asked for 2026-11-05): `sim.html`, `server.html` and
   `history.html` should say when the run (or the chart) was made.
-- [ ] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
+- [x] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
   for 2026-11-05: "why?"). Find what that commit changed for bots' armor, and whether it's the bots or the game.
 
 ## Libraries
@@ -183,3 +188,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   notes cut to their reason (the five flaky web tests are one item now). Nothing open or decided was dropped.
 - 2026-11-05 Timestamps on the simulation pages: `sim.html` and `server.html` say when the run was (the server's
   from its log's meta line, so a `--from` redraw keeps it), `history.html` when it was drawn.
+- 2026-11-05 Why `mean armor worn` fell to 0 at a166029: the bots, not the game. Before it, one bot put on armor
+  once in 10 seeds x 2000 ticks (the 0.02); working shifts reshuffled the draws and that find went. Bots never
+  head for caches, where found armor comes from (2 opened in the whole run), nor buy armor. New item for that.
