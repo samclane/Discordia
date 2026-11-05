@@ -262,6 +262,20 @@ def test_a_selected_town_lists_its_residents(page):
     assert page.wait_for("document.getElementById('info').textContent.includes(', the innkeeper: ')")
 
 
+def test_clicking_a_name_in_the_info_panel_picks_that_actor_out_of_a_crowd(page):
+    result = page.js(
+        """(() => {
+          const { x, y } = world.spawn;
+          const npc = (id, name) => ({ id, kind: 'npc', name, x, y, hp: 5, hp_max: 10, sprite: '' });
+          actors = [npc('npc:1', 'Deserter'), npc('npc:2', 'Bandit')];  // until the next poll, in 2s
+          selectTile(x, y, false);
+          document.querySelector('#info [data-actor="npc:2"]').click();
+          return { selected, follow, marked: actorEls.get('npc:2').getElement().classList.contains('selected') };
+        })()"""
+    )
+    assert result == {"selected": {"actor": "npc:2"}, "follow": True, "marked": True}
+
+
 def test_selecting_moves_the_highlight_without_rebuilding_the_town_list(page):
     """Rebuilding a thousand rows on every click took 40ms."""
     result = page.js(

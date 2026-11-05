@@ -407,11 +407,20 @@ function clearSelection() {
 
 const PLACES = { Extract: "a ride to the nearest town, raid over", Cache: "loot, restocked every few hours" };
 
+// The name is a button: a click (below, on the panel) picks that actor out of a crowd and follows it.
 function describeActor(a) {
-  if (a.kind === "remains") return `<b>${esc(a.name)}</b> <span class="dim">&mdash; dropped on death, free to take</span><br>${esc(a.contents)}`;
+  const name = `<button class="who" data-actor="${esc(a.id)}">${esc(a.name)}</button>`;
+  if (a.kind === "remains") return `${name} <span class="dim">&mdash; dropped on death, free to take</span><br>${esc(a.contents)}`;
   const what = a.kind === "player" ? `Level ${a.level} ${esc(a.class)}` : "NPC";
-  return `<b>${esc(a.name)}</b> <span class="dim">&mdash; ${what}</span><br>${a.hp}/${a.hp_max} hp`;
+  return `${name} <span class="dim">&mdash; ${what}</span><br>${a.hp}/${a.hp_max} hp`;
 }
+
+info.addEventListener("click", (e) => {
+  const who = e.target.closest("[data-actor]");
+  if (!who) return;
+  document.body.classList.remove("open"); // phones: as a list row does
+  selectActor(who.dataset.actor, true);
+});
 
 function renderInfo() {
   if (!world) return;

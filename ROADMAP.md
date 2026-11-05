@@ -70,7 +70,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Terrain repeats every ~2560 squares (`pnoise3`'s period, ponytail in `World._terrain_at`). The noise item
   under Libraries fixes it if tcod's noise doesn't wrap. (blocked: on that item)
 - [x] Don't draw townspeople on town tiles (asked 2026-11-05): drop the doorway townsperson added 2026-11-03.
-- [ ] Map info panel: click an actor's name to target it on the map (asked 2026-11-05).
+- [x] Map info panel: click an actor's name to target it on the map (asked 2026-11-05).
 - [ ] Map info panel reads like a console (asked 2026-11-05): a scrolling log, newest at the bottom.
 
 ## Cleanup
@@ -215,3 +215,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   to pay for itself (the first ~16 hours, level 15 ~6 days). Bots never build one, so the simulators won't show it.
 - 2026-11-05 No townspeople on the map: town squares draw just the town, the resident sprite is gone. Residents are
   still named in the map's info panel and on `/town status`.
+- 2026-11-05 Names in the map's info panel are buttons: a click selects that actor and follows it, so one of a crowd
+  on a square can be picked out (clicking the selected one's name re-centres after a drag).
