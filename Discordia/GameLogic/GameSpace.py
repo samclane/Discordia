@@ -13,9 +13,9 @@ from typing import List, Tuple, Dict, Iterator, Sequence, Set, Type, Union
 
 import math
 import numpy as np
+import tcod.noise
 from astar import AStar
 from math import sqrt
-from noise import pnoise3
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Data, Events, Actors, Items, Weapons
@@ -139,7 +139,8 @@ NPC_AWAKE_RADIUS = CHUNK_SIZE
 
 # Paving where a fourth noise layer passes +DISTRICT_LEVEL is ruins (cover), and where it passes -DISTRICT_LEVEL a
 # plaza (exposed): see RuinsTerrain and PlazaTerrain.
-DISTRICT_LEVEL = 0.3
+DISTRICT_LEVEL = 0.655
+
 
 # How far a raider spots a player from, in squares either way. Further than /look's 2, so the first a
 # player knows of one is its warning, while there's still room to run.
@@ -832,9 +833,17 @@ class World:
         # Tuned on a 50-square map, where it gave islands about ten squares across. Fixed rather than
         # scaled to the map, so a big world is more of the same, not the same few islands blown up.
         self._noise_scale = self.gen_params.resolution_constant * 50
-        self._slices = (random.random(), random.random(), random.random())
-        # Its own generator, not a fourth draw: that would shift the game's random sequence for old saves.
-        self._district_slice = random.Random(f"{self.seed}:districts").random()
+        # A noise field per terrain layer, each seeded from the world's. Simplex: tcod's Perlin draws blobs along
+        # the grid's axes and repeats every 256 units (~2560 squares); this does neither.
+        self._noise = {
+            layer: tcod.noise.Noise(
+                2,
+                algorithm=tcod.noise.Algorithm.SIMPLEX,
+                implementation=tcod.noise.Implementation.SIMPLE,
+                seed=random.Random(f"{self.seed}:{layer}").getrandbits(31),
+            )
+            for layer in ("water", "mountains", "grass", "districts")
+        }
         self._choose_spawn()
 
     def _choose_spawn(self):
@@ -877,29 +886,29 @@ class World:
             self._populate_chunk(cx, cy)
         LOG.info("Generation finished")
 
-    def _terrain_at(self, x: int, y: int) -> Terrain:
-        nx, ny = x / self._noise_scale, y / self._noise_scale
-        # ponytail: pnoise3 repeats every 256 noise units, so terrain tiles every ~2560 squares (towns
-        # and wilds don't, they're rolled per chunk). Shift the z slice per region if anyone notices.
-        terrain: Terrain = (
-            SandTerrain()
-            if abs(pnoise3(nx, ny, self._slices[0])) > self.gen_params.water
-            else WaterTerrain()
+    def _terrain_block(self, xs: range, ys: range) -> Dict[Tuple[int, int], Terrain]:
+        """The terrain of every square in xs by ys: each noise layer sampled over the block at once."""
+        gx = np.arange(xs.start, xs.stop)[:, None] / self._noise_scale
+        gy = np.arange(ys.start, ys.stop)[None, :] / self._noise_scale
+        water, mountains, grass, district = (
+            self._noise[layer][gx, gy] for layer in ("water", "mountains", "grass", "districts")
         )
-        if (
-            abs(pnoise3(nx, ny, self._slices[1])) > self.gen_params.mountains
-            and terrain.walkable
-        ):
-            terrain = MountainTerrain()
-        if abs(pnoise3(nx, ny, self._slices[2])) > self.gen_params.grass:
-            terrain = GrassTerrain()
-        if type(terrain) is SandTerrain:
-            district = pnoise3(nx, ny, self._district_slice)
-            if district > DISTRICT_LEVEL:
-                terrain = RuinsTerrain()
-            elif district < -DISTRICT_LEVEL:
-                terrain = PlazaTerrain()
-        return terrain
+        params = self.gen_params
+        block: Dict[Tuple[int, int], Terrain] = {}
+        for i, x in enumerate(xs):
+            for j, y in enumerate(ys):
+                terrain: Terrain = SandTerrain() if abs(water[i, j]) > params.water else WaterTerrain()
+                if abs(mountains[i, j]) > params.mountains and terrain.walkable:
+                    terrain = MountainTerrain()
+                if abs(grass[i, j]) > params.grass:
+                    terrain = GrassTerrain()
+                if type(terrain) is SandTerrain:
+                    if district[i, j] > DISTRICT_LEVEL:
+                        terrain = RuinsTerrain()
+                    elif district[i, j] < -DISTRICT_LEVEL:
+                        terrain = PlazaTerrain()
+                block[x, y] = terrain
+        return block
 
     def _load_chunk(self, cx: int, cy: int) -> List[List[Space]]:
         rows = self._roll_chunk(cx, cy)
@@ -982,11 +991,7 @@ class World:
         xs = range(x0, min(x0 + CHUNK_SIZE, self.width))
         ys = range(y0, min(y0 + CHUNK_SIZE, self.height))
         # A square of margin: edges look at neighbours, and those can be in the next chunk over.
-        terrain = {
-            (x, y): self._terrain_at(x, y)
-            for x in range(xs.start - 1, xs.stop + 1)
-            for y in range(ys.start - 1, ys.stop + 1)
-        }
+        terrain = self._terrain_block(range(xs.start - 1, xs.stop + 1), range(ys.start - 1, ys.stop + 1))
 
         rows: List[List[Space]] = []
         with _seeded(self.seed, cx, cy):

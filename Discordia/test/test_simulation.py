@@ -537,12 +537,13 @@ def test_an_unarmed_bot_keeps_to_danger_one():
     world = GameSpace.World("Broke", 256, 256, seed=0)
     bot = Bot(WorldAdapter(world), 1, reach=80)
     town = world.starting_town
-    bot.character.location = deep = next(
-        world.space_at(x, town.y) for x in range(town.x + 1, world.width) if world.danger_at(world.space_at(x, town.y)) == 2
-    )
+    danger = lambda x: world.danger_at(world.space_at(x, town.y))
+    # Wilds roll their own danger, so the square before the first danger 2 can be deeper: find a 1 then a 2.
+    x = next(x for x in range(town.x + 1, world.width) if danger(x) == 2 and danger(x - 1) == 1)
+    bot.character.location = deep = world.space_at(x, town.y)
     assert isinstance(bot.character.weapon, Weapons.Fist)
     assert bot.order()[0] == "go home"
-    bot.character.location = world.space_at(deep.x - 1, deep.y)  # the first danger-2 square out: this is danger 1
+    bot.character.location = world.space_at(deep.x - 1, deep.y)  # danger 1
     assert bot.order()[0] == "raid"  # still raids the shallow end, for a cache or a kill
     bot.character.location = deep
     bot.character.equip(Weapons.Hammer())

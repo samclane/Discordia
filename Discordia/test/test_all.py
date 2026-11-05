@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -376,6 +377,34 @@ class TestGeneral(unittest.TestCase):
         self.assertIsNone(adapter.get_player(0).side)
         self.assertIsNone(adapter.get_player(0).pet_name)
         self.assertEqual(adapter.get_player(0).pet_kind, "goat")
+
+    def test_a_save_from_the_old_noise_rerolls_with_everyone_back_in_town(self):
+        """The map moved to tcod's noise: an old save keeps its seed, gets the new thresholds, and nobody wakes up
+        on a square that's water now."""
+        path = Path(self.temp_dir.name) / "pnoise.db"
+        database = Database(path)
+        database.save(self.adapter)
+        database.close()
+        connection = sqlite3.connect(path)
+        old = {"resolution_constant": 0.2, "water": 0.075, "grass": 0.3, "mountains": 0.4, "wilds": 0.1, "towns": 0.003}
+        connection.execute("UPDATE world SET gen_params = ?", (json.dumps(old),))
+        connection.execute("UPDATE character SET x = 3, y = 4, camping = 1")
+        connection.execute("PRAGMA user_version = 4")  # the version before the move
+        connection.commit()
+        connection.close()
+
+        migrated = Database(path)
+        adapter = migrated.load()
+        assert adapter is not None
+        self.assertEqual(adapter.world.gen_params.water, 0.22)
+        self.assertEqual(adapter.world.gen_params.towns, 0.003)  # the rest kept
+        self.assertEqual(migrated.connection.execute("SELECT count(*) FROM npc").fetchone()[0], 0)
+        player = adapter.get_player(0)
+        self.assertIs(player.location, adapter.world.starting_town)
+        self.assertFalse(player.camping)
+        migrated.save(adapter)  # and the next save writes the real square
+        self.assertGreaterEqual(migrated.connection.execute("SELECT min(x) FROM character").fetchone()[0], 0)
+        migrated.close()
 
     def test_a_new_save_file_starts_at_the_latest_schema_version(self):
         database = Database(Path(self.temp_dir.name) / "new.db")

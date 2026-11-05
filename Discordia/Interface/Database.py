@@ -190,6 +190,19 @@ def _add_pets(connection: sqlite3.Connection):
     connection.execute("ALTER TABLE character ADD COLUMN pet_fed_until INTEGER NOT NULL DEFAULT 0")
 
 
+def _reroll_terrain(connection: sqlite3.Connection):
+    """Terrain moved from pnoise3 to tcod's Simplex noise (2026-11-05), so an old save's map re-rolls under it;
+    decided: a wipe is fine. The thresholds move to the ones tuned for the new noise (as they stood then: later
+    defaults are a new step), stores and NPCs tied to the old squares go, and every character's square becomes
+    -1, -1, which load() reads as the starting town, rather than waking up in what's a canal now."""
+    for world_id, params in connection.execute("SELECT id, gen_params FROM world").fetchall():
+        tuned = {**json.loads(params), "water": 0.22, "grass": 0.59, "mountains": 0.79}
+        connection.execute("UPDATE world SET gen_params = ? WHERE id = ?", (json.dumps(tuned), world_id))
+    connection.execute("DELETE FROM npc")
+    connection.execute("DELETE FROM store")
+    connection.execute("UPDATE character SET x = -1, y = -1, camping = 0, work_until = NULL")
+
+
 # How a save file catches up with SCHEMA: MIGRATIONS[n] takes a file at PRAGMA user_version n to n + 1. CREATE TABLE
 # IF NOT EXISTS leaves an existing table alone, so a schema change goes in SCHEMA (for new files, which start at
 # the last version) and as a new step at the end of this list (for old ones). A step may rewrite data too.
@@ -198,6 +211,7 @@ MIGRATIONS = [
     _add_pets,
     lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_care INTEGER NOT NULL DEFAULT 0"),
     lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_kind TEXT NOT NULL DEFAULT 'goat'"),
+    _reroll_terrain,
 ]
 
 
@@ -289,7 +303,10 @@ class Database:
         character.hideout_level = row["hideout_level"]
         character.prestige = row["prestige"]
         character.side = row["side"]
-        character.location = adapter.world.space_at(row["x"], row["y"])
+        # -1: the map re-rolled under the save (_reroll_terrain), so its square means nothing now.
+        character.location = (
+            adapter.world.starting_town if row["x"] < 0 else adapter.world.space_at(row["x"], row["y"])
+        )
         character.camping = bool(row["camping"])  # World.advance heals it for the downtime
         character.work_until = row["work_until"]  # and pays the shift
         character.kills, character.extractions = row["kills"], row["extractions"]

@@ -6,6 +6,8 @@ test_all.py already drives a full 100x100 world; these stay small and fast on pu
 """
 
 import random
+from collections import Counter
+from itertools import product
 from pathlib import Path
 
 import pytest
@@ -623,6 +625,22 @@ def test_a_minecraft_sized_world_only_generates_where_somebody_goes():
     for _ in range(GameSpace.CHUNK_SIZE + 1):
         player.attempt_move(DIRECTION_VECTORS["e"])
     assert len(world.loaded_chunks()) > before
+
+
+def test_terrain_covers_the_shares_it_was_tuned_for():
+    """The thresholds were set on tcod's Simplex noise to give the mix the old pnoise3 maps had: water 18%, grass 29%,
+    mountains 3%, ruins and plazas 5% each, the rest paving."""
+    kinds, n = Counter(), 0
+    for seed in range(3):
+        world = GameSpace.World("Mix", 384, 384, seed=seed)
+        for cx, cy in product(range(4, 10), repeat=2):
+            world.space_at(cx * GameSpace.CHUNK_SIZE, cy * GameSpace.CHUNK_SIZE)
+            for row in world.loaded_chunk(cx, cy):
+                kinds.update(type(space.terrain).__name__ for space in row)
+                n += len(row)
+    share = {kind: 100 * count / n for kind, count in kinds.items()}
+    assert 13 < share["WaterTerrain"] < 24 and 23 < share["GrassTerrain"] < 35, share
+    assert 1 < share["MountainTerrain"] < 6 and 3 < share["RuinsTerrain"] < 8 and 3 < share["PlazaTerrain"] < 8, share
 
 
 def test_generating_a_chunk_leaves_the_game_dice_alone():
@@ -1604,8 +1622,9 @@ def test_an_extraction_point_drives_you_to_the_nearest_town_and_ends_the_raid():
 def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter, monkeypatch):
     world, player = adapter.world, adapter.get_player(1)
     town = world.starting_town
-    player.location = world.space_at(town.x + 20, town.y)
-    exfil = GameSpace.Extract(town.x + 22, town.y)
+    way = 1 if town.x + 22 < world.width else -1  # out toward whichever edge has room
+    player.location = world.space_at(town.x + 20 * way, town.y)
+    exfil = GameSpace.Extract(town.x + 22 * way, town.y)
     world.extracts, world.npcs = [exfil], []
     targets = []
     monkeypatch.setattr(player, "step", lambda space, toward=True: targets.append(space) or [])

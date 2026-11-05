@@ -65,7 +65,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Evict chunks with nobody in them (~0.4 MB each, never unloaded: ponytail in `World.__init__`); store sales
   in them would need saving first. (blocked: waits on the live server's memory, charted on `/admin`. Checked
   2026-11-03: runs peak at 47-72 MB RSS of ~1 GB, and every deploy restarts the process and drops its chunks.)
-- [ ] Terrain repeats every ~2560 squares (`pnoise3`'s period, ponytail in `World._terrain_at`). The noise item
+- [x] Terrain repeats every ~2560 squares (`pnoise3`'s period, ponytail in `World._terrain_at`). The noise item
   under Libraries fixes it if tcod's noise doesn't wrap. (blocked: on that item)
 
 ## Cleanup
@@ -86,13 +86,13 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 Hand-rolled parts an existing library already does. Researched 2026-11-03; in this order.
 
-- [ ] Replace `noise` (`pnoise3`: unmaintained, no wheels for recent Pythons) with `tcod.noise`. Decided
+- [x] Replace `noise` (`pnoise3`: unmaintained, no wheels for recent Pythons) with `tcod.noise`. Decided
   2026-11-05: python-tcod, built around (its pathfinding for the item below); a wipe is fine, so every world moves
   to tcod (old saves re-roll) and `noise` leaves `requirements.txt`. (blocked: tcod isn't installed in the venv,
   and the loop doesn't touch `venv/`: `pip install tcod` there; the item adds it to `requirements.txt`)
 - [ ] NPC chase via `tcod.path` (a Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go if `AStarPathfinder` moves over too. Only if
-  stuck NPCs show up in play or the simulator. (blocked: on the noise item installing tcod)
+  stuck NPCs show up in play or the simulator. (blocked: tcod is in now; waits on stuck NPCs showing up)
 
 ## Done
 
@@ -201,3 +201,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-05 Level and worth after 7db073c: noise. Behaviour unchanged but one extra random draw per goal gives level
   1.88, worth 677, deaths 6.7 against 2.28, 713, 7.3, so 7db073c's 2.03, 669, 7.1 is inside it. Not loitering
   either: a new goal on arrival gave 1.93 and halved caches opened (a loiterer re-loots the refill). Reverted.
+- 2026-11-05 Terrain on tcod: `noise` is gone; four seeded `tcod.noise` Simplex fields (Perlin drew axis-aligned
+  blobs and repeats at 256 units), sampled a chunk at a time (`World._terrain_block`), thresholds refitted to the
+  old shares (water 18%, grass 29%, mountains 3%). No repeat within 65,536 units, so the 2560-square repeat is gone
+  too. Migration step 5 re-rolls an old save: new thresholds, its NPCs and store shelves dropped, everyone back in
+  the starting town. The next deploy does that to the live world.

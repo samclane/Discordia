@@ -1,6 +1,6 @@
-noise
 discord.py>=2.4
 pillow
 numpy
 astar
 pytest
+tcod
