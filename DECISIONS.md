@@ -16,6 +16,21 @@ that old saves keep `pnoise3`, which keeps the unmaintained `noise` package inst
 **Notes:**
 
 
+## Leaflet: still worth it? (ROADMAP, Libraries)
+
+You said vendor it (2026-11-05). Reading the client before starting, the main reason given doesn't hold: Leaflet's
+`keepBuffer` only unloads tiles off screen, but a zoomed-out fit has every explored chunk on screen, so the ~4000
+`<img>` ceiling stays (`client.js` already drops off-screen chunks). That ceiling's fix is overview tiles of 8x8
+chunks drawn by the server, with or without Leaflet. What Leaflet still buys is less code of our own (~250 lines of
+pan, zoom, pinch and fly-to), against rewriting the browser tests and re-solving what they pin down: chunk edges on
+whole pixels (no grid seams), a slow pinch still zooming, scroll-out below the zoom floor, Firefox's image drag.
+
+- [ ] Do it anyway: less of our own map code is worth the rewrite.
+- [ ] Drop it: keep `client.js`. The ceiling gets the 8x8 overview tiles when explored chunks near ~4000.
+
+**Notes:**
+
+
 ## Anything else
 
 New features, directions, or things you want the loop to stop doing:

@@ -330,6 +330,11 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   (`keepBuffer`) clears the ~4000-chunk `<img>` ceiling in `DesktopApp.py`. `test_webclient.py`'s `page.js`
   checks need rewriting against Leaflet's DOM.
   Decided 2026-11-05: vendored into `Rendering/`, served by our own server (no CDN, works offline).
+  (blocked: the case for it doesn't hold, see DECISIONS.md. Checked 2026-11-05: `keepBuffer` only unloads tiles off
+  screen, and a fit view has every explored chunk on screen, so Leaflet would still put ~4000 `<img>`s on the page;
+  `showChunks` already drops off-screen chunks. The ceiling's fix is the ponytail's 8x8-chunk overview tiles,
+  server-side, either way. What's left is ~250 lines of pan/zoom/pinch/fly out, for rewriting the browser tests and
+  re-solving what they pin: whole-pixel chunk edges, a slow pinch, scroll-out below the floor, Firefox's image drag.)
 - [ ] NPC chase via `tcod.path` (Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go too if `AStarPathfinder` moves over. Only
   after the noise item brings tcod in, and only if stuck NPCs show up in play or the simulator.
