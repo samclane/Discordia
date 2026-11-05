@@ -42,7 +42,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 ## Gameplay loop (make it a game)
 
-- [ ] Simulator bots raid toward a random point `reach` squares out (`Bot._pick_goal`), never a cache: 2 caches
+- [x] Simulator bots raid toward a random point `reach` squares out (`Bot._pick_goal`), never a cache: 2 caches
   opened in 10 seeds x 2000 ticks, so caches, found armor and the 6B45 barely show in `sim_history`. Have them
   head for the nearest stocked cache within reach, as `/raid` does (`World._auto_raid_step`). Expect every game
   metric to move; `mean armor worn` should leave 0.
@@ -191,3 +191,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-05 Why `mean armor worn` fell to 0 at a166029: the bots, not the game. Before it, one bot put on armor
   once in 10 seeds x 2000 ticks (the 0.02); working shifts reshuffled the draws and that find went. Bots never
   head for caches, where found armor comes from (2 opened in the whole run), nor buy armor. New item for that.
+- 2026-11-05 Simulator bots raid for caches: `Bot._pick_goal` heads for the nearest stocked cache within `reach`
+  of town (`World.stocked_caches`, shared with `/raid`), else a random point. 10 seeds x 2000: caches opened 2 -> 12.

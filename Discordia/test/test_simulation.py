@@ -132,9 +132,13 @@ class Bot:
         return None
 
     def _pick_goal(self) -> GameSpace.Space:
-        """Somewhere `reach` squares out from the starting town, at any bearing: where this raid heads."""
-        world, angle = self.adapter.world, random.uniform(0, 2 * math.pi)
-        town = world.starting_town
+        """Where this raid heads: the nearest stocked cache within `reach` of the starting town, as /raid goes for
+        one, or else somewhere `reach` squares out at any bearing."""
+        world, town = self.adapter.world, self.adapter.world.starting_town
+        caches = [cache for cache in world.stocked_caches() if town.distance(cache) <= self.reach]
+        if caches:
+            return min(caches, key=town.distance)
+        angle = random.uniform(0, 2 * math.pi)
         x = round(town.x + self.reach * math.cos(angle))
         y = round(town.y + self.reach * math.sin(angle))
         return GameSpace.Space(min(max(x, 0), world.width - 1), min(max(y, 0), world.height - 1))
@@ -578,6 +582,19 @@ def test_a_bare_fisted_bot_buys_the_most_damaging_gun_it_can_pay_for_with_its_am
     assert label == "buy L1A1 (FN FAL)"
     act()
     assert isinstance(c.weapon, Weapons.L1A1) and bot.order()[0] == "buy 7.62mm rounds", bot.order()[0]
+
+
+def test_bots_raid_for_the_nearest_stocked_cache_in_reach():
+    world = GameSpace.World("Caches", 128, 128, seed=0)
+    bot = Bot(WorldAdapter(world), 2, reach=10)
+    town = world.starting_town
+    near, far = GameSpace.Cache(town.x + 6, town.y), GameSpace.Cache(town.x + 30, town.y)
+    world.caches = [far, near]
+    assert bot._pick_goal() is near, "as /raid goes for one"
+    near.looted_at = world.ticks
+    goal = bot._pick_goal()
+    assert goal is not near and goal is not far, "emptied, or out of reach: anywhere at its reach instead"
+    assert round(town.distance(goal)) <= 10
 
 
 def test_bots_wear_found_armor_that_beats_what_they_have_on():

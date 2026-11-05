@@ -1231,6 +1231,10 @@ class World:
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
+    def stocked_caches(self) -> List[Cache]:
+        """The loaded caches with something in them: never emptied, or refilled since."""
+        return [c for c in self.caches if c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS]
+
     def _auto_raid_step(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
         """One tick of an unattended raid: fight whatever shares the square, else walk to the nearest stocked
         cache no deeper than `depth` (or explore out to that depth if none is known), and once time is up or
@@ -1256,10 +1260,7 @@ class World:
             # An extraction point drops it in a town, so the nearest of either is the way home.
             results = player.step(min(self.towns + self.extracts, key=here.distance))
         else:
-            stocked = [
-                c for c in self.caches
-                if c.level <= depth and (c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS)
-            ]
+            stocked = [c for c in self.stocked_caches() if c.level <= depth]
             if stocked:
                 results = player.step(min(stocked, key=here.distance))
             elif (at := self.depth_at(here)) != depth:  # out to its depth, or back up from past it
