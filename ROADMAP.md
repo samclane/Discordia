@@ -54,10 +54,13 @@ existing things to it when an item touches them anyway, not as a sweep.
   until its steps run out instead of going on out (less extract XP, fewer kills). Give it a new goal on arrival
   (the next stocked cache in reach, else a random point) and see if level and worth come back.
 
-- [ ] Simulator bots build hideouts (asked 2026-11-05): none ever do, so the price and income tuning never shows in
+- [x] Simulator bots build hideouts (asked 2026-11-05): none ever do, so the price and income tuning never shows in
   `sim_history`. A bot in town with the next level's price to spare builds it; a metric for mean hideout level.
 - [ ] Simulator bots keep pets (asked 2026-11-05): adopt a goat or a dog once they can afford it, feed it when in
   town, and a metric for pets kept.
+- [ ] No simulator bot affords a first hideout level ($2000 since b36ce63): `mean hideout level` is 0 over 10 seeds x
+  2000 ticks, and in one seed x 10000 ticks (~14 hours at a 5-second tick) the richest of 6 bots ends on $1451.
+  Is that the bots (most end on a hammer or fists) or the economy? Find out before pricing the hideout further.
 
 ## NPCs and world
 
@@ -224,3 +227,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   on a square can be picked out (clicking the selected one's name re-centres after a drag).
 - 2026-11-05 The map's info panel is a console: monospace, scrolling, each pick's description kept above the next
   (dimmed, the last 50), the live one at the bottom and scrolled to unless you've scrolled up to read.
+- 2026-11-05 Simulator bots build hideouts: armed and in town, a bot buys the next level when it can keep $300 back
+  to re-arm (`HIDEOUT_RESERVE`), salvage levels from salvage it holds; a `mean hideout level` metric. It's 0: none can pay.

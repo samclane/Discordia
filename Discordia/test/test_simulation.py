@@ -44,6 +44,7 @@ HANG = 300  # seconds for a whole run before faulthandler dumps every stack and 
 KNOWN: Tuple[str, ...] = ()
 REPORT_TEMPLATE = Path(__file__).with_name("sim_template.html")
 MAP_PX = 4  # pixels a square on the report's map: ~10 chunks across fit a laptop screen
+HIDEOUT_RESERVE = 300  # what a bot keeps back from a hideout level: a mid-price gun ($75-370) and its ammo
 
 
 def _toward(here, there) -> Tuple[int, int]:
@@ -106,6 +107,8 @@ class Bot:
             elif isinstance(gun, Weapons.ProjectileWeapon) and not any(map(self._ammo_for(gun), c.inventory)):
                 if (buy := self._cheapest(town, self._ammo_for(gun))) is not None:
                     return f"buy {buy.name}", lambda: self._buy(town, buy)
+            if self._can_build():
+                return "build hideout", c.build_hideout
             if c.currency > 100:
                 money = c.currency - 100  # bank all but walking-around money
                 return f"stash ${money}", lambda: c.stash_put(money=money)
@@ -119,6 +122,14 @@ class Bot:
         self.steps_out += 1
         step = _toward(c.location, self.goal) if random.random() < 0.7 else random.choice(DIRECTIONS)
         return "raid", lambda: self._step(step)
+
+    def _can_build(self) -> bool:
+        """The next hideout level, if it can pay and keep HIDEOUT_RESERVE back to re-arm after a death."""
+        c = self.character
+        money, salvage = c.hideout_price
+        if salvage:
+            return sum(isinstance(i, Items.Salvage) for i in [*c.inventory, *c.stash]) >= salvage
+        return c.currency + c.stash_currency >= money + HIDEOUT_RESERVE
 
     def _better_armor(self) -> Optional[Items.ArmorAbstract]:
         """Armor in the pack worth more than what's worn in its slot, or None. Worth, not armor_count: that's a
@@ -242,6 +253,7 @@ def snapshot(world: GameSpace.World, c) -> dict:
         "class": c.player_class.name,
         "deaths": c.deaths,
         "achievements": len(c.achievements),
+        "hideout": c.hideout_level,
         "armor": sum(isinstance(i, Items.ArmorAbstract) and i.base_value > 0 for i in c.equipment_set),
         "weapon": str(weapon) if weapon else None,
         "ammo": getattr(weapon, "current_capacity", None),
@@ -450,6 +462,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "soldiers (share of bots)": round(mean(r["class"] == Actors.Soldier().name for r in last), 2),
         "mean armor worn (pieces)": round(mean(r["armor"] for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
+        "mean hideout level": round(mean(r["hideout"] for r in last), 2),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
         "errors": sum(1 for r in rows if r["error"]),
@@ -584,6 +597,26 @@ def test_a_bare_fisted_bot_buys_the_most_damaging_gun_it_can_pay_for_with_its_am
     assert label == "buy L1A1 (FN FAL)"
     act()
     assert isinstance(c.weapon, Weapons.L1A1) and bot.order()[0] == "buy 7.62mm rounds", bot.order()[0]
+
+
+def test_an_armed_bot_in_town_builds_its_hideout_when_it_can_keep_a_reserve():
+    world = GameSpace.World("Home", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 2, reach=5)
+    c = bot.character
+    c.location, c.player_class = world.starting_town, Actors.Scavenger()
+    c.equip(Weapons.Hammer())  # armed, and no ammo to buy
+    c.currency, c.stash_currency = 100, Actors.HIDEOUT_COST + HIDEOUT_RESERVE - 101
+    assert bot.order()[0] != "build hideout"  # a dollar short of its reserve
+    c.stash_currency += 1
+    label, act = bot.order()
+    assert label == "build hideout"
+    act()
+    assert c.hideout_level == 1 and c.currency + c.stash_currency == HIDEOUT_RESERVE
+
+    c.hideout_level = Actors.HIDEOUT_SALVAGE_EVERY - 1  # the next is bartered for salvage
+    assert bot.order()[0] != "build hideout"
+    c.inventory.append(Items.Salvage())
+    assert bot.order()[0] == "build hideout"
 
 
 def test_bots_raid_for_the_nearest_stocked_cache_in_reach():
