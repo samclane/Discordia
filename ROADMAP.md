@@ -322,7 +322,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   saves (a `WorldGenerationParameters` field picking the generator, default old) or ask the user before a wipe.
   Fixes the ~2560-square repeat under Rendering too if the new one doesn't wrap at 256.
   Decided 2026-11-05: python-tcod (`tcod.noise`), and build around it (its pathfinding for the NPC item below).
-  Whether old saves may re-roll wasn't said, so they keep `pnoise3` as planned above (see DECISIONS.md).
+  Decided 2026-11-05: a wipe is fine. Every world moves to tcod (old saves re-roll), and `noise` leaves
+  `requirements.txt`.
   (blocked: tcod isn't installed in the venv, and the loop doesn't touch `venv/`: `pip install tcod` there, and the
   item adds it to `requirements.txt`)
 - [ ] Web map on Leaflet (`L.CRS.Simple`, a `GridLayer` whose `createTile` loads the chunk PNGs, actors as
@@ -330,11 +331,10 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   (`keepBuffer`) clears the ~4000-chunk `<img>` ceiling in `DesktopApp.py`. `test_webclient.py`'s `page.js`
   checks need rewriting against Leaflet's DOM.
   Decided 2026-11-05: vendored into `Rendering/`, served by our own server (no CDN, works offline).
-  (blocked: the case for it doesn't hold, see DECISIONS.md. Checked 2026-11-05: `keepBuffer` only unloads tiles off
-  screen, and a fit view has every explored chunk on screen, so Leaflet would still put ~4000 `<img>`s on the page;
-  `showChunks` already drops off-screen chunks. The ceiling's fix is the ponytail's 8x8-chunk overview tiles,
-  server-side, either way. What's left is ~250 lines of pan/zoom/pinch/fly out, for rewriting the browser tests and
-  re-solving what they pin: whole-pixel chunk edges, a slow pinch, scroll-out below the floor, Firefox's image drag.)
+  Decided 2026-11-05, after hearing the ~4000-`<img>` ceiling stays (a fit view has every chunk on screen, so
+  that needs server-side 8x8 overview tiles either way): do it anyway, less map code of our own is worth the
+  rewrite. Keep what the browser tests pin: whole-pixel chunk edges, a slow pinch, scroll-out below the floor,
+  Firefox's image drag.
 - [ ] NPC chase via `tcod.path` (Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go too if `AStarPathfinder` moves over. Only
   after the noise item brings tcod in, and only if stuck NPCs show up in play or the simulator.
