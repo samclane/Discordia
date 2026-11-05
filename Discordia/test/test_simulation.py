@@ -556,6 +556,7 @@ def test_a_broke_bare_fisted_bot_works_shifts_until_it_can_buy_a_gun():
     c = bot.character
     c.location, c.currency, c.player_class = world.starting_town, 0, Actors.Scavenger()
     assert bot.order()[0] == "work"
+    label = "work"
     for _ in range(100):  # a few shifts at most
         label, act = bot.order()
         if label != "work":
