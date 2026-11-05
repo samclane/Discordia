@@ -56,11 +56,14 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [x] Simulator bots build hideouts (asked 2026-11-05): none ever do, so the price and income tuning never shows in
   `sim_history`. A bot in town with the next level's price to spare builds it; a metric for mean hideout level.
-- [ ] Simulator bots keep pets (asked 2026-11-05): adopt a goat or a dog once they can afford it, feed it when in
+- [x] Simulator bots keep pets (asked 2026-11-05): adopt a goat or a dog once they can afford it, feed it when in
   town, and a metric for pets kept.
 - [ ] No simulator bot affords a first hideout level ($2000 since b36ce63): `mean hideout level` is 0 over 10 seeds x
   2000 ticks, and in one seed x 10000 ticks (~14 hours at a 5-second tick) the richest of 6 bots ends on $1451.
   Is that the bots (most end on a hammer or fists) or the economy? Find out before pricing the hideout further.
+- [ ] Is the dog too strong? With simulator bots keeping pets, 10 seeds x 2000 deaths went 7.5 -> 3.5 and mean level
+  2.07 -> 2.72; with every bot on a goat instead, 6.2 and 2.10. So the dog's bite (`PET_BITE_DAMAGE` 2 a blow, 4
+  once happy) on top of a $100 hammer's 10 halves deaths, for $300. Decide if that's the dog's job or too much.
 
 ## NPCs and world
 
@@ -229,3 +232,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   (dimmed, the last 50), the live one at the bottom and scrolled to unless you've scrolled up to read.
 - 2026-11-05 Simulator bots build hideouts: armed and in town, a bot buys the next level when it can keep $300 back
   to re-arm (`HIDEOUT_RESERVE`), salvage levels from salvage it holds; a `mean hideout level` metric. It's 0: none can pay.
+- 2026-11-05 Simulator bots keep pets: armed and in town, a bot adopts one when it can keep `HIDEOUT_RESERVE` back (far
+  raiders a dog, the rest a goat) and feeds it in the last quarter of its meal; a `pets kept` metric (1.0: all do).
+  Deaths 7.5 -> 3.5 from the dogs (new item); worth 702 -> 674, the $300 spent and the milk never sold.

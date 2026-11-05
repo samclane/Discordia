@@ -71,6 +71,8 @@ class Bot:
         self.robs = member_id % 2 == 1
         # A third enlist instead, at the first military base they rest in, so the side rules show in the runs too.
         self.enlists = member_id % 3 == 0
+        # Far raiders keep a dog, which fetches and bites out there; the rest a goat, which milks at home.
+        self.pet_kind = "dog" if reach >= 40 else "goat"
         self.goal = self._pick_goal()
         self.steps_out = 0
         self.entered: Optional[GameSpace.Space] = None  # the square this tick's move stepped into, if any
@@ -107,6 +109,13 @@ class Bot:
             elif isinstance(gun, Weapons.ProjectileWeapon) and not any(map(self._ammo_for(gun), c.inventory)):
                 if (buy := self._cheapest(town, self._ammo_for(gun))) is not None:
                     return f"buy {buy.name}", lambda: self._buy(town, buy)
+            now, money = a.world.ticks, c.currency + c.stash_currency
+            if c.pet_name is not None and not c.pet_gone(now):
+                # A meal doesn't keep, so feed in its last quarter: a town visit that late still lands on time.
+                if c.pet_fed_until - now < Actors.PET_FEED_TICKS // 4 and money >= Actors.PET_FEED_COST:
+                    return "feed pet", lambda: c.feed_pet(now) or []
+            elif money >= Actors.PET_PRICE + HIDEOUT_RESERVE:
+                return f"adopt {self.pet_kind}", lambda: c.adopt_pet(None, now, self.pet_kind) or []
             if self._can_build():
                 return "build hideout", c.build_hideout
             if c.currency > 100:
@@ -254,6 +263,7 @@ def snapshot(world: GameSpace.World, c) -> dict:
         "deaths": c.deaths,
         "achievements": len(c.achievements),
         "hideout": c.hideout_level,
+        "pet": c.pet_name is not None and not c.pet_gone(world.ticks),
         "armor": sum(isinstance(i, Items.ArmorAbstract) and i.base_value > 0 for i in c.equipment_set),
         "weapon": str(weapon) if weapon else None,
         "ammo": getattr(weapon, "current_capacity", None),
@@ -463,6 +473,7 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "mean armor worn (pieces)": round(mean(r["armor"] for r in last), 2),
         "mean worth ($, carried + stashed)": round(mean(r["currency"] + r["stash_currency"] for r in last)),
         "mean hideout level": round(mean(r["hideout"] for r in last), 2),
+        "pets kept (share of bots)": round(mean(r["pet"] for r in last), 2),
         "mean furthest from town (squares)": round(mean(furthest), 1),
         "max danger reached": max(r["danger"] for r in rows),
         "errors": sum(1 for r in rows if r["error"]),
@@ -605,6 +616,7 @@ def test_an_armed_bot_in_town_builds_its_hideout_when_it_can_keep_a_reserve():
     c = bot.character
     c.location, c.player_class = world.starting_town, Actors.Scavenger()
     c.equip(Weapons.Hammer())  # armed, and no ammo to buy
+    c.adopt_pet("Bibi", world.ticks)  # kept and fed, so nothing to spend on a pet first
     c.currency, c.stash_currency = 100, Actors.HIDEOUT_COST + HIDEOUT_RESERVE - 101
     assert bot.order()[0] != "build hideout"  # a dollar short of its reserve
     c.stash_currency += 1
@@ -617,6 +629,30 @@ def test_an_armed_bot_in_town_builds_its_hideout_when_it_can_keep_a_reserve():
     assert bot.order()[0] != "build hideout"
     c.inventory.append(Items.Salvage())
     assert bot.order()[0] == "build hideout"
+
+
+def test_an_armed_bot_in_town_adopts_a_pet_and_feeds_it_before_it_goes_hungry():
+    world = GameSpace.World("Pets", 64, 64, seed=0)
+    adapter = WorldAdapter(world)
+    goat, dog = Bot(adapter, 2, reach=5), Bot(adapter, 4, reach=80)
+    for bot in (goat, dog):
+        c = bot.character
+        c.location, c.player_class = world.starting_town, Actors.Scavenger()
+        c.equip(Weapons.Hammer())
+        c.currency, c.stash_currency = 100, Actors.PET_PRICE + HIDEOUT_RESERVE - 100
+        label, act = bot.order()
+        assert label == f"adopt {bot.pet_kind}"
+        act()
+        assert c.pet_kind == bot.pet_kind and not c.pet_gone(world.ticks)
+    assert (goat.pet_kind, dog.pet_kind) == ("goat", "dog")  # the far raider takes the dog
+
+    c = goat.character
+    assert goat.order()[0] != "feed pet"  # just fed: a meal now would waste this one
+    world.advance(Actors.PET_FEED_TICKS - Actors.PET_FEED_TICKS // 4 + 1)
+    label, act = goat.order()
+    assert label == "feed pet"
+    act()
+    assert c.pet_fed_until == world.ticks + Actors.PET_FEED_TICKS and c.pet_care == 1  # on time
 
 
 def test_bots_raid_for_the_nearest_stocked_cache_in_reach():
