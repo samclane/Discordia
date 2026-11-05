@@ -62,6 +62,8 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   flag anomalies. `python -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl --html sim.html` for a long run to analyse;
   `--html` draws it (trails and deaths on the map, charts over time) from the `sim_template.html` template.
   `--seeds N` plays N seeds from `--seed` and records the means: one seed's deaths are mostly the map it rolled.
+  Even those means swing with the random stream: one extra `random` call per bot goal (no behaviour change) moved
+  10 seeds x 2000 ticks' mean level 2.28 -> 1.88, worth 713 -> 677, deaths 7.3 -> 6.7. Read moves that size as noise.
 - `test_server_simulation.py` is a Discord server simulator: members on two fake servers use the real slash commands
   (discord.py's checks and error handlers, a fake Discord behind them) and every message the bot sends is checked
   for spam, posts outside allowed channels, leaked links, mass pings and unanswered interactions. New rule: add it

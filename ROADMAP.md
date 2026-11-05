@@ -47,7 +47,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   head for the nearest stocked cache within reach, as `/raid` does (`World._auto_raid_step`). Expect every game
   metric to move; `mean armor worn` should leave 0.
 
-- [ ] Since 7db073c (bots raid for caches) mean level fell 2.28 -> 2.03 and mean worth 712.7 -> 668.8 (10 seeds x
+- [x] Since 7db073c (bots raid for caches) mean level fell 2.28 -> 2.03 and mean worth 712.7 -> 668.8 (10 seeds x
   2000), deaths 7.3 -> 7.1. Likely a bot habit: once it reaches its cache the goal stays put, so it loiters there
   until its steps run out instead of going on out (less extract XP, fewer kills). Give it a new goal on arrival
   (the next stocked cache in reach, else a random point) and see if level and worth come back.
@@ -198,3 +198,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   head for caches, where found armor comes from (2 opened in the whole run), nor buy armor. New item for that.
 - 2026-11-05 Simulator bots raid for caches: `Bot._pick_goal` heads for the nearest stocked cache within `reach`
   of town (`World.stocked_caches`, shared with `/raid`), else a random point. 10 seeds x 2000: caches opened 2 -> 12.
+- 2026-11-05 Level and worth after 7db073c: noise. Behaviour unchanged but one extra random draw per goal gives level
+  1.88, worth 677, deaths 6.7 against 2.28, 713, 7.3, so 7db073c's 2.03, 669, 7.1 is inside it. Not loitering
+  either: a new goal on arrival gave 1.93 and halved caches opened (a loiterer re-loots the refill). Reverted.
