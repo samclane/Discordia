@@ -1,107 +1,104 @@
-// World map client. The static map comes a chunk at a time, a PNG plus a JSON description of each,
-// fetched only for explored chunks in view; actors arrive as a small JSON list every couple of seconds
-// and are drawn as sprites on top. No build step: this is loaded as a plain script.
+// World map client, on Leaflet (vendored: leaflet.js). The static map comes a chunk at a time, a PNG per
+// explored chunk in view, as a Leaflet tile; actors arrive as a small JSON list every couple of seconds and
+// are drawn as markers on top. No build step: this is loaded as a plain script.
 //
-// Everything is placed relative to the spawn, not the map's corner: a big world's far edge is past the
-// pixel offsets a browser can lay out precisely.
+// Map units are squares, y down: square (x, y) is L.latLng(y, x), and at zoom z a square is 2^z pixels.
 
 const $ = (id) => document.getElementById(id);
 const viewport = $("viewport");
-const stage = $("stage");
-const chunkLayer = $("chunks");
-const actorLayer = $("actors");
-const pick = $("pick");
-const cursor = $("cursor");
 const info = $("info");
 const search = $("search");
 
 let world = null;
-let origin = { x: 0, y: 0 }; // the spawn, in squares
-let tile = 16;
 let towns = [];
 const residents = new Map(); // "x,y" -> [role, name, line] for each of a town's people, from its chunk's JSON
 const structures = new Map(); // "x,y" -> town/wilds record
 const explored = new Set(); // "cx,cy" of every chunk the server has generated
-const chunkEls = new Map(); // "cx,cy" -> <img> of a chunk in view
+const chunkEls = new Map(); // "cx,cy" -> <img> of a chunk on the page
 const chunkData = new Map(); // "cx,cy" -> { terrain, wilds }, once fetched
-const actorEls = new Map(); // actor id -> element
+const actorEls = new Map(); // actor id -> its marker
 let actors = [];
 let selected = null; // { actor: id } or { x, y }
 let me; // your own character from /me.json: undefined until asked, null if you haven't logged in
 let follow = false;
 
-const view = { x: 0, y: 0, scale: 1 };
-// What's actually drawn: the view, nudged so every chunk edge lands on a whole device pixel. Anywhere
-// else, each chunk's anti-aliased edge lets the background through and the map shows a faint grid.
-// The view itself stays unrounded, or a slow pinch's small steps would round away to nothing.
-const shown = { ...view };
-
 // Names come from Discord, so nothing goes into innerHTML unescaped.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-function applyView() {
-  const d = devicePixelRatio;
-  const span = world ? world.chunk * tile : tile; // a chunk, in map pixels
-  shown.scale = Math.max(1, Math.round(span * view.scale * d)) / (span * d);
-  // Chunks are placed relative to the spawn, which needn't sit on a chunk edge: snap the grid, not it.
-  const gx = world ? (origin.x % world.chunk) * tile * shown.scale : 0;
-  const gy = world ? (origin.y % world.chunk) * tile * shown.scale : 0;
-  shown.x = Math.round((view.x - gx) * d) / d + gx;
-  shown.y = Math.round((view.y - gy) * d) / d + gy;
-  stage.style.transform = `translate(${shown.x}px, ${shown.y}px) scale(${shown.scale})`;
-  stage.style.setProperty("--inv", 1 / shown.scale);
-  document.body.classList.toggle("far", view.scale * tile < 14);
-  document.body.classList.toggle("tiny", view.scale * tile < 2);
-  queueChunks();
+// Whole zoom levels only: a chunk is then a whole number of pixels at every zoom, so the tiles meet without a
+// seam. A square is 2^zoom pixels: from 1/8 (a chunk is 4 pixels) to 128.
+const map = L.map(viewport, {
+  crs: L.extend({}, L.CRS.Simple, { transformation: new L.Transformation(1, 0, 1, 0) }),
+  zoomSnap: 1,
+  minZoom: -3,
+  maxZoom: 7,
+  keyboard: false, // ours, below: WASD, F and / too, and not only while the map has focus
+  zoomControl: false,
+  attributionControl: false,
+});
+map.createPane("labels").id = "labels"; // town names, over the chunks
+map.createPane("marks"); // the hover cursor and the picked square, under the actors
+const at = (x, y) => L.latLng(y, x);
+const centre = (x, y) => L.latLng(y + 0.5, x + 0.5);
+
+function onZoom() {
+  const z = map.getZoom();
+  viewport.style.setProperty("--sq", 2 ** z + "px"); // what overlays size themselves by
+  document.body.classList.toggle("far", 2 ** z < 14);
+  document.body.classList.toggle("tiny", 2 ** z < 2);
 }
+map.on("zoom", onZoom);
+// An actor slides between the squares a poll moves it across. A zoom moves every marker at once, which
+// mustn't slide; Leaflet's own zoom animation still runs.
+map.on("zoomstart viewprereset", () => viewport.classList.add("zooming"));
+map.on("zoomend viewreset", () =>
+  requestAnimationFrame(() => requestAnimationFrame(() => viewport.classList.remove("zooming")))
+);
 
 // --- chunks ---------------------------------------------------------------
 
-let chunkFrame = 0;
-function queueChunks() {
-  if (!chunkFrame) chunkFrame = requestAnimationFrame(showChunks);
+// One tile is one chunk at every zoom. Leaflet only asks for tiles in view, and drops them once out of it.
+const Chunks = L.GridLayer.extend({
+  getTileSize() {
+    return L.point(1, 1).multiplyBy(world.chunk * 2 ** this._tileZoom);
+  },
+  // Unexplored chunks 404: the server never generates for the map. (Private, but Leaflet is vendored.)
+  _isValidTile(c) {
+    return explored.has(`${c.x},${c.y}`);
+  },
+  createTile(c, done) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.className = "chunk";
+    img.dataset.z = c.z;
+    img.onload = () => done(null, img); // the old zoom's picture stays up until the new one has loaded
+    img.onerror = (err) => done(err, img);
+    // Under 4 pixels a square, the 2-pixel overview is at most doubled, and a tenth of the bytes.
+    img.src = `/chunk/${c.x}/${c.y}.${2 ** c.z < 4 ? "mini.png" : "png"}`;
+    return img;
+  },
+});
+let chunks = null;
+
+// Edges between device pixels let the background through, a faint grid over the map: at 125% scaling a whole
+// CSS pixel isn't a whole device pixel. Every tile sits a whole number of chunks from the others, so nudging
+// the pane they share puts them all on the grid. Hit-testing is Leaflet's, off by under a device pixel.
+const tilePane = map.getPane("tilePane");
+let snapFrame = 0;
+const snapTiles = () => (snapFrame ||= requestAnimationFrame(snapNow));
+function snapNow() {
+  snapFrame = 0;
+  tilePane.style.transform = "";
+  if (map.getPane("mapPane").classList.contains("leaflet-zoom-anim")) return; // mid-zoom; snaps at its end
+  const z = String(map.getZoom());
+  const any = [...chunkEls.values()].find((el) => el.dataset.z === z);
+  if (!any) return;
+  const d = devicePixelRatio;
+  const r = any.getBoundingClientRect();
+  const off = (v) => (Math.round(v * d) - v * d) / d;
+  tilePane.style.transform = `translate(${off(r.left)}px, ${off(r.top)}px)`;
 }
-// Add the explored chunks in view (plus a ring of margin) and drop the rest, so panning across a big
-// world never holds more than a screenful of chunk images.
-function showChunks() {
-  chunkFrame = 0;
-  if (!world) return;
-  const r = viewport.getBoundingClientRect();
-  const span = world.chunk * tile * view.scale;
-  const cx0 = Math.floor(-view.x / span + origin.x / world.chunk) - 1;
-  const cy0 = Math.floor(-view.y / span + origin.y / world.chunk) - 1;
-  const cx1 = cx0 + Math.ceil(r.width / span) + 2;
-  const cy1 = cy0 + Math.ceil(r.height / span) + 2;
-  const inView = (key) => {
-    const [cx, cy] = key.split(",").map(Number);
-    return cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1;
-  };
-  for (const [key, el] of chunkEls) {
-    if (!inView(key)) {
-      el.remove();
-      chunkEls.delete(key);
-    }
-  }
-  // Under 4 screen pixels a square, the 2-pixel overview is at most doubled, and a tenth of the bytes.
-  const ext = tile * view.scale < 4 ? "mini.png" : "png";
-  for (const key of explored) {
-    if (!inView(key)) continue;
-    const [cx, cy] = key.split(",").map(Number);
-    let el = chunkEls.get(key);
-    if (!el) {
-      el = new Image();
-      el.className = "chunk";
-      el.alt = "";
-      el.style.width = el.style.height = world.chunk * tile + "px"; // the overview is smaller than its square
-      place(el, cx * world.chunk, cy * world.chunk);
-      chunkLayer.appendChild(el);
-      chunkEls.set(key, el);
-    }
-    // Crossing the zoom threshold swaps the picture; the old one stays up until the new one loads.
-    const src = `/chunk/${cx}/${cy}.${ext}`;
-    if (el.getAttribute("src") !== src) el.src = src;
-  }
-}
+map.on("move moveend zoomend viewreset resize", snapTiles);
 
 async function loadChunkData(key, cx, cy) {
   chunkData.set(key, null); // in flight; don't ask twice
@@ -130,6 +127,8 @@ function terrainAt(x, y) {
   return chunkData.get(key)?.terrain[y % c][x % c] ?? "…";
 }
 
+const labels = L.layerGroup();
+
 // Explored ground only grows, as players walk into new chunks; check every so often.
 async function pollExplored() {
   // A background tab draws nothing, so it fetches nothing. The first poll has to happen regardless.
@@ -143,21 +142,14 @@ async function pollExplored() {
       towns = data.towns;
       for (const t of towns) structures.set(`${t.x},${t.y}`, { kind: "Town", ...t });
       // Wilds are hundreds of tiles; labelling them buries the map. Hover and click still name them.
-      $("labels").replaceChildren(
-        ...towns.map((s) => {
-          const el = document.createElement("div");
-          el.className = "label";
-          el.textContent = s.name;
-          el.style.left = (s.x - origin.x + 0.5) * tile + "px";
-          el.style.top = (s.y - origin.y) * tile + "px";
-          return el;
-        })
-      );
+      labels.clearLayers();
+      for (const t of towns) {
+        const icon = L.divIcon({ className: "label", html: `<span>${esc(t.name)}</span>`, iconSize: null });
+        labels.addLayer(L.marker(at(t.x + 0.5, t.y), { icon, pane: "labels", interactive: false, keyboard: false }));
+      }
       renderTowns();
     }
-    // Next frame, not now: on the first poll the view isn't fitted yet, and drawing at its default zoom
-    // would fetch full-size chunks the fit is about to swap for overviews.
-    if (explored.size !== before) queueChunks();
+    if (explored.size !== before) chunks?._update(); // new chunks in view get their tiles (private, as above)
   } catch (err) {
     // pollActors already shows the server as down
   }
@@ -166,82 +158,54 @@ async function pollExplored() {
 
 async function loadWorld() {
   world = await (await fetch("/world.json")).json();
-  tile = world.tile;
   document.title = world.name;
   $("world-name").textContent = world.name;
-  origin = world.spawn;
-  document.documentElement.style.setProperty("--tile", tile + "px");
+  map.setView(centre(world.spawn.x, world.spawn.y), 4); // a square at its drawn size, until the fit
+  onZoom();
+  labels.addTo(map);
   await pollExplored();
   fitToViewport();
+  // After the fit: added at the first view, it would fetch full-size chunks the fit is about to swap out.
+  chunks = new Chunks({ keepBuffer: 1 })
+    .on("tileloadstart", (e) => chunkEls.set(`${e.coords.x},${e.coords.y}`, e.tile))
+    .on("tileunload", (e) => {
+      const key = `${e.coords.x},${e.coords.y}`;
+      if (chunkEls.get(key) === e.tile) chunkEls.delete(key); // not if the next zoom's tile took its place
+    })
+    .on("tileloadstart", snapTiles)
+    .addTo(map);
 }
 
 // Fit the explored part of the map: the whole of a big world is mostly nothing yet.
 function fitToViewport() {
-  const r = viewport.getBoundingClientRect();
   const keys = [...explored].map((k) => k.split(",").map(Number));
-  if (!keys.length) return flyTo(origin.x, origin.y, 1);
+  if (!keys.length) return map.setView(centre(world.spawn.x, world.spawn.y), 4);
   const c = world.chunk;
   const xs = keys.map(([cx]) => cx);
   const ys = keys.map(([, cy]) => cy);
-  const x0 = Math.min(...xs) * c;
-  const x1 = (Math.max(...xs) + 1) * c;
-  const y0 = Math.min(...ys) * c;
-  const y1 = (Math.max(...ys) + 1) * c;
-  cancelAnimationFrame(anim);
-  view.scale = Math.min(8, r.width / ((x1 - x0) * tile), r.height / ((y1 - y0) * tile));
-  view.x = (r.width - (x1 - x0) * tile * view.scale) / 2 - (x0 - origin.x) * tile * view.scale;
-  view.y = (r.height - (y1 - y0) * tile * view.scale) / 2 - (y0 - origin.y) * tile * view.scale;
-  applyView();
+  const corner = at(Math.min(...xs) * c, Math.min(...ys) * c);
+  map.fitBounds(L.latLngBounds(corner, at((Math.max(...xs) + 1) * c, (Math.max(...ys) + 1) * c)), { animate: false });
 }
 
-let anim = 0;
-function flyTo(x, y, scale = view.scale) {
-  const r = viewport.getBoundingClientRect();
-  const from = { ...view };
-  const to = {
-    scale,
-    x: r.width / 2 - (x - origin.x + 0.5) * tile * scale,
-    y: r.height / 2 - (y - origin.y + 0.5) * tile * scale,
-  };
-  const start = performance.now();
-  cancelAnimationFrame(anim);
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / 350);
-    const e = t * (2 - t);
-    for (const k of ["x", "y", "scale"]) view[k] = from[k] + (to[k] - from[k]) * e;
-    applyView();
-    if (t < 1) anim = requestAnimationFrame(step);
-  };
-  anim = requestAnimationFrame(step);
+function flyTo(x, y, zoom = map.getZoom()) {
+  map.setView(centre(x, y), zoom, { animate: true });
 }
 
-function zoomAt(cx, cy, factor) {
-  cancelAnimationFrame(anim);
-  // A fit can go below the 0.2 floor; zooming out from there mustn't jump back in.
-  const next = Math.min(8, Math.max(Math.min(0.2, view.scale), view.scale * factor));
-  // Keep whatever is under the cursor under the cursor.
-  const k = next / view.scale;
-  view.x = cx - k * (cx - view.x);
-  view.y = cy - k * (cy - view.y);
-  view.scale = next;
-  applyView();
-}
-
-function zoomCenter(factor) {
-  const r = viewport.getBoundingClientRect();
-  zoomAt(r.width / 2, r.height / 2, factor);
-}
-
+// The square under a point on screen, or null off the map.
 function tileAt(clientX, clientY) {
-  const r = viewport.getBoundingClientRect();
-  const size = tile * shown.scale; // what's drawn, so the square under the pointer is the one you see
-  const x = Math.floor((clientX - r.left - shown.x) / size) + origin.x;
-  const y = Math.floor((clientY - r.top - shown.y) / size) + origin.y;
+  return squareAt(map.mouseEventToLatLng({ clientX, clientY }));
+}
+function squareAt(latlng) {
+  const x = Math.floor(latlng.lng);
+  const y = Math.floor(latlng.lat);
   return world && x >= 0 && y >= 0 && x < world.width && y < world.height ? { x, y } : null;
 }
 
-const place = (el, x, y) =>
-  (el.style.transform = `translate(${(x - origin.x) * tile}px, ${(y - origin.y) * tile}px)`);
+// The hover cursor and the picked square: an outline the size of a square.
+const box = (className) =>
+  L.marker([0, 0], { icon: L.divIcon({ className, iconSize: null }), pane: "marks", interactive: false, keyboard: false });
+const cursor = box("cursor");
+const pick = box("pick");
 
 // --- actors ---------------------------------------------------------------
 
@@ -270,27 +234,32 @@ function renderActors() {
   const seen = new Set();
   for (const a of actors) {
     seen.add(a.id);
-    let el = actorEls.get(a.id);
-    if (!el) {
-      el = document.createElement("div");
-      el.innerHTML = `<div class="tag"><span class="name"></span><div class="bar"><i></i></div></div><img alt="">`;
-      el.querySelector("img").src = a.sprite;
-      el.querySelector(".name").textContent = a.name;
-      actorLayer.appendChild(el);
-      actorEls.set(a.id, el);
+    let marker = actorEls.get(a.id);
+    if (!marker) {
+      const icon = L.divIcon({
+        className: `actor ${a.kind}`,
+        html: `<div class="tag"><span class="name"></span><div class="bar"><i></i></div></div><img alt="">`,
+        iconSize: null,
+      });
+      marker = L.marker(at(a.x, a.y), { icon, interactive: false, keyboard: false }).addTo(map);
+      marker.getElement().querySelector("img").src = a.sprite;
+      marker.getElement().querySelector(".name").textContent = a.name;
+      actorEls.set(a.id, marker);
+    } else {
+      marker.setLatLng(at(a.x, a.y)); // a transform, which the CSS transition slides
     }
-    // Position by transform, not left/top: that's what makes the CSS transition slide.
-    place(el, a.x, a.y);
+    const el = marker.getElement();
     const pct = a.hp_max ? (100 * a.hp) / a.hp_max : 0;
     el.querySelector(".bar i").style.width = pct + "%";
     el.querySelector(".bar").classList.toggle("low", pct <= 30);
-    el.className =
-      `actor ${a.kind}${a.hp >= a.hp_max ? " full" : ""}` +
-      `${selected?.actor === a.id ? " selected" : ""}${me?.id === a.id ? " me" : ""}`;
+    el.classList.toggle("full", a.hp >= a.hp_max);
+    el.classList.toggle("selected", selected?.actor === a.id);
+    el.classList.toggle("me", me?.id === a.id);
+    marker.setZIndexOffset(selected?.actor === a.id ? 100000 : 0); // Leaflet stacks markers by row otherwise
   }
-  for (const [id, el] of actorEls) {
+  for (const [id, marker] of actorEls) {
     if (!seen.has(id)) {
-      el.remove();
+      marker.remove();
       actorEls.delete(id);
     }
   }
@@ -405,15 +374,14 @@ function markSelectedTown() {
 function selectActor(id, fly) {
   selected = { actor: id };
   follow = fly;
-  pick.style.display = "none";
+  pick.remove();
   renderActors();
   markSelectedTown();
   const a = actors.find((a) => a.id === id);
-  if (fly && a) flyTo(a.x, a.y, Math.max(view.scale, 2));
+  if (fly && a) flyTo(a.x, a.y, Math.max(map.getZoom(), 5));
 }
 
 function stopFollow() {
-  cancelAnimationFrame(anim);
   if (follow) {
     follow = false;
     renderInfo();
@@ -423,9 +391,8 @@ function stopFollow() {
 function selectTile(x, y, fly) {
   selected = { x, y };
   follow = false;
-  pick.style.display = "block";
-  place(pick, x, y);
-  if (fly) flyTo(x, y, Math.max(view.scale, 2));
+  pick.setLatLng(at(x, y)).addTo(map);
+  if (fly) flyTo(x, y, Math.max(map.getZoom(), 5));
   renderActors();
   markSelectedTown();
 }
@@ -433,7 +400,7 @@ function selectTile(x, y, fly) {
 function clearSelection() {
   selected = null;
   follow = false;
-  pick.style.display = "none";
+  pick.remove();
   renderActors();
   markSelectedTown();
 }
@@ -495,101 +462,49 @@ search.addEventListener("keydown", (e) => {
 
 // --- pan, zoom, inspect ---------------------------------------------------
 
-const pointers = new Map(); // pointerId -> {x, y}
-let drag = null;
-
+// Leaflet pans and zooms (drag, wheel, pinch); a click it didn't take for a drag is an inspect.
 // The map is made of <img>s, and pressing on one starts the browser's own image drag, which cancels the
-// pointer and with it the pan. CSS (-webkit-user-drag) only stops that in Chrome and Safari; this stops it
-// in Firefox too.
+// pointer and with it the pan. Leaflet only stops that mid-drag; this stops it from the first press.
 viewport.addEventListener("dragstart", (e) => e.preventDefault());
+map.on("dragstart", stopFollow);
 
-viewport.addEventListener("pointerdown", (e) => {
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  drag = { moved: pointers.size > 1 ? Infinity : 0 }; // a pinch is never a click
-  viewport.setPointerCapture(e.pointerId);
-  viewport.classList.add("dragging");
-});
-
-let hover = null; // the tile under the pointer
+let hover = null; // the square under the pointer
 function showHover(hit) {
   const s = structures.get(`${hit.x},${hit.y}`);
   $("hover").textContent = `(${hit.x}, ${hit.y}) ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
 }
 
-viewport.addEventListener("pointermove", (e) => {
-  hover = tileAt(e.clientX, e.clientY);
-  cursor.style.display = hover ? "block" : "none";
-  if (hover) place(cursor, hover.x, hover.y);
+map.on("mousemove", (e) => {
+  hover = squareAt(e.latlng);
+  if (hover) cursor.setLatLng(at(hover.x, hover.y)).addTo(map);
+  else cursor.remove();
   // Not mid-drag: the map slides under a still pointer, and each chunk it crosses would be fetched.
-  if (hover && !drag) showHover(hover);
-
-  const prev = pointers.get(e.pointerId);
-  if (!prev || !drag) return;
-  if (pointers.size === 2) {
-    const other = [...pointers].find(([id]) => id !== e.pointerId)[1];
-    const before = Math.hypot(prev.x - other.x, prev.y - other.y);
-    const after = Math.hypot(e.clientX - other.x, e.clientY - other.y);
-    const r = viewport.getBoundingClientRect();
-    if (before > 0) zoomAt((e.clientX + other.x) / 2 - r.left, (e.clientY + other.y) / 2 - r.top, after / before);
-  }
-  // Two fingers pan by half each, so the midpoint tracks.
-  const share = 1 / pointers.size;
-  const dx = (e.clientX - prev.x) * share;
-  const dy = (e.clientY - prev.y) * share;
-  if (dx || dy) stopFollow();
-  view.x += dx;
-  view.y += dy;
-  drag.moved += Math.abs(dx) + Math.abs(dy);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  applyView();
+  if (hover && !map.dragging.moving()) showHover(hover);
 });
-
-function endPointer(e) {
-  pointers.delete(e.pointerId);
-  if (!pointers.size) {
-    if (drag && drag.moved < 4 && e.type === "pointerup") inspect(e); // a click, not the end of a drag
-    drag = null;
-    viewport.classList.remove("dragging");
-  }
-}
-viewport.addEventListener("pointerup", endPointer);
-viewport.addEventListener("pointercancel", endPointer);
-viewport.addEventListener("pointerleave", () => {
+map.on("mouseout", () => {
   hover = null;
-  cursor.style.display = "none";
+  cursor.remove();
   $("hover").textContent = "";
 });
 
-viewport.addEventListener(
-  "wheel",
-  (e) => {
-    e.preventDefault();
-    const r = viewport.getBoundingClientRect();
-    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY / 400));
-  },
-  { passive: false }
-);
-
-function inspect(e) {
-  const hit = tileAt(e.clientX, e.clientY);
+map.on("click", (e) => {
+  const hit = squareAt(e.latlng);
   if (!hit) return clearSelection();
   const here = actors.filter((a) => a.x === hit.x && a.y === hit.y);
-  // A lone actor is what you meant; a crowd, or an empty tile, gets the tile view.
+  // A lone actor is what you meant; a crowd, or an empty square, gets the square's view.
   if (here.length === 1) selectActor(here[0].id, false);
   else selectTile(hit.x, hit.y, false);
-}
+});
 
 addEventListener("keydown", (e) => {
   if (e.target === search || e.ctrlKey || e.metaKey || !world) return;
-  const pan = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1],
-                a: [1, 0], d: [-1, 0], w: [0, 1], s: [0, -1] }[e.key];
+  const pan = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1] }[e.key];
   if (pan) {
     stopFollow();
-    view.x += pan[0] * 80;
-    view.y += pan[1] * 80;
-    applyView();
-  } else if (e.key === "+" || e.key === "=") zoomCenter(1.25);
-  else if (e.key === "-") zoomCenter(0.8);
+    map.panBy([pan[0] * 80, pan[1] * 80]);
+  } else if (e.key === "+" || e.key === "=") map.zoomIn();
+  else if (e.key === "-") map.zoomOut();
   else if (e.key === "f" || e.key === "0") fitToViewport();
   else if (e.key === "Escape") clearSelection();
   else if (e.key === "/") {
@@ -600,8 +515,8 @@ addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-$("zoom-in").onclick = () => zoomCenter(1.25);
-$("zoom-out").onclick = () => zoomCenter(0.8);
+$("zoom-in").onclick = () => map.zoomIn();
+$("zoom-out").onclick = () => map.zoomOut();
 $("fit").onclick = () => fitToViewport();
 $("toggle").onclick = () => document.body.classList.toggle("open");
 

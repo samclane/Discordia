@@ -4,6 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Discordia</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="/leaflet.css">
 <style>
   :root {
     --bg: #0e0f13; --panel: #16181ecc; --line: #2a2d36; --text: #dfe2ea; --dim: #8a90a0;
@@ -15,18 +16,17 @@
                font: 13px/1.45 system-ui, sans-serif; overflow: hidden; }
   button, input { font: inherit; color: inherit; }
 
-  #viewport { position: absolute; inset: 0; right: var(--side); cursor: grab; touch-action: none; }
-  #viewport.dragging { cursor: grabbing; }
-  #stage { position: absolute; transform-origin: 0 0; }
+  /* z-index: Leaflet's panes stack at 200-700, which would cover the tools and the pad around the map. */
+  #viewport { position: absolute; inset: 0; right: var(--side); z-index: 0; background: var(--bg); font: inherit; }
   .chunk, .actor img { image-rendering: pixelated; -webkit-user-drag: none; user-select: none; }
-  .chunk { position: absolute; left: 0; top: 0; }
 
-  /* Overlays live in map pixels; --inv undoes the zoom so text and bars stay screen-sized. */
-  .actor { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
-           transition: transform .45s linear; pointer-events: none; }
+  /* Markers: --sq is a square's size on screen at this zoom. */
+  .actor { width: var(--sq); height: var(--sq); transition: transform .45s linear; }
+  .zooming .actor { transition: none; }  /* every marker moves on a zoom: no sliding then */
+  .leaflet-zoom-anim .actor { transition: transform .25s cubic-bezier(0, 0, .25, 1); }  /* Leaflet's own */
   .actor img { width: 100%; height: 100%; display: block; }
-  .tag { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%) scale(var(--inv));
-         transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  .tag { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+         display: flex; flex-direction: column; align-items: center; gap: 2px;
          padding-bottom: 2px; white-space: nowrap; }
   .tag .name { font-size: 11px; font-weight: 600; padding: 0 4px; border-radius: 3px;
                background: #000a; color: var(--player); }
@@ -37,23 +37,20 @@
   .actor.full .bar { display: none; }
   .actor.selected .name { background: var(--accent); color: #000; }
   .actor.selected .bar { display: block; }
-  .actor.selected { z-index: 1; }
   .actor.me .name { background: var(--player); color: #000; }
   body.far .actor.me .name { display: inline; }
-  .actor.selected img { outline: calc(2px * var(--inv)) solid var(--accent); }
+  .actor.selected img { outline: 2px solid var(--accent); }
 
-  .label { position: absolute; transform: translate(-50%, -100%) scale(var(--inv));
-           transform-origin: 50% 100%; pointer-events: none; white-space: nowrap;
-           font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+  .label span { position: absolute; transform: translate(-50%, -100%); white-space: nowrap;
+                font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
   body.far .actor.player .name { display: none; }
   /* Under 2px a square every town's name lands on its neighbours'. Hover and the list still name them;
      hiding the container, not each label, also spares restyling them all on every zoom frame. */
   body.tiny #labels { display: none; }
 
-  #cursor, #pick { position: absolute; left: 0; top: 0; width: var(--tile); height: var(--tile);
-                   pointer-events: none; display: none; }
-  #cursor { outline: calc(1px * var(--inv)) solid #fff8; }
-  #pick { outline: calc(2px * var(--inv)) solid var(--accent); }
+  .cursor, .pick { width: var(--sq); height: var(--sq); }
+  .cursor { outline: 1px solid #fff8; }
+  .pick { outline: 2px solid var(--accent); }
 
   /* --- sidebar --- */
   #side { position: absolute; top: 0; right: 0; bottom: 0; width: var(--side); display: flex;
@@ -134,15 +131,7 @@
   }
 </style>
 
-<div id="viewport">
-  <div id="stage">
-    <div id="chunks"></div>
-    <div id="labels"></div>
-    <div id="cursor"></div>
-    <div id="pick"></div>
-    <div id="actors"></div>
-  </div>
-</div>
+<div id="viewport"></div>
 <div id="tools">
   <button id="zoom-in" title="Zoom in (+)">+</button>
   <button id="zoom-out" title="Zoom out (-)">&minus;</button>
@@ -188,5 +177,6 @@
   <div id="info"><span class="dim">Drag to pan, scroll or pinch to zoom. Click a tile or a name.</span></div>
 </aside>
 
+<script src="/leaflet.js"></script>
 <script src="/client.js"></script>
 </html>

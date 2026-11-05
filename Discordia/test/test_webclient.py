@@ -165,7 +165,7 @@ def chunk_kinds(page) -> set:
 
 def test_zoomed_out_load_fetches_overviews_and_no_chunk_descriptions(page):
     """Full chunks at a fit view were 34 KB each, and their JSON came along whether anyone hovered or not."""
-    assert page.js("view.scale * tile") < 4
+    assert page.js("2 ** map.getZoom()") < 4  # pixels a square
     assert len(page.fetched(r"\/chunk\/\d+\/\d+\.mini\.png")) == 64
     assert page.fetched(r"\/chunk\/\d+\/\d+\.png$") == []  # not even before the fit landed
     assert page.fetched(r"\/chunk\/.*\.json") == []
@@ -173,7 +173,7 @@ def test_zoomed_out_load_fetches_overviews_and_no_chunk_descriptions(page):
 
 def test_zooming_in_swaps_overviews_for_full_chunks(page):
     assert chunk_kinds(page) == {"mini.png"}
-    page.js("view.scale = 0.5; applyView(); 0")
+    page.js("map.setZoom(3, { animate: false }); 0")
     assert page.wait_for("![...chunkEls.values()].some((el) => el.src.includes('.mini.'))")
     assert chunk_kinds(page) == {"png"}
     page.js("fitToViewport(); 0")
@@ -190,43 +190,48 @@ def test_hovering_fetches_just_that_chunks_description(page):
 
 
 def test_scrolling_out_from_a_fit_does_not_zoom_in(page):
-    """A fit can land under the 0.2 zoom floor; the first wheel-out used to snap back up to it."""
-    before = page.js("view.scale")
-    assert before < 0.2
+    """A fit is far out; a zoom floor above it once made the first wheel-out snap back in."""
+    before = page.js("map.getZoom()")
     page.send("Input.dispatchMouseEvent", type="mouseWheel", x=WIDTH // 2, y=HEIGHT // 2, deltaX=0, deltaY=120)
-    page.sleep(100)
-    assert page.js("view.scale") <= before
+    page.sleep(400)
+    assert page.js("map.getZoom()") < before
 
 
 def test_town_labels_hide_when_too_far_out_to_read(page):
-    assert page.js("view.scale * tile") < 2
+    assert page.js("2 ** map.getZoom()") < 2
     assert page.js("getComputedStyle(document.getElementById('labels')).display") == "none"
-    page.js("view.scale = 0.25; applyView(); 0")
+    page.js("map.setZoom(2, { animate: false }); 0")
     assert page.js("getComputedStyle(document.getElementById('labels')).display") == "block"
-    assert page.js("document.querySelector('.label').getBoundingClientRect().width") > 0
+    assert page.js("document.querySelector('.label span').getBoundingClientRect().width") > 0
 
 
 @pytest.mark.parametrize("page", [1, 1.25], indirect=True, ids=["dpr1", "dpr1.25"])
 def test_chunk_edges_land_on_whole_pixels_and_clicks_hit_the_drawn_square(page):
     """Edges between pixels let the background through, a faint grid over the map. Snapping what's drawn
-    mustn't move what a click picks."""
+    mustn't move what a click picks. A drag leaves the map anywhere, not on whole pixels: so do these."""
     bad = page.js(
-        """(() => {
-          const d = devicePixelRatio, bad = [];
-          for (const scale of [0.0731, 0.137, 0.2402, 0.53, 1.37, 3.3]) {
-            for (let k = 0; k < 6; k++) {
-              view.scale = scale; view.x = 100 + k * 13.37; view.y = 50 + k * 7.71; applyView();
-              showChunks();
+        """(async () => {
+          const d = devicePixelRatio, bad = [], frame = () => new Promise((r) => requestAnimationFrame(r));
+          const pane = map.getPane('mapPane');
+          for (const zoom of [-2, -1, 0, 1, 3, 5]) {
+            for (let k = 0; k < 4; k++) {
+              map.setView(centre(world.spawn.x + k * 3, world.spawn.y - k * 2), zoom, { animate: false });
+              const pos = L.DomUtil.getPosition(pane);
+              L.DomUtil.setPosition(pane, pos.add([k * 13.37, k * 7.71]));  // what a drag does
+              map.fire('move');
+              await frame(); await frame();
               for (const el of chunkEls.values()) {
+                if (el.dataset.z !== String(zoom)) continue;
                 const r = el.getBoundingClientRect();
                 for (const v of [r.left, r.top, r.width, r.height])
-                  if (Math.abs(v * d - Math.round(v * d)) > 0.01) bad.push(['edge', scale, k, v * d]);
+                  if (Math.abs(v * d - Math.round(v * d)) > 0.01) bad.push(['edge', zoom, k, v * d]);
               }
-              const want = { x: origin.x + k - 3, y: origin.y + 2 - k };
+              if (zoom < 0) continue;  // a square under a pixel: nothing there to click on
+              const want = { x: world.spawn.x + k - 3, y: world.spawn.y + 2 - k };
               selectTile(want.x, want.y, false);
-              const b = pick.getBoundingClientRect();
+              const b = pick.getElement().getBoundingClientRect();
               const got = tileAt(b.left + b.width / 2, b.top + b.height / 2);
-              if (got.x !== want.x || got.y !== want.y) bad.push(['click', scale, k, want, got]);
+              if (got.x !== want.x || got.y !== want.y) bad.push(['click', zoom, k, want, got]);
             }
           }
           return bad.slice(0, 5);
@@ -236,9 +241,20 @@ def test_chunk_edges_land_on_whole_pixels_and_clicks_hit_the_drawn_square(page):
 
 
 def test_a_slow_pinch_still_zooms(page):
-    """The drawn zoom is rounded; the view's isn't, or steps smaller than the rounding would vanish."""
-    page.js("view.scale = 0.2; applyView(); for (let i = 0; i < 100; i++) zoomCenter(1.001); 0")
-    assert page.js("view.scale") == pytest.approx(0.2 * 1.001**100)
+    """Each step of a slow pinch is tiny; they have to add up, not each round away to nothing."""
+    page.js("map.setZoom(1, { animate: false }); 0")
+    x, y = WIDTH // 2, HEIGHT // 2
+
+    def fingers(kind, spread):
+        points = [{"x": x - spread, "y": y, "id": 0}, {"x": x + spread, "y": y, "id": 1}]
+        page.send("Input.dispatchTouchEvent", type=kind, touchPoints=points if kind != "touchEnd" else [])
+
+    fingers("touchStart", 40)
+    for step in range(1, 61):  # 40 -> 70 pixels apart, half a pixel at a time: 0.8 of a zoom level
+        fingers("touchMove", 40 + step * 0.5)
+    fingers("touchEnd", 70)
+    page.sleep(400)
+    assert page.js("map.getZoom()") == 2
 
 
 def test_a_selected_town_lists_its_residents(page):
@@ -315,7 +331,7 @@ def test_a_weblogin_link_opens_the_map_on_your_own_character(page, adapter, base
         assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Browser'")
         assert page.wait_for("selected?.actor === me.id && follow")
         assert "Browser" in page.js("document.getElementById('you').textContent")
-        assert page.wait_for("actorEls.get(me.id)?.classList.contains('me')")
+        assert page.wait_for("actorEls.get(me.id)?.getElement().classList.contains('me')")
     finally:
         page.send("Network.clearBrowserCookies")
         adapter._discord_player_map.pop(99)  # the other tests' map has no players on it

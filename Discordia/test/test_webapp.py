@@ -92,6 +92,9 @@ def get(url):
 def test_page_and_client_are_served(base_url):
     assert b"<div id=\"viewport\">" in get(base_url + "/map")[2]
     assert b"pollActors" in get(base_url + "/client.js")[2]
+    for path, kind in (("/leaflet.js", "text/javascript"), ("/leaflet.css", "text/css")):  # vendored, not a CDN
+        status, headers, body = get(base_url + path)
+        assert status == 200 and headers["Content-Type"].startswith(kind) and b"leaflet-tile" in body
 
 
 def test_explored_chunks_are_pngs(base_url):

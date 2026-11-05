@@ -53,6 +53,9 @@ from Discordia.Interface.WorldAdapter import (
 LOG = logging.getLogger("Discordia.Interface.WebApp")
 
 CLIENT_JS = Path(__file__).with_name("client.js")
+# Leaflet 1.9.4, vendored (BSD-2, leaflet.LICENSE): the map's pan, zoom and tiles. Bump the tag with the files.
+LEAFLET = {name: Path(__file__).with_name(name) for name in ("leaflet.js", "leaflet.css")}
+LEAFLET_ETAG = '"leaflet-1.9.4"'
 INDEX_HTML = Path(__file__).with_name("index.html")
 SITE_HTML = Path(__file__).with_name("site.html")  # header and footer around every page but the map
 HOME_HTML = Path(__file__).with_name("home.html")
@@ -498,6 +501,8 @@ class _Site:
             web.post("/logout", self.logout),
             web.get("/invite", self.invite),
             web.get("/client.js", self.client_js),
+            web.get("/leaflet.js", self.leaflet),
+            web.get("/leaflet.css", self.leaflet),
             web.get("/sprites/{rel:.*}", self.sprite),
             web.get("/map", self.map),
             web.get("/me", self.me),
@@ -590,6 +595,11 @@ class _Site:
 
     async def client_js(self, request: web.Request) -> web.Response:
         return _send(request, CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
+
+    async def leaflet(self, request: web.Request) -> web.Response:
+        path = LEAFLET[request.path.removeprefix("/")]
+        ctype = "text/css" if path.suffix == ".css" else "text/javascript"
+        return _send(request, path.read_bytes(), f"{ctype}; charset=utf-8", etag=LEAFLET_ETAG)
 
     async def sprite(self, request: web.Request) -> web.Response:
         body = _read_sprite(request.match_info["rel"])

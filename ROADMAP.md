@@ -326,7 +326,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   `requirements.txt`.
   (blocked: tcod isn't installed in the venv, and the loop doesn't touch `venv/`: `pip install tcod` there, and the
   item adds it to `requirements.txt`)
-- [ ] Web map on Leaflet (`L.CRS.Simple`, a `GridLayer` whose `createTile` loads the chunk PNGs, actors as
+- [x] Web map on Leaflet (`L.CRS.Simple`, a `GridLayer` whose `createTile` loads the chunk PNGs, actors as
   markers) instead of `client.js`'s own pan/zoom/tiles. One script tag, no build step. Its tile unloading
   (`keepBuffer`) clears the ~4000-chunk `<img>` ceiling in `DesktopApp.py`. `test_webclient.py`'s `page.js`
   checks need rewriting against Leaflet's DOM.
@@ -748,3 +748,11 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   `order_threadsafe`, `guild_for_admin` and `is_owner` thread bridges are plain coroutines now, so the web reads the
   world between ticks (the torn-read ponytail is gone); chunk and hideout PNGs render in `asyncio.to_thread`. A
   web order that times out is cancelled, not left to happen after its 504. Same URLs and responses.
+- 2026-11-05 Web map on Leaflet: Leaflet 1.9.4 vendored (`Rendering/leaflet.js`/`.css`, BSD-2 in
+  `leaflet.LICENSE`, checked against its published SRI hashes) and served at `/leaflet.js`/`.css` with an ETag.
+  `client.js` drops its own view, tiles, drag, wheel, pinch and fly-to (~250 lines) for a `L.CRS.Simple` map (y
+  down, a square is 2^zoom pixels) with a `GridLayer` that's one chunk per tile at every zoom (overviews under 4
+  pixels a square), actors, labels, cursor and pick as markers sized by a `--sq` CSS variable. Whole zoom levels
+  keep chunk sizes whole; a pane nudge keeps edges on device pixels at 125%. A pinch now lands on a whole level
+  (half a level or more counts), where it used to stop anywhere. The browser tests drive Leaflet instead: a real
+  touch pinch, a drag's fractional pane offset.
