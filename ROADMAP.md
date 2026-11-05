@@ -303,6 +303,13 @@ existing things to it when an item touches them anyway, not as a sweep.
   more full runs were green. The same shared wait as the 51s run above: a heavy full run loading 64 chunk images
   in 10s. Raise that wait (or wait on `load` events, not polling) if it fails again.
 
+- [ ] Clean and compact `ROADMAP.md` (asked for 2026-11-05): it's ~760 lines, most of them Done entries and long
+  blocked notes. Keep every open item and its decisions; shorten the rest.
+- [ ] Timestamps on every simulation HTML page (asked for 2026-11-05): `sim.html`, `server.html` and
+  `history.html` should say when the run (or the chart) was made.
+- [ ] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
+  for 2026-11-05: "why?"). Find what that commit changed for bots' armor, and whether it's the bots or the game.
+
 ## Libraries
 
 Hand-rolled parts an existing library already does. Researched 2026-11-03; in this order.
