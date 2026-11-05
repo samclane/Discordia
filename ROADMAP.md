@@ -47,6 +47,11 @@ existing things to it when an item touches them anyway, not as a sweep.
   head for the nearest stocked cache within reach, as `/raid` does (`World._auto_raid_step`). Expect every game
   metric to move; `mean armor worn` should leave 0.
 
+- [ ] Since 7db073c (bots raid for caches) mean level fell 2.28 -> 2.03 and mean worth 712.7 -> 668.8 (10 seeds x
+  2000), deaths 7.3 -> 7.1. Likely a bot habit: once it reaches its cache the goal stays put, so it loiters there
+  until its steps run out instead of going on out (less extract XP, fewer kills). Give it a new goal on arrival
+  (the next stocked cache in reach, else a random point) and see if level and worth come back.
+
 ## NPCs and world
 
 ## Persistence
