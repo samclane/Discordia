@@ -109,6 +109,8 @@ class Bot:
             elif isinstance(gun, Weapons.ProjectileWeapon) and not any(map(self._ammo_for(gun), c.inventory)):
                 if (buy := self._cheapest(town, self._ammo_for(gun))) is not None:
                     return f"buy {buy.name}", lambda: self._buy(town, buy)
+                if (box := self._box_price(town, gun)) is not None and box <= c.currency + c.stash_currency:
+                    return f"take ${box - c.currency}", lambda: c.stash_take(money=box - c.currency)
             now, money = a.world.ticks, c.currency + c.stash_currency
             if c.pet_name is not None and not c.pet_gone(now):
                 # A meal doesn't keep, so feed in its last quarter: a town visit that late still lands on time.
@@ -124,7 +126,7 @@ class Bot:
         hurt = c.hit_points < c.hit_points_max * 0.4
         # Bare-fisted out there (a death in town, or a gun sold), it keeps to danger 1 on the way home.
         unarmed = isinstance(c.weapon, Weapons.Fist) and a.world.danger_at(c.location) > 1
-        if hurt or unarmed or self.steps_out >= self.reach:
+        if hurt or unarmed or self._dry() or self.steps_out >= self.reach:
             return "go home", lambda: self._step(
                 _toward(c.location, a.world.starting_town)
             )
@@ -139,6 +141,20 @@ class Bot:
         if salvage:
             return sum(isinstance(i, Items.Salvage) for i in [*c.inventory, *c.stash]) >= salvage
         return c.currency + c.stash_currency >= money + HIDEOUT_RESERVE
+
+    def _box_price(self, town: Town, gun: Weapons.ProjectileWeapon) -> Optional[int]:
+        """The cheapest box of `gun`'s ammo on this store's shelf, or None if it has none."""
+        store = town.store
+        return min((store.get_price(i, self.character) for i in store.inventory if self._ammo_for(gun)(i)), default=None)
+
+    def _dry(self) -> bool:
+        """Shot dry out there with no rounds for it in the pack: the gun is a club now (`ready_weapon`), so home for
+        a box, if the home store has one it can pay for. Otherwise it fights on with fists rather than stall."""
+        c, gun = self.character, self.character.weapon
+        if isinstance(c.location, Town) or not isinstance(gun, Weapons.ProjectileWeapon) or not gun.is_empty:
+            return False
+        box = self._box_price(self.adapter.world.starting_town, gun)
+        return not any(map(self._ammo_for(gun), c.inventory)) and box is not None and box <= c.currency + c.stash_currency
 
     def _better_armor(self) -> Optional[Items.ArmorAbstract]:
         """Armor in the pack worth more than what's worn in its slot, or None. Worth, not armor_count: that's a
@@ -180,15 +196,15 @@ class Bot:
 
     def _best_gun(self, town: Town):
         """(gun, cost) for the most damaging weapon here it can pay for with a box of its ammo, cash and stash
-        together, as a player would shop; or None. Guns come loaded, so one with no ammo on the shelf still counts."""
+        together, as a player would shop; or None. Guns come loaded, so one with no ammo on the shelf still counts:
+        passing those over had bots working shifts instead, for less than a loaded gun (then fists) earns out there."""
         c, store = self.character, town.store
         options = []
         for gun in store.inventory:
             if isinstance(gun, Weapons.Weapon):
                 cost = store.get_price(gun, c)
                 if isinstance(gun, Weapons.ProjectileWeapon):
-                    ammo = [store.get_price(i, c) for i in store.inventory if self._ammo_for(gun)(i)]
-                    cost += min(ammo, default=0)
+                    cost += self._box_price(town, gun) or 0
                 if cost <= c.currency + c.stash_currency:
                     options.append((gun, cost))
         return max(options, key=lambda option: (option[0].damage, -option[1]), default=None)
@@ -653,6 +669,31 @@ def test_an_armed_bot_in_town_adopts_a_pet_and_feeds_it_before_it_goes_hungry():
     assert label == "feed pet"
     act()
     assert c.pet_fed_until == world.ticks + Actors.PET_FEED_TICKS and c.pet_care == 1  # on time
+
+
+def test_a_bot_shot_dry_goes_home_for_a_box_and_takes_its_price_from_the_stash():
+    world = GameSpace.World("Dry", 64, 64, seed=0)
+    bot = Bot(WorldAdapter(world), 2, reach=80)
+    c, town = bot.character, world.starting_town
+    c.player_class = Actors.Scavenger()
+    c.adopt_pet("Bibi", world.ticks)  # nothing to spend on a pet in town
+    town.store = GameSpace.Store([Weapons.Ammo762()])
+    c.equip(rifle := Weapons.L1A1())
+    rifle._current_capacity = 0
+    c.location = world.space_at(town.x + 3, town.y)
+    c.currency, c.stash_currency = 0, 100
+    assert bot.order()[0] == "go home"
+    c.inventory.append(Weapons.Ammo762())
+    assert bot.order()[0] == "raid", "it reloads in the next fight"
+    c.inventory.remove(c.inventory[-1])
+    c.stash_currency = 0
+    assert bot.order()[0] == "raid", "can't pay for a box: fists, rather than stall at home"
+
+    c.location, c.stash_currency = town, 100
+    label, act = bot.order()
+    assert label == f"take ${town.store.get_price(town.store.inventory[0], c)}"
+    act()
+    assert bot.order()[0] == "buy 7.62mm rounds"
 
 
 def test_bots_raid_for_the_nearest_stocked_cache_in_reach():

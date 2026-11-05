@@ -65,9 +65,12 @@ existing things to it when an item touches them anyway, not as a sweep.
   2.07 -> 2.72; with every bot on a goat instead, 6.2 and 2.10. So the dog's bite (`PET_BITE_DAMAGE` 2 a blow, 4
   once happy) on top of a $100 hammer's 10 halves deaths, for $300. Decide if that's the dog's job or too much.
   (blocked: a balance call, asked in DECISIONS.md)
-- [ ] Most simulator bots end on a hammer or fists and earn like a work shift: per 2000 ticks the median bot makes
+- [x] Most simulator bots end on a hammer or fists and earn like a work shift: per 2000 ticks the median bot makes
   $173, the top three (all on rifles) $1369-1878. Find why they don't re-arm with a rifle after a raid death (the
   stash running dry? `Bot._best_gun` ranking a $100 hammer's 10 damage over what it can afford with ammo?).
+- [ ] Stores sell guns they have no ammo for: 22% of the guns on fresh shelves (the starting town and 20 more, 10
+  seeds), and a box can sell out after. A player who buys one has a club once the loaded rounds are gone, and
+  simulator bots raid dry a tenth of the time for it. Stock a box of its ammo with every gun a shelf carries?
 
 ## NPCs and world
 
@@ -243,3 +246,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   2000 ticks on average (kills, caches, encounters) and spend $329 on guns and ammo, $300 on a pet, $57 to deaths.
   The median bot earns $173 (hammer or fists), the rifle bots $1369-1878 ($500-650 an hour), so $2000 is a few
   hours of good raiding: at 10 seeds x 6000 ticks mean hideout level is 0.14. Price left as is; new item on re-arming.
+- 2026-11-05 Why bots don't re-arm: they mostly don't end on hammers (3 of 60 do); they raid dry. A gun shot empty
+  with no rounds left is a club (`ready_weapon`), and bots kept raiding on it. Now one goes home for a box when the
+  home store has one it can pay for, from the stash if short: worth 674 -> 709, deaths 3.5 -> 3.0. Most dry time
+  is a gun whose ammo the store doesn't stock (new item). Shopping only for guns it can feed was worse (worth 589):
+  bots worked shifts instead, and a loaded gun, then fists and a dog, out-earns a shift.
