@@ -1455,7 +1455,7 @@ def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
     for _ in range(Actors.HIDEOUT_SALVAGE_EVERY - 1):
         prices.append(player.hideout_price[0])
         player.build_hideout()
-    assert prices == [1000, 1150, 1322, 1520]  # HIDEOUT_COST * 1.15 ** level
+    assert prices == [2000, 2300, 2644, 3041]  # HIDEOUT_COST * 1.15 ** level
 
     assert player.hideout_price == (0, 1)  # the fifth is bartered, and money won't do
     with pytest.raises(ValueError, match="salvage"):
@@ -1464,7 +1464,7 @@ def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
     money = player.currency
     player.build_hideout()
     assert (player.hideout_level, player.currency, list(player.stash)) == (5, money, [])
-    assert player.hideout_price == (int(1000 * 1.15**5), 0)
+    assert player.hideout_price == (int(2000 * 1.15**5), 0)
 
 
 
@@ -1500,7 +1500,7 @@ def test_the_idle_numbers_are_per_hour_at_the_servers_tick(adapter):
     assert adapter.income_per_hour(player) == 120
     adapter.tick_seconds = 10  # a slower server pays less an hour
     assert adapter.hideout_text(player) == (
-        "Hideout level 1: $60 an hour into your stash, which is worth $150. The next level costs $1,150."
+        "Hideout level 1: $60 an hour into your stash, which is worth $150. The next level costs $2,300."
     )
 
 

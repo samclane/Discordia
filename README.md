@@ -169,7 +169,7 @@ the bot syncs them.
     * Anywhere: a picture of your hideout, a square wider each level, with your stash on its floor, a frame on
       the wall per achievement and one for your best haul, and what it earns. Your character page on the web map shows it too.
 * `/hideout build`
-    * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $1000
+    * In any town: buy the next level of your hideout, from what you carry then the stash. The first costs $2000
       and each after 15% more; every 5th costs salvage instead, which only caches out in the wilds hold. Each level
       pays money into your stash every few minutes, whether you're playing or not.
 * `/hideout prestige [confirm]`

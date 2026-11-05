@@ -16,16 +16,16 @@ EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, a
 HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
 EXTRACT_XP_PER_DANGER = 10  # extracting with loot pays this per danger level of the deepest square reached
 # Each hideout level pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks: $120 an hour at the
-# default 5-second tick. The first costs HIDEOUT_COST, about eight hours of what it pays, and each after costs
+# default 5-second tick. The first costs HIDEOUT_COST, about sixteen hours of what it pays, and each after costs
 # HIDEOUT_GROWTH times more (Cookie Clicker's curve), so every level takes a little longer to pay for itself.
 # Every HIDEOUT_SALVAGE_EVERY-th level is bartered for Items.Salvage instead, a piece more each time.
-HIDEOUT_COST = 1000
+HIDEOUT_COST = 2000
 HIDEOUT_GROWTH = 1.15
 HIDEOUT_SALVAGE_EVERY = 5
 HIDEOUT_INCOME = 10
 HIDEOUT_PAY_TICKS = 60
 # From PRESTIGE_LEVEL on, a hideout can be traded in, stash and all, for PRESTIGE_BONUS more income for good: by
-# level 15 a new level takes about three days of income to pay for itself, where the curve flattens out.
+# level 15 a new level takes about six days of income to pay for itself, where the curve flattens out.
 PRESTIGE_LEVEL = 15
 PRESTIGE_BONUS = 0.1
 # A camp out past the towns heals CAMP_HEAL_SHARE of your hit points every CAMP_HEAL_TICKS: full in twenty minutes
@@ -44,7 +44,7 @@ GATHER_MAX_DANGER = 1
 CAMP_HEAL_SHARE = 0.05
 # A goat (/pet adopt) kept at home: fed (/pet feed), it puts an Items.GoatMilk into the stash every PET_MILK_TICKS
 # (an hour at a 5-second tick) for PET_FEED_TICKS (half a day), then nothing until it's fed again. $15 a jug, so
-# $180 a feed for $20 at two check-ins a day: a side income next to a first hideout level ($120 an hour, $1000).
+# $180 a feed for $20 at two check-ins a day: a side income next to a first hideout level ($120 an hour, $2000).
 PET_PRICE = 300
 PET_FEED_COST = 20
 PET_FEED_TICKS = 8640

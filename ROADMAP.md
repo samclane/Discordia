@@ -39,7 +39,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 
 - [ ] Pets, more kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
   (blocked: waits on players having had the goat and the dog a while; nothing records which they adopt yet)
-- [ ] Make the hideout more expensive (asked 2026-11-05). Level 1 is `HIDEOUT_COST` $1000, about 8 hours of what
+- [x] Make the hideout more expensive (asked 2026-11-05). Level 1 is `HIDEOUT_COST` $1000, about 8 hours of what
   it pays, and each after `HIDEOUT_GROWTH` x1.15.
 
 ## Gameplay loop (make it a game)
@@ -211,3 +211,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   old shares (water 18%, grass 29%, mountains 3%). No repeat within 65,536 units, so the 2560-square repeat is gone
   too. Migration step 5 re-rolls an old save: new thresholds, its NPCs and store shelves dropped, everyone back in
   the starting town. The next deploy does that to the live world.
+- 2026-11-05 Dearer hideout: `HIDEOUT_COST` $1000 -> $2000, x1.15 a level as before, so a level takes twice as long
+  to pay for itself (the first ~16 hours, level 15 ~6 days). Bots never build one, so the simulators won't show it.
