@@ -1138,7 +1138,7 @@ def test_a_fed_dog_bites_what_you_fight_on_your_square(adapter):
     here, there = Actors.NPC(None, 100, "Here"), Actors.NPC(None, 100, "There")
     world.add_actor(here, player.location)
     response = world.attack(player)
-    assert "Rex bites for 2 of it." in response.text and here.hit_points == 100 - response.damage
+    assert f"Rex bites for {Actors.PET_BITE_DAMAGE} of it." in response.text and here.hit_points == 100 - response.damage
 
     world.add_actor(there, world.space_at(player.location.x, player.location.y - 1))
     here.location = there.location

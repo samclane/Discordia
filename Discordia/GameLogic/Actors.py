@@ -59,8 +59,8 @@ PET_RUNAWAY_TICKS = 51840
 PET_KINDS = ("goat", "dog")
 PET_FETCH_CHANCE = 0.02
 # And in a fight on your square it bites, PET_BITE_DAMAGE on top of each of your blows (twice that once looked
-# after): next to a 4-14 damage gun, a help, not a second weapon.
-PET_BITE_DAMAGE = 2
+# after): next to a 4-14 damage gun, a help, not a second weapon. At 2 it halved simulator bots' deaths, so 1.
+PET_BITE_DAMAGE = 1
 
 
 class BodySize(Enum):

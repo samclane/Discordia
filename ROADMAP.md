@@ -61,7 +61,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] No simulator bot affords a first hideout level ($2000 since b36ce63): `mean hideout level` is 0 over 10 seeds x
   2000 ticks, and in one seed x 10000 ticks (~14 hours at a 5-second tick) the richest of 6 bots ends on $1451.
   Is that the bots (most end on a hammer or fists) or the economy? Find out before pricing the hideout further.
-- [ ] Is the dog too strong? With simulator bots keeping pets, 10 seeds x 2000 deaths went 7.5 -> 3.5 and mean level
+- [x] Is the dog too strong? With simulator bots keeping pets, 10 seeds x 2000 deaths went 7.5 -> 3.5 and mean level
   2.07 -> 2.72; with every bot on a goat instead, 6.2 and 2.10. So the dog's bite (`PET_BITE_DAMAGE` 2 a blow, 4
   once happy) on top of a $100 hammer's 10 halves deaths, for $300. Decide if that's the dog's job or too much.
   Decided 2026-11-05: halve the bite, 1 a blow and 2 once happy.
@@ -251,3 +251,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   home store has one it can pay for, from the stash if short: worth 674 -> 709, deaths 3.5 -> 3.0. Most dry time
   is a gun whose ammo the store doesn't stock (new item). Shopping only for guns it can feed was worse (worth 589):
   bots worked shifts instead, and a loaded gun, then fists and a dog, out-earns a shift.
+- 2026-11-05 Dog bite halved: `PET_BITE_DAMAGE` 2 -> 1 (2 once happy). 10 seeds x 2000: deaths 3.0 -> 4.4, mean level
+  2.73 -> 2.13, worth 709 -> 525: the dog's kills were much of the bots' income.
