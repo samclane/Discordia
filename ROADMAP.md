@@ -68,7 +68,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [x] Most simulator bots end on a hammer or fists and earn like a work shift: per 2000 ticks the median bot makes
   $173, the top three (all on rifles) $1369-1878. Find why they don't re-arm with a rifle after a raid death (the
   stash running dry? `Bot._best_gun` ranking a $100 hammer's 10 damage over what it can afford with ammo?).
-- [ ] Stores sell guns they have no ammo for: 22% of the guns on fresh shelves (the starting town and 20 more, 10
+- [x] Stores sell guns they have no ammo for: 22% of the guns on fresh shelves (the starting town and 20 more, 10
   seeds), and a box can sell out after. A player who buys one has a club once the loaded rounds are gone, and
   simulator bots raid dry a tenth of the time for it. Stock a box of its ammo with every gun a shelf carries?
 
@@ -253,3 +253,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   bots worked shifts instead, and a loaded gun, then fists and a dog, out-earns a shift.
 - 2026-11-05 Dog bite halved: `PET_BITE_DAMAGE` 2 -> 1 (2 once happy). 10 seeds x 2000: deaths 3.0 -> 4.4, mean level
   2.73 -> 2.13, worth 709 -> 525: the dog's kills were much of the bots' income.
+- 2026-11-06 Ammo with every gun: `Store.generate_store` adds a box of each shelf gun's caliber the roll left off
+  (the hourly restock already put one of everything back, so this only covers a fresh shelf and a road trader).

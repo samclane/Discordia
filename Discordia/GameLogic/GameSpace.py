@@ -1467,6 +1467,13 @@ class Store:
             item = item_class()
             if isinstance(item, Equipment) and random.random() > 0.2:
                 inventory.append(item)
+        # A gun on the shelf comes with a box for it, or it's a club once its loaded rounds are gone.
+        boxes = {item.caliber for item in inventory if isinstance(item, Items.Ammo)}
+        for gun in [item for item in inventory if isinstance(item, Weapons.ProjectileWeapon)]:
+            if gun.caliber not in boxes:
+                ammo = (c() for c in Data.stocked() if issubclass(c, Items.Ammo))
+                inventory.append(next(box for box in ammo if box.caliber == gun.caliber))
+                boxes.add(gun.caliber)
         return cls(inventory)
 
     def restock(self):

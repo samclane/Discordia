@@ -991,6 +991,14 @@ def test_every_gun_has_ammo_a_store_can_stock():
     assert {gun.caliber for gun in guns} <= boxes
 
 
+def test_a_fresh_shelf_has_a_box_for_every_gun_on_it():
+    random.seed(0)
+    for _ in range(50):
+        shelf = GameSpace.Store.generate_store().inventory
+        boxes = {item.caliber for item in shelf if isinstance(item, Items.Ammo)}
+        assert {item.caliber for item in shelf if isinstance(item, Weapons.ProjectileWeapon)} <= boxes
+
+
 def test_a_part_used_ammo_box_sells_for_what_is_left_in_it():
     box = Weapons.Ammo9mm()  # 50 rounds
     full = Store().get_price(box)
