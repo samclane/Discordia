@@ -104,7 +104,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   `history.html` should say when the run (or the chart) was made.
 - [x] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
   for 2026-11-05: "why?"). Find what that commit changed for bots' armor, and whether it's the bots or the game.
-- [ ] Clean up the simulation history data (asked 2026-11-06): `sim_history.jsonl`.
+- [x] Clean up the simulation history data (asked 2026-11-06): `sim_history.jsonl`.
 
 ## Libraries
 
@@ -259,3 +259,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   Server simulator DMs 165 -> 335 and death posts 25 -> 43 there are the random stream, not spam: traders shuffle
   and caches sample a `generate_store()` shelf, now longer, so its one seed played a different game (same message
   kinds, more NPC fights).
+- 2026-11-06 Simulation history cleaned: `sim_history.jsonl` 191 -> 130 runs. Dropped the single-seed game series
+  `--seeds 10` replaced on 2026-10-31 (seed 0 and 1 at 2000 ticks, seed 0 at 500), reruns of one commit and
+  settings (seeded, so copies; kept the last) and `+dirty` runs; every time in UTC. Kept the one-off runs at other
+  settings (4/8/10 bots, 5000/10000 ticks). The dropped rows are in git before this commit.
