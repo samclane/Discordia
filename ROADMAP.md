@@ -255,3 +255,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   2.73 -> 2.13, worth 709 -> 525: the dog's kills were much of the bots' income.
 - 2026-11-06 Ammo with every gun: `Store.generate_store` adds a box of each shelf gun's caliber the roll left off
   (the hourly restock already put one of everything back, so this only covers a fresh shelf and a road trader).
+  Server simulator DMs 165 -> 335 and death posts 25 -> 43 there are the random stream, not spam: traders shuffle
+  and caches sample a `generate_store()` shelf, now longer, so its one seed played a different game (same message
+  kinds, more NPC fights).
