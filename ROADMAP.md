@@ -64,7 +64,7 @@ existing things to it when an item touches them anyway, not as a sweep.
 - [ ] Is the dog too strong? With simulator bots keeping pets, 10 seeds x 2000 deaths went 7.5 -> 3.5 and mean level
   2.07 -> 2.72; with every bot on a goat instead, 6.2 and 2.10. So the dog's bite (`PET_BITE_DAMAGE` 2 a blow, 4
   once happy) on top of a $100 hammer's 10 halves deaths, for $300. Decide if that's the dog's job or too much.
-  (blocked: a balance call, asked in DECISIONS.md)
+  Decided 2026-11-05: halve the bite, 1 a blow and 2 once happy.
 - [x] Most simulator bots end on a hammer or fists and earn like a work shift: per 2000 ticks the median bot makes
   $173, the top three (all on rifles) $1369-1878. Find why they don't re-arm with a rifle after a raid death (the
   stash running dry? `Bot._best_gun` ranking a $100 hammer's 10 damage over what it can afford with ammo?).
