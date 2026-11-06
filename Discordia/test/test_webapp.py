@@ -419,6 +419,12 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
         server.shutdown()
 
 
+def test_the_sheet_shows_discords_code_as_code_and_escapes_the_rest():
+    from Discordia.Interface.Rendering.WebApp import _code
+
+    assert _code("Try `/hideout build` <now>") == "Try <code>/hideout build</code> &lt;now&gt;"
+
+
 def test_the_sheet_is_for_logged_in_players():
     conn = http.client.HTTPConnection("127.0.0.1", serve(WorldAdapter(GameSpace.World("Shut", 40, 40, seed=7))).server_port)
     conn.request("GET", "/me")

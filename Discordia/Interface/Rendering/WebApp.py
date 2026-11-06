@@ -303,10 +303,15 @@ def _ago(seconds: float) -> str:
     return f"{minutes // 60} h ago" if minutes < 24 * 60 else f"{minutes // (24 * 60)} d ago"
 
 
+def _code(text: str) -> str:
+    """Escaped, with Discord's `inline code` (what the bot's shared wording uses) as <code>."""
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(text))
+
+
 def _news_rows(news: list) -> str:
     now = time.time()
     rows = "".join(
-        f'<li><span class="slot">{_ago(now - t)}</span><span class="name">{html.escape(text)}</span></li>'
+        f'<li><span class="slot">{_ago(now - t)}</span><span class="name">{_code(text)}</span></li>'
         for t, text in reversed(news)
     )
     return rows or '<li class="empty-slot"><span class="name">Quiet so far. Nothing has found you yet.</span></li>'
@@ -368,7 +373,7 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         "CURRENCY": f"{character.currency:,}",
         "DEATHS": character.deaths,
         "INCOME": f"{adapter.income_per_hour(character):,}",
-        "HIDEOUT_NOTE": adapter.hideout_text(character),
+        "HIDEOUT_NOTE": Markup(_code(adapter.hideout_text(character))),
         "HIDEOUT_IMG": Markup(
             '<img class="px hideout" src="/hideout.png" alt="Your hideout" style="max-width: 100%">'
             if character.hideout_level

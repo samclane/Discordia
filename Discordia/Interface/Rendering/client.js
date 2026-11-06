@@ -255,6 +255,7 @@ function renderActors() {
     el.classList.toggle("full", a.hp >= a.hp_max);
     el.classList.toggle("selected", selected?.actor === a.id);
     el.classList.toggle("me", me?.id === a.id);
+    el.classList.toggle("intown", structures.get(`${a.x},${a.y}`)?.kind === "Town"); // tag clears the town's name
     marker.setZIndexOffset(selected?.actor === a.id ? 100000 : 0); // Leaflet stacks markers by row otherwise
   }
   for (const [id, marker] of actorEls) {
@@ -338,7 +339,7 @@ function fill(container, rows, emptyText) {
 
 function renderPlayers() {
   const players = actors
-    .filter((a) => a.kind === "player" && matches(a.name))
+    .filter((a) => a.kind === "player" && a.id !== me?.id && matches(a.name)) // you have your own row
     .sort((a, b) => a.name.localeCompare(b.name));
   fill(
     $("players"),
@@ -347,7 +348,7 @@ function renderPlayers() {
         selectActor(p.id, true)
       )
     ),
-    search.value ? "No match." : "No one is out there yet."
+    search.value ? "No match." : me ? "No one else is out there yet." : "No one is out there yet."
   );
 }
 

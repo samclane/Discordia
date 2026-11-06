@@ -77,6 +77,7 @@
   .card dd { margin: 2px 0 0; color: var(--dim); font-size: 14px; }
   .class { display: flex; gap: 16px; align-items: flex-start; }
   .class img { width: 56px; height: 56px; flex: none; }
+  .class.enemies { grid-column: 1 / -1; }  /* not a pick, so not one of the row: and no orphan, however many classes */
   .class p { margin: 6px 0 0; color: var(--dim); font-size: 15px; }
   .tag { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--well);
          border: 1px solid var(--line); color: var(--dim); font-size: 12px; font-weight: 600; vertical-align: 2px; }
@@ -127,7 +128,7 @@
   .alert { margin: 0 0 24px; padding: 14px 18px; border: 1px solid #e8b44a66; border-radius: 12px;
            background: #e8b44a14; }
   .alert b { color: var(--accent); }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 16px; }
   .stat h3 { margin: 0; color: var(--dim); font-size: 13px; font-weight: 600; letter-spacing: .08em;
              text-transform: uppercase; }
   .big { margin: 6px 0 10px; font-size: 32px; font-weight: 700; line-height: 1.1; }
@@ -137,7 +138,7 @@
   .meter.low i { background: #e05a4a; }
   .meter.xp i { background: var(--accent); }
   .note { margin: 10px 0 0; color: var(--dim); font-size: 13px; }
-  .kit { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .kit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
   .items { margin: 0; padding: 0; list-style: none; }
   .items li { display: flex; align-items: baseline; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
   .items li:first-child { border-top: 0; }
@@ -153,7 +154,7 @@
     <nav aria-label="Site">
       <a href="/#how">How to play</a>
       <a href="/#classes">Classes</a>
-      <a href="/#join">The map</a>
+      <a href="/#join">Join/Login</a>
       <a href="/#add">Add to your server</a>
     </nav>
     {{ACCOUNT}}
