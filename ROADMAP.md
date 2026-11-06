@@ -104,6 +104,7 @@ existing things to it when an item touches them anyway, not as a sweep.
   `history.html` should say when the run (or the chart) was made.
 - [x] `mean armor worn (pieces)` went 0.02 -> 0 in the game simulator at `a166029` and has stayed 0 since (asked
   for 2026-11-05: "why?"). Find what that commit changed for bots' armor, and whether it's the bots or the game.
+- [ ] Clean up the simulation history data (asked 2026-11-06): `sim_history.jsonl`.
 
 ## Libraries
 
