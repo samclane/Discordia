@@ -1074,6 +1074,12 @@ class World:
             and space.terrain.walkable
         )
 
+    def grid(self, x: int, y: int) -> str:
+        """A square as players read it: squares east/west and north/south of the starting town, e.g. "12E 3N".
+        Raw coordinates run to tens of millions; this stays small near home and grows with the danger."""
+        dx, dy = x - self.starting_town.x, y - self.starting_town.y
+        return f"{abs(dx)}{'W' if dx < 0 else 'E'} {abs(dy)}{'S' if dy > 0 else 'N'}"
+
     def is_coords_valid(self, x: int, y: int):
         if (0 <= x <= self.width - 1) and (0 <= y <= self.height - 1):
             return self.space_at(x, y).terrain.walkable
@@ -1433,8 +1439,8 @@ class World:
             pile.expires = self.ticks + REMAINS_TICKS
             self.piles = [s for s in self.live_piles() if s is not here] + [here]  # pruned as it grows
             if items or currency:
-                player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {here}"
-            news = f"{player.name} died at {here}, danger {self.danger_at(here)}."
+                player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {self.grid(here.x, here.y)}"
+            news = f"{player.name} died at {self.grid(here.x, here.y)}, danger {self.danger_at(here)}."
             if items or currency:  # a corpse run for anyone who reads this
                 news += f" {Remains(player, items, currency, 0)} lie there for whoever gets to them first."
             self.announcements.append((player, news))

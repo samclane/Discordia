@@ -389,7 +389,7 @@ class WorldAdapter:
         """Where `character` stands, how rough it is, and who and what's in view (people, animals, the piles a
         raid death left), nearest first with a bearing to each."""
         here = character.location
-        text = f"You're at {here}, on {here.terrain.label}."
+        text = f"You're at {self.world.grid(here.x, here.y)}, on {here.terrain.label}."
         if isinstance(here, Town):
             text += f" You're in {here.name}: safe ground."
         elif isinstance(here, Wilds):

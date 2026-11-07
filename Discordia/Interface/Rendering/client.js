@@ -22,6 +22,12 @@ let selected = null; // { actor: id } or { x, y }
 let me; // your own character from /me.json: undefined until asked, null if you haven't logged in
 let follow = false;
 
+// A square as players read it, as the bot writes it (World.grid): east/west and north/south of the spawn.
+const grid = (x, y) => {
+  const [dx, dy] = [x - world.spawn.x, y - world.spawn.y];
+  return `${Math.abs(dx)}${dx < 0 ? "W" : "E"} ${Math.abs(dy)}${dy > 0 ? "S" : "N"}`;
+};
+
 // Names come from Discord, so nothing goes into innerHTML unescaped.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -344,7 +350,7 @@ function renderPlayers() {
   fill(
     $("players"),
     players.map((p) =>
-      row(p.sprite, p.name, `Lv ${p.level} ${p.class} · (${p.x}, ${p.y})`, hpBar(p), selected?.actor === p.id, () =>
+      row(p.sprite, p.name, `Lv ${p.level} ${p.class} · ${grid(p.x, p.y)}`, hpBar(p), selected?.actor === p.id, () =>
         selectActor(p.id, true)
       )
     ),
@@ -463,7 +469,7 @@ function renderInfo() {
     const people = residents.get(`${x},${y}`) ?? []; // the town's own, under its name
     lines.splice(1, 0, ...people.map(([role, name, line]) => `${esc(name)}, the ${esc(role)}: <span class="dim">&ldquo;${esc(line)}&rdquo;</span>`));
   }
-  lines.push(`<span class="dim">(${x}, ${y}) &middot; ${esc(terrainAt(x, y))}</span>`);
+  lines.push(`<span class="dim">${grid(x, y)} &middot; ${esc(terrainAt(x, y))}</span>`);
   // "Following" is only true of the live entry: it stays out of what goes up into the log.
   const note = selected.actor && follow ? `<br><span class="dim">Following &middot; drag to stop</span>` : "";
   showInfo(selected.actor ?? `${x},${y}`, lines.join("<br>"), note);
@@ -492,7 +498,7 @@ map.on("dragstart", stopFollow);
 let hover = null; // the square under the pointer
 function showHover(hit) {
   const s = structures.get(`${hit.x},${hit.y}`);
-  $("hover").textContent = `(${hit.x}, ${hit.y}) ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
+  $("hover").textContent = `${grid(hit.x, hit.y)} ${terrainAt(hit.x, hit.y)}${s ? " · " + s.name : ""}`;
 }
 
 map.on("mousemove", (e) => {

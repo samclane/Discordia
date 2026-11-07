@@ -8,6 +8,7 @@ dependencies. Skipped where neither browser is installed; GitHub's Ubuntu runner
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -186,7 +187,7 @@ def test_hovering_fetches_just_that_chunks_description(page):
     assert page.wait_for("((t) => t && !t.includes('…'))(document.getElementById('hover').textContent)")
     assert len(page.fetched(r"\/chunk\/.*\.json")) == 1
     hover = page.js("document.getElementById('hover').textContent")
-    assert hover.startswith("(") and hover.split(") ")[1] not in ("", "unexplored")
+    assert re.match(r"\d+[EW] \d+[NS] ", hover) and hover.split(" ", 2)[2] not in ("", "unexplored")
 
 
 def test_scrolling_out_from_a_fit_does_not_zoom_in(page):
@@ -293,7 +294,7 @@ def test_the_info_panel_keeps_earlier_picks_above_the_live_one_and_scrolls_to_it
         })()"""
     )
     assert result["count"] == 51  # INFO_LOG old ones and the live one
-    assert f"({page.js('world.spawn.x') + 9}, " in result["first"] and f"({page.js('world.spawn.x') + 59}, " in result["last"]
+    assert "9E 0N" in result["first"] and "59E 0N" in result["last"]  # squares east of the spawn
     assert result["old"] and result["scrolls"] and result["bottom"] < 2
 
 

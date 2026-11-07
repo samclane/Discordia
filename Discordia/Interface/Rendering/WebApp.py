@@ -323,11 +323,11 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
     if loc is None:
         where = "not on the map right now"
     elif isinstance(loc, GameSpace.Town):
-        where = f"in {loc.name} ({loc.x}, {loc.y})"
+        where = f"in {loc.name} ({adapter.world.grid(loc.x, loc.y)})"
     elif isinstance(loc, GameSpace.Wilds):
-        where = f"in the wilds of {loc.name} ({loc.x}, {loc.y})"
+        where = f"in the wilds of {loc.name} ({adapter.world.grid(loc.x, loc.y)})"
     else:
-        where = f"on the road at ({loc.x}, {loc.y})"
+        where = f"on the road at {adapter.world.grid(loc.x, loc.y)}"
     equipment = "".join(
         _item_row(SLOT_LABELS[slot], item)
         if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
@@ -433,8 +433,8 @@ def _dashboard_json(adapter, since: int) -> bytes:
         if isinstance(loc, GameSpace.Town):
             return loc.name
         if isinstance(loc, GameSpace.Wilds):
-            return f"wilds L{loc.level} ({loc.x}, {loc.y})"
-        return f"road ({loc.x}, {loc.y})"
+            return f"wilds L{loc.level} ({world.grid(loc.x, loc.y)})"
+        return f"road ({world.grid(loc.x, loc.y)})"
 
     players = [
         {

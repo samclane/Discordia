@@ -1300,7 +1300,7 @@ def test_dying_on_a_raid_loses_everything_you_carried(adapter):
     assert (player.currency, list(player.inventory)) == (0, [])
     assert isinstance(player.weapon, Weapons.Fist)  # back to bare hands, not unarmed
     assert GameSpace.death_toll_text(player) == (
-        f" You lost $400, {helmet}, {rifle}, left where you fell at {adapter.world.wilds[0]}."
+        f" You lost $400, {helmet}, {rifle}, left where you fell at {adapter.world.grid(adapter.world.wilds[0].x, adapter.world.wilds[0].y)}."
     )
 
 
@@ -1396,13 +1396,21 @@ def test_extracting_empty_handed_pays_no_xp(adapter):
     assert player.experience == 0 and player.best_haul == 0
 
 
+def test_squares_read_as_compass_steps_from_the_starting_town(adapter):
+    world = adapter.world
+    home = world.starting_town
+    assert world.grid(home.x, home.y) == "0E 0N"
+    assert world.grid(home.x + 12, home.y - 3) == "12E 3N"
+    assert world.grid(home.x - 4, home.y + 7) == "4W 7S"
+
+
 def test_a_raid_death_is_news_and_says_where_the_loot_lies(adapter):
     world, player = adapter.world, adapter.get_player(1)
     adapter.move_player(player, _quiet_step_out_of_town(world))
     here, player.currency = player.location, 300
     player.take_damage(player.hit_points_max)
     [(who, text)] = world.announcements
-    assert who is player and text.startswith(f"Tester died at {here}, danger ")
+    assert who is player and text.startswith(f"Tester died at {world.grid(here.x, here.y)}, danger ")
     assert text.endswith("$300 lie there for whoever gets to them first.")
     assert world.live_piles() == [here]
     assert f"Tester's things ($300), 1 square {GameSpace.bearing(player.location, here)}" in adapter.look_text(player)
