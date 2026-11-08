@@ -10,7 +10,7 @@ from Discordia.GameLogic import GameSpace
 from Discordia.Interface import Alerts
 from Discordia.Interface.Database import Database, DEFAULT_PATH
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.Renderer import Renderer
 from Discordia.Interface.Rendering.WebApp import serve
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
@@ -42,7 +42,7 @@ def main():
                                                ConfigParser.WORLD_HEIGHT))
         database.save(adapter)
 
-    display = WindowRenderer(adapter)
+    display = Renderer(adapter)
 
     web_url = None
     if args.web_port:

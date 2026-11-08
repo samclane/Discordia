@@ -29,7 +29,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
   - `DiscordInterface.py` slash commands as a Cog. Commands queue an *order*; `tick()` runs them and `World.tick()` in lockstep on the bot loop (no locks). NPC hits are DM'd.
   - `Database.py` SQLite save: world = seed + gen params (map is regenerated) + clock (`World.ticks`, run on by the downtime at load), characters + items by class path, `GuildSettings` per Discord server as JSON, NPCs, and the shelves of stores anyone has traded with.
     A schema change goes in `SCHEMA` and as a new step at the end of `MIGRATIONS` (`PRAGMA user_version`).
-  - `Rendering/DesktopApp.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
+  - `Rendering/Renderer.py` Pillow renderer (cached chunk PNGs, player views). Terrain is autotiled from quarters of
     Kenney's RPG Urban sheet (`Sprites/Terrain/`, CC0) using `Terrain.neighbours`; `BLOCKS` maps terrain to sheet blocks.
     `WebApp.py` + `index.html`/`client.js` live map at `/map` (on Leaflet 1.9.4, vendored as `leaflet.js`/`.css`: one tile per chunk at every zoom, whole zoom levels so tiles meet without seams); `site.html` (header/footer) + `home.html` are the public site at `/`, `me.html` the logged-in character sheet at `/me`, all filled in by `_Site._page` at `-W PORT` (no build step: plain JS, edit and reload). The site is `aiohttp.web` on the bot's own loop (`_Site.routes`, a login `gate` middleware), so it reads the world between ticks; only the Pillow renders go to `asyncio.to_thread`. It only reads loaded chunks and never generates: generation stays on the tick.
   - Playing from the map: `POST /act` (JSON) builds the same action a slash command would and hands it to

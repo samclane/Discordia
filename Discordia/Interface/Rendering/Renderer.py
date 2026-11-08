@@ -1,8 +1,6 @@
 """
 Draws the world map. Output device independent: WebApp.py serves it a chunk at a time over HTTP, the
 Discord interface asks for the few squares around a player.
-Inspired by PyOverheadGame's architecture: https://github.com/albertz/PyOverheadGame/blob/master/game/app.py
-
 """
 
 from __future__ import annotations
@@ -21,9 +19,7 @@ from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
-LOG = logging.getLogger("Discordia.Interface.DesktopApp")
-WINDOW_NAME = "Discordia"
-# cv2 used to fail silently on a missing dir
+LOG = logging.getLogger("Discordia.Interface.Renderer")
 VIEW_FOLDER = Path("./Discordia/PlayerViews")
 
 # Kenney's RPG Urban pack (CC0), as a packed sheet of 16px tiles, 27 to a row.
@@ -95,19 +91,13 @@ class keydefaultdict(dict):
     def __init__(self, factory: Callable[[Any], Any]):
         super().__init__()
         self.factory = factory
-        self._miss_count = 0
 
     def __missing__(self, key):
-        self._miss_count += 1
         ret = self[key] = self.factory(key)
         return ret
 
-    @property
-    def miss_count(self):
-        return self._miss_count
 
-
-class WindowRenderer:
+class Renderer:
     def __init__(self, world_adapter: WorldAdapter):
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)

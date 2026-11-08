@@ -15,7 +15,7 @@ from Discordia.GameLogic.Actors import PlayerCharacter, PlayerClass
 from Discordia.GameLogic.GameSpace import MountainTerrain, PlayerActionResponse
 from Discordia.GameLogic.Weapons import Jezail
 from Discordia.Interface.Database import MIGRATIONS, Database
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.Renderer import Renderer
 from Discordia.Interface.WorldAdapter import GuildSettings, WorldAdapter
 from Discordia.GameLogic.Items import Ammo, Equipment, EquipmentSet, OffHandEquipment
 
@@ -63,7 +63,7 @@ class TestGeneral(unittest.TestCase):
             "Test World", self.WORLD_WIDTH, self.WORLD_HEIGHT, seed=self.random_seed
         )
         self.adapter = WorldAdapter(self.world)
-        self.display = WindowRenderer(self.adapter)
+        self.display = Renderer(self.adapter)
 
         for idx in range(self.NUM_USERS):
             self.adapter.register_player(idx, player_name=f"User{idx}")
@@ -500,6 +500,3 @@ class TestGeneral(unittest.TestCase):
         user.location.terrain = MountainTerrain()
         dmg2 = rifle.calc_damage(1)
         self.assertTrue(dmg2 == 2 * dmg1)
-
-    def tearDown(self) -> None:
-        LOG.info(f"Sprite-Miss Count: {self.display._sprite_cache.miss_count}")

@@ -858,10 +858,10 @@ def test_equipping_a_box_of_rounds_says_no_instead_of_going_unanswered():
 
 
 def test_hideout_view_shows_the_room_once_built():
-    from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+    from Discordia.Interface.Rendering.Renderer import Renderer
 
     adapter = WorldAdapter(GameSpace.World("Homes", 40, 40, seed=0))
-    WindowRenderer(adapter)
+    Renderer(adapter)
     adapter.register_player(1, "Builder")
     character = adapter.get_player(1)
     interface = loaded_cog(adapter)

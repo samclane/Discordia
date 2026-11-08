@@ -318,8 +318,8 @@ class WorldAdapter:
     def height(self):
         return self.world.height
 
-    def add_renderer(self, window):
-        self._renderer = window
+    def add_renderer(self, renderer):
+        self._renderer = renderer
 
     def register_player(self, member_id: int, player_name: str):
         if not self.world:

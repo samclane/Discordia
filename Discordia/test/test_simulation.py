@@ -31,7 +31,7 @@ from PIL import Image
 
 from Discordia.GameLogic import Actors, Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import DIRECTION_VECTORS, Town
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.Renderer import Renderer
 from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
 from Discordia.test import sim_history
 
@@ -385,7 +385,7 @@ def simulate(
 
 def report(rows: List[dict], world: GameSpace.World, players: List[Bot], seed: int, path: Path):
     """Fill in sim_template.html with this run: the explored map as a picture, and each bot's numbers by tick."""
-    renderer = WindowRenderer(WorldAdapter(world))
+    renderer = Renderer(WorldAdapter(world))
     chunks = world.loaded_chunks()
     cx0, cy0 = min(c[0] for c in chunks), min(c[1] for c in chunks)
     cx1, cy1 = max(c[0] for c in chunks), max(c[1] for c in chunks)

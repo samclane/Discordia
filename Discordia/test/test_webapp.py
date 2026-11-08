@@ -20,7 +20,7 @@ import pytest
 from PIL import Image
 
 from Discordia.GameLogic import Actors, GameSpace
-from Discordia.Interface.Rendering.DesktopApp import MINI_TILE, WindowRenderer
+from Discordia.Interface.Rendering.Renderer import MINI_TILE, Renderer
 from Discordia.Interface.Rendering import WebApp
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
@@ -39,7 +39,7 @@ def serve(adapter):
     adapter.web_logins = LOGINS
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
-    runner = asyncio.run_coroutine_threadsafe(WebApp.serve(WindowRenderer(adapter), 0), loop).result(10)
+    runner = asyncio.run_coroutine_threadsafe(WebApp.serve(Renderer(adapter), 0), loop).result(10)
 
     def shutdown():
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
@@ -125,14 +125,14 @@ def test_zoomed_out_map_gets_a_small_overview(base_url):
     explored = json.loads(get(base_url + "/explored.json")[2])
     cx, cy = explored["chunks"][0]
     full = get(base_url + f"/chunk/{cx}/{cy}.png")[2]
-    misses = WindowRenderer._chunk_mini_png.cache_info().misses
+    misses = Renderer._chunk_mini_png.cache_info().misses
     status, headers, mini = get(base_url + f"/chunk/{cx}/{cy}.mini.png")
     assert status == 200 and headers["Content-Type"] == "image/png"
     assert Image.open(io.BytesIO(mini)).size == (GameSpace.CHUNK_SIZE * MINI_TILE,) * 2
     assert len(mini) * 5 < len(full)
 
     get(base_url + f"/chunk/{cx}/{cy}.mini.png")  # the next visitor's is cached, not redrawn
-    assert WindowRenderer._chunk_mini_png.cache_info().misses == misses + 1
+    assert Renderer._chunk_mini_png.cache_info().misses == misses + 1
 
 
 @pytest.mark.parametrize("ext", ["png", "mini.png", "json"])
@@ -264,7 +264,7 @@ def test_sprites_route_refuses_anything_outside_the_sprite_folder(base_url, path
 
 def test_coastlines_are_drawn_from_the_neighbours():
     """A lone square of water is all kerb, the middle of a lake is all water: same terrain, different tile."""
-    renderer = WindowRenderer(WorldAdapter(GameSpace.World("Tiles", 8, 8, seed=7)))
+    renderer = Renderer(WorldAdapter(GameSpace.World("Tiles", 8, 8, seed=7)))
     alone = renderer._terrain_cache["water", 0]
     surrounded = renderer._terrain_cache["water", 0xFF]
     assert alone.tobytes() != surrounded.tobytes()
@@ -707,7 +707,7 @@ def test_invite_sends_server_owners_to_discord():
 
 
 def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
-    renderer = WindowRenderer(WorldAdapter(GameSpace.World("Rooms", 8, 8, seed=7)))
+    renderer = Renderer(WorldAdapter(GameSpace.World("Rooms", 8, 8, seed=7)))
     character = Actors.PlayerCharacter(parent_world=None, name="Keeper")
     assert renderer.hideout_png(character) is None, "no hideout, no picture"
 

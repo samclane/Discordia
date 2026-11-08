@@ -1,6 +1,5 @@
 """
-Serves the live world map over HTTP. Replaces the old desktop preview window: same WindowRenderer,
-different output device.
+Serves the live world map over HTTP, drawn by Renderer.
 
 The map is split into the half that never changes and the half that does. The static half (terrain,
 towns, wilds) goes out a chunk at a time, as a PNG and a JSON description, and is cached forever; the
@@ -36,7 +35,7 @@ from Discordia.GameLogic import Events, GameSpace
 from Discordia.GameLogic.Actors import ACHIEVEMENTS, EXPERIENCE_PER_LEVEL, Fixer, Medic, PlayerCharacter, Scavenger, Scout, Soldier, WandererClass
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
 from Discordia.GameLogic.Weapons import Weapon
-from Discordia.Interface.Rendering.DesktopApp import WindowRenderer
+from Discordia.Interface.Rendering.Renderer import Renderer
 from Discordia.Interface.WebLogins import SESSION_SECONDS
 from Discordia.Interface.WorldAdapter import (
     DIRECTION_NAMES,
@@ -156,7 +155,7 @@ def _read_sprite(rel: str) -> bytes | None:
     return path.read_bytes()
 
 
-def _world_json(renderer: WindowRenderer) -> bytes:
+def _world_json(renderer: Renderer) -> bytes:
     """Everything that is fixed at world generation. Fetched once, then cached by the browser."""
     world = renderer.world_adapter.world
     return json.dumps(
@@ -183,7 +182,7 @@ def _town_json(town: GameSpace.Town) -> dict:
     }
 
 
-def _explored_json(renderer: WindowRenderer) -> bytes:
+def _explored_json(renderer: Renderer) -> bytes:
     """Which chunks exist so far, and the towns in them. Grows as players explore."""
     world = renderer.world_adapter.world
     return json.dumps(
@@ -222,7 +221,7 @@ def _chunk_json(rows: list) -> bytes:
     ).encode()
 
 
-def _actors_json(renderer: WindowRenderer) -> bytes:
+def _actors_json(renderer: Renderer) -> bytes:
     adapter = renderer.world_adapter
     tagged = [("npc", n) for n in list(adapter.world.npcs)] + [("player", p) for p in list(adapter.iter_players())]
     actors = []
@@ -473,7 +472,7 @@ class _Site:
     """The site's routes. They run on the bot's event loop, between ticks, so they read the world as the game
     left it; only the Pillow renders go to a thread, where they'd otherwise hold up the tick."""
 
-    def __init__(self, renderer: WindowRenderer):
+    def __init__(self, renderer: Renderer):
         self.renderer = renderer
         self.adapter = renderer.world_adapter
 
@@ -876,7 +875,7 @@ def _send(request: web.Request, body: bytes, ctype: str, etag: str | None = None
     return web.Response(status=status, body=body, headers=headers)
 
 
-async def serve(renderer: WindowRenderer, port: int, host: str = "127.0.0.1") -> web.AppRunner:
+async def serve(renderer: Renderer, port: int, host: str = "127.0.0.1") -> web.AppRunner:
     """Start serving on the running loop (the bot's) and return; the runner's cleanup() stops it."""
     # ponytail: client polls actors every 2s. Swap in SSE (a web.StreamResponse) if that feels laggy.
     site = _Site(renderer)
