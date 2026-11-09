@@ -14,6 +14,30 @@ RestartSec=10
 # SIGINT, not SIGTERM: main.py saves the world on KeyboardInterrupt
 KillSignal=SIGINT
 TimeoutStopSec=30
+# Sandbox: the bot writes only its save (and the player views) under /opt/discordia.
+# ponytail: /opt/discordia itself stays writable, so a compromised bot could still edit its own code. Move the
+# db to StateDirectory= (/var/lib/discordia) and drop this ReadWritePaths if that matters.
+ProtectSystem=strict
+ReadWritePaths=/opt/discordia
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
