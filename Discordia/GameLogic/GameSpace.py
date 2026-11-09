@@ -125,8 +125,8 @@ CACHE_CURRENCY_PER_LEVEL = 100
 CACHE_LEVELS_PER_SALVAGE = 3
 CACHE_REFILL_TICKS = 2880
 # "store": false gear that only caches hand out, one piece at a chance of the cache's level / WILDS_MAX_LEVEL: deep
-# raids are where chest armor comes from.
-CACHE_ONLY: Tuple[type, ...] = (Armor.Chest6B45,)
+# raids are where chest armor and heavy guns come from.
+CACHE_ONLY: Tuple[type, ...] = (Armor.Chest6B2, Armor.Chest6B3, Armor.Chest6B45, Weapons.DShK)
 
 # Extraction points: on the same cells as caches, each cell rolls EXTRACT_CHANCE for one on a plain square of one
 # of its middle chunks. Stepping on one is a ride to the nearest town, so a deep raid needn't walk all the way back.

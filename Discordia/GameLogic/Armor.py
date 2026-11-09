@@ -75,3 +75,15 @@ class Chest6B45(FromData, ChestArmor):
     """
     Based on the Soviet 6B45
     """
+
+
+class Chest6B2(FromData, ChestArmor):
+    """
+    Based on the Soviet 6B2, the first vest issued in numbers (1981): stops fragments, not rifle rounds.
+    """
+
+
+class Chest6B3(FromData, ChestArmor):
+    """
+    Based on the Soviet 6B3 (1983), the answer to that: stops more, weighs twice as much in the mountains.
+    """

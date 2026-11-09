@@ -75,5 +75,19 @@
     "quantity": 20,
     "base_value": 10,
     "weight_lb": 1.0
+  },
+  "Ammo545": {
+    "name": "5.45x39mm rounds",
+    "caliber": "MM_545",
+    "quantity": 30,
+    "base_value": 30,
+    "weight_lb": 1.0
+  },
+  "Ammo127": {
+    "name": "12.7x108mm rounds",
+    "caliber": "MM_127",
+    "quantity": 10,
+    "base_value": 40,
+    "weight_lb": 3.0
   }
 }

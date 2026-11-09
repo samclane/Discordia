@@ -18,5 +18,21 @@
     "efficiency": 0.0,
     "armor_count": 10,
     "weight_lb": 16.5
+  },
+  "Chest6B2": {
+    "name": "6B2 flak vest",
+    "store": false,
+    "coverage": 0.6,
+    "efficiency": 0.2,
+    "armor_count": 4,
+    "weight_lb": 10.6
+  },
+  "Chest6B3": {
+    "name": "6B3 armored vest",
+    "store": false,
+    "coverage": 0.7,
+    "efficiency": 0.3,
+    "armor_count": 7,
+    "weight_lb": 26.5
   }
 }

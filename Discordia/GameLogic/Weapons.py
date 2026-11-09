@@ -44,6 +44,8 @@ class Caliber:
     M88 = 8
     MM_792 = 9
     IN_762 = 10  # 7.62x25 Tokarev; a pistol round, not the rifle 7.62 above
+    MM_545 = 11  # 5.45x39, the AK-74's
+    MM_127 = 12  # 12.7x108, the DShK's
 
 
 class FiringAction:
@@ -652,6 +654,31 @@ class Type67(FromData, BeltFedMachineGun):
     """
 
 
+class AK74(FromData, Rifle, SelectiveFire):
+    """
+    Based on the AK-74: the small 5.45 round shoots flatter than the AKM's and hits a little lighter.
+    """
+
+
+class AKS74U(FromData, SMG, SelectiveFire):
+    """
+    Based on the AKS-74U, the short AK-74 that crews and paratroopers carried.
+    """
+
+
+class SVD(FromData, Rifle):
+    """
+    Based on the SVD Dragunov with its 4x PSO-1 sight: one to a platoon, the longest reach in it.
+    """
+
+
+class DShK(FromData, BeltFedMachineGun, Bipod):
+    """
+    Based on the DShK heavy machine gun, set up on a ridge against helicopters. Far too heavy for a store
+    shelf ("store": false): caches only. Deploys on high ground like a bipod gun, walks on like a belt-fed one.
+    """
+
+
 # --- Ammo: a box per caliber, stat blocks in data/ammo.json. Reloading takes the first box that fits. ---
 
 AMMO_STATS = Data.load(DATA_FOLDER / "ammo.json", _ENUM_FIELDS)
@@ -702,4 +729,12 @@ class Ammo577(AmmoFromData, Ammo):
 
 
 class MusketBalls(AmmoFromData, Ammo):
+    pass
+
+
+class Ammo545(AmmoFromData, Ammo):
+    pass
+
+
+class Ammo127(AmmoFromData, Ammo):
     pass

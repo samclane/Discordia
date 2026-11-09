@@ -285,5 +285,44 @@
     "base_value": 0,
     "cripple_chance": 0.1,
     "base_damage": 2
+  },
+  "AK74": {
+    "name": "AK-74",
+    "caliber": "MM_545",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.25,
+    "base_damage": 12,
+    "weight_lb": 7.9
+  },
+  "AKS74U": {
+    "name": "AKS-74U",
+    "caliber": "MM_545",
+    "action": "FullyAutomatic",
+    "capacity": 30,
+    "range_falloff": 0.5,
+    "base_damage": 11,
+    "weight_lb": 5.3
+  },
+  "SVD": {
+    "name": "SVD Dragunov",
+    "range_": 6,
+    "caliber": "MM_762",
+    "action": "SemiAutomatic",
+    "capacity": 10,
+    "range_falloff": 0.15,
+    "base_damage": 16,
+    "weight_lb": 9.5
+  },
+  "DShK": {
+    "name": "DShK heavy machine gun",
+    "store": false,
+    "mountable": true,
+    "caliber": "MM_127",
+    "action": "FullyAutomatic",
+    "capacity": 50,
+    "range_falloff": 0.3,
+    "base_damage": 25,
+    "weight_lb": 75
   }
 }

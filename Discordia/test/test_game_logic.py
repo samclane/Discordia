@@ -1539,11 +1539,20 @@ def test_chest_armor_comes_from_caches_and_likelier_deep(adapter):
             cache.level = level
             player.inventory = Actors.Inventory()
             cache.run_event(player)
-            found += any(isinstance(i, Armor.Chest6B45) for i in player.inventory)
+            found += any(isinstance(i, GameSpace.CACHE_ONLY) for i in player.inventory)
         return found / runs
 
     assert share(GameSpace.WILDS_MAX_LEVEL, runs=20) == 1
     assert 0 < share(1) < 0.25  # about one cache in WILDS_MAX_LEVEL at danger 1
+
+
+def test_period_kit_loads_and_the_heavy_stuff_is_cache_only():
+    assert {Weapons.AK74, Weapons.AKS74U, Weapons.SVD, Weapons.Ammo545, Weapons.Ammo127} <= set(Data.stocked())
+    assert not {Weapons.DShK, Armor.Chest6B2, Armor.Chest6B3} & set(Data.stocked())
+    dshk = Weapons.DShK()
+    assert dshk.caliber == Weapons.Ammo127().caliber and dshk.mountable
+    dshk.fire()
+    assert dshk.damage > Weapons.DShK().damage  # belt-fed: keeps walking on
 
 
 def test_a_far_cache_pays_better_than_a_near_one(adapter):
@@ -1559,7 +1568,7 @@ def test_a_far_cache_pays_better_than_a_near_one(adapter):
         return player.currency, kit[0].base_value, len(player.inventory) - len(kit)
 
     near, far = haul(1), haul(9)
-    assert far[0] > near[0] and far[1] > near[1]  # more money, dearer kit
+    assert far[0] > near[0] and far[1] >= near[1]  # more money, kit as dear or dearer (a near one can luck into the best)
     assert (near[2], far[2]) == (1, 1 + 9 // GameSpace.CACHE_LEVELS_PER_SALVAGE)
 
 
