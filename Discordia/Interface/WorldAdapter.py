@@ -471,11 +471,9 @@ class WorldAdapter:
     def iter_registered(self) -> Iterator[Tuple[int, Actors.PlayerCharacter]]:
         yield from self._discord_player_map.items()
 
-    def get_player_screenshot(self, character: Actors.PlayerCharacter) -> str:
-        if self._renderer is not None:
-            path = self._renderer.get_player_view(character)
-            return path
-        return "<No Renderer>"
+    def get_player_screenshot(self, character: Actors.PlayerCharacter) -> bytes | None:
+        """The PNG /look attaches, or None without a renderer."""
+        return self._renderer.get_player_view(character) if self._renderer is not None else None
 
     def hideout_png(self, character: Actors.PlayerCharacter) -> bytes | None:
         """A picture of the character's hideout, None before they build one or without a renderer."""

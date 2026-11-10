@@ -1777,7 +1777,7 @@ def test_a_player_sees_their_own_neighbourhood(adapter):
 
 
 def test_screenshots_degrade_gracefully_without_a_renderer(adapter):
-    assert adapter.get_player_screenshot(adapter.get_player(1)) == "<No Renderer>"
+    assert adapter.get_player_screenshot(adapter.get_player(1)) is None
 
 
 # --- World tick: NPCs act on real time, not on player input ------------------------------------

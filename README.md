@@ -42,11 +42,13 @@ python3 -m venv /opt/discordia/venv
 chown -R discordia: /opt/discordia
 echo "DISCORD_TOKEN=your-token" > /etc/discordia.env && chmod 600 /etc/discordia.env
 cp /opt/discordia/deploy/discordia.service /etc/systemd/system/
+install -m 755 /opt/discordia/deploy/remote.sh /usr/local/sbin/discordia-deploy
 systemctl enable --now discordia
 journalctl -u discordia -f
 ```
 
-The save is `/opt/discordia/discordia.db`; copy it over first to keep an existing world. The live map binds to
+The save is `/var/lib/discordia/discordia.db` (the service is sandboxed: the code is read-only to it); copy it over
+first to keep an existing world, owned by `discordia`. Deploys keep the last 5 saves in `/var/backups/discordia`. The live map binds to
 localhost only, so view it through a tunnel: `ssh -L 8080:localhost:8080 root@<linode-ip>`, then open
 http://localhost:8080.
 
@@ -55,7 +57,8 @@ To put the map on the internet: an nginx `server` block for your domain with `pr
 `[Web]` in `/opt/discordia/config.ini`. The home page at `/` is public; the map at `/map` lets in only players with a
 `/weblogin` session, so the proxy needs no password of its own. To update, push to master and run `deploy/deploy.sh root@<linode-ip>` from your machine (or
 add a `discordia` host to `~/.ssh/config` and run it bare). It refuses if HEAD isn't pushed, pulls, restarts, and
-fails if the service doesn't come back up.
+fails if the service doesn't come back up. Every green push to master also deploys from CI; give that key only
+the deploy in `/root/.ssh/authorized_keys`: `restrict,command="/usr/local/sbin/discordia-deploy" ssh-ed25519 ...`.
 
 Alerts: make a webhook on a private channel (Channel settings > Integrations > Webhooks), then
 `echo "DISCORD_WEBHOOK_URL=<webhook-url>" >> /etc/discordia.env` and restart. Warnings, errors and crashes get

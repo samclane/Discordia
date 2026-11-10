@@ -607,8 +607,8 @@ class DiscordInterface(commands.Cog):
         await _defer(interaction)
         character = self._player(interaction)
         msg = self.world_adapter.look_text(character)
-        screenshot_path = self.world_adapter.get_player_screenshot(character)
-        files = [discord.File(screenshot_path)] if screenshot_path else []
+        png = self.world_adapter.get_player_screenshot(character)
+        files = [discord.File(io.BytesIO(png), "look.png")] if png else []
         await _send(interaction, msg, files=files)
 
     @app_commands.command()

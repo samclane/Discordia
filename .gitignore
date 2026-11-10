@@ -113,7 +113,6 @@ config.ini
 pylintrc
 
 # Screenshots
-Discordia/PlayerViews
 discordia.db
 
 # Simulator Output

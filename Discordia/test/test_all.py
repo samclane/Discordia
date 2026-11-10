@@ -1,3 +1,4 @@
+import io
 import logging
 import os
 import random
@@ -25,18 +26,6 @@ LOG = logging.getLogger("Discordia.test")
 logging.basicConfig(level=logging.INFO)
 
 
-def clean_screenshots():
-    """Delete all files in the screenshot folder"""
-    folder = Path("./Discordia/PlayerViews")
-    for file_ in os.listdir(folder):
-        file_path = os.path.join(folder, file_)
-        try:
-            if os.path.isfile(file_path) and file_ != "README.md":
-                os.unlink(file_path)
-        except Exception as e:
-            raise e
-
-
 class TestGeneral(unittest.TestCase):
     WORLD_WIDTH = 100
     WORLD_HEIGHT = 100
@@ -52,7 +41,6 @@ class TestGeneral(unittest.TestCase):
         # Fixed by default so failures reproduce; set DISCORDIA_TEST_SEED to fuzz.
         cls.random_seed = int(os.environ.get("DISCORDIA_TEST_SEED", 0))
 
-        clean_screenshots()
 
         LOG.info("Discordia server started")
 
@@ -111,10 +99,7 @@ class TestGeneral(unittest.TestCase):
                 pass
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
-            self.adapter.get_player_screenshot(player)
-            img: Image.Image = Image.open(
-                Path(f"./Discordia/PlayerViews/User{idx}_screenshot.png")
-            )
+            img: Image.Image = Image.open(io.BytesIO(self.adapter.get_player_screenshot(player)))
             self.assertFalse(
                 all(p == (0, 0, 0, 255) for p in img.getdata()),
                 "Black screenshot taken",

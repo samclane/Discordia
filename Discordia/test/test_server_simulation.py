@@ -17,6 +17,7 @@ numbers to sim_history.jsonl (skip with --no-record); `python -m Discordia.test.
 
 import argparse
 import asyncio
+import io
 import json
 import logging
 import random
@@ -323,9 +324,9 @@ async def invoke(discord_: Discord, interaction: Interaction, args: Dict[str, An
 async def _simulate(ticks: int, seed: int, size: int) -> Discord:
     world = GameSpace.World("Server Sim", size, size, seed=seed)  # seeds `random` too, so a run replays
     adapter = WorldAdapter(world)
-    view = Path(tempfile.mkdtemp()) / "view.png"
-    Image.new("RGB", (8, 8)).save(view)
-    adapter.add_renderer(SimpleNamespace(get_player_view=lambda character: str(view)))  # /look attaches a picture
+    view = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(view, "PNG")
+    adapter.add_renderer(SimpleNamespace(get_player_view=lambda character: view.getvalue()))  # /look attaches a picture
     interface = DiscordInterface(adapter, web_url="https://discordia.example")
     await interface.bot.add_cog(interface)
     discord_ = Discord(interface)

@@ -8,7 +8,6 @@ from __future__ import annotations
 import io
 import logging
 import threading
-from pathlib import Path
 from functools import lru_cache
 from itertools import chain
 from typing import Any, Callable, Iterable
@@ -20,7 +19,6 @@ from Discordia.GameLogic import Actors, GameSpace
 from Discordia.Interface.WorldAdapter import WorldAdapter
 
 LOG = logging.getLogger("Discordia.Interface.Renderer")
-VIEW_FOLDER = Path("./Discordia/PlayerViews")
 
 # Kenney's RPG Urban pack (CC0), as a packed sheet of 16px tiles, 27 to a row.
 TILESHEET = SPRITE_FOLDER / "Terrain" / "kenney_rpg_urban.png"
@@ -101,7 +99,6 @@ class Renderer:
     def __init__(self, world_adapter: WorldAdapter):
         self.world_adapter = world_adapter
         self.world_adapter.add_renderer(self)
-        VIEW_FOLDER.mkdir(parents=True, exist_ok=True)
 
         self._sprite_cache = keydefaultdict(
             lambda path: Image.open(path).convert("RGBA")
@@ -252,10 +249,8 @@ class Renderer:
         size = (image.width * HIDEOUT_SCALE, image.height * HIDEOUT_SCALE)
         return _png(image.resize(size, Image.Resampling.NEAREST))
 
-    def get_player_view(self, character: Actors.PlayerCharacter) -> str:
+    def get_player_view(self, character: Actors.PlayerCharacter) -> bytes:
         x, y, fov = character.location.x, character.location.y, character.fov
         LOG.info(f"Getting PlayerView: {character.name} at ({x}, {y})")
         img = self.draw_region(x - fov, y - fov, x + fov + 1, y + fov + 1)
-        img_path = VIEW_FOLDER / f"{character.name}_screenshot.png"
-        img.save(img_path)
-        return str(img_path)
+        return _png(img)
