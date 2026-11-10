@@ -66,6 +66,8 @@
   @media (max-width: 560px) { .scene .far { display: none; } }
 
   section.band { padding: 72px 0; border-bottom: 1px solid var(--line); }
+  @keyframes flash { 0%, 60% { box-shadow: inset 0 0 0 3px var(--accent), inset 0 0 80px #e8b44a55; } }
+  section.band:target { animation: flash 1.6s ease-out; }
   section.band:nth-of-type(2n) { background: var(--raise); }
   .band h2 { font-size: 30px; }
   .band .intro { max-width: 640px; margin: 10px 0 32px; color: var(--dim); }
