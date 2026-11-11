@@ -635,7 +635,9 @@ def test_terrain_covers_the_shares_it_was_tuned_for():
         world = GameSpace.World("Mix", 384, 384, seed=seed)
         for cx, cy in product(range(4, 10), repeat=2):
             world.space_at(cx * GameSpace.CHUNK_SIZE, cy * GameSpace.CHUNK_SIZE)
-            for row in world.loaded_chunk(cx, cy):
+            chunk = world.loaded_chunk(cx, cy)
+            assert chunk is not None
+            for row in chunk:
                 kinds.update(type(space.terrain).__name__ for space in row)
                 n += len(row)
     share = {kind: 100 * count / n for kind, count in kinds.items()}
@@ -907,6 +909,7 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     enemy = Actors.NPC(None, 5, "Mook")
     event = Events.CombatEvent(1.0, "<test>", [enemy])
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    assert character.weapon is not None
     character.equipment_set.unequip(character.weapon)  # nothing that can hit in hand: unequip would give fists
 
     responses = list(event.run(character))
