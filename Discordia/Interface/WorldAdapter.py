@@ -274,6 +274,11 @@ class WorldAdapter:
         )
         if character.best_haul:
             text += f" Your best haul, ${character.best_haul:,}, hangs on its wall."
+        perks = Actors.HIDEOUT_PERKS.items()
+        if rooms := [f"a {perk} ({what})" for perk, (_, what) in perks if character.has_perk(perk)]:
+            text += f" It has {', '.join(rooms)}."
+        if upcoming := [(level, perk, what) for perk, (level, what) in perks if not character.has_perk(perk)]:
+            text += " Level {} opens a {}: {}.".format(*min(upcoming))
         if character.hideout_level >= Actors.PRESTIGE_LEVEL:
             text += " `/hideout prestige` trades it and the stash in for more income for good."
         return text

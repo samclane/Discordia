@@ -46,6 +46,8 @@ class Caliber:
     IN_762 = 10  # 7.62x25 Tokarev; a pistol round, not the rifle 7.62 above
     MM_545 = 11  # 5.45x39, the AK-74's
     MM_127 = 12  # 12.7x108, the DShK's
+    PG_7 = 13  # the RPG-7's rocket
+    MM_939 = 14  # 9x39 subsonic, the VSS's
 
 
 class FiringAction:
@@ -679,6 +681,18 @@ class DShK(FromData, BeltFedMachineGun, Bipod):
     """
 
 
+class RPG7(FromData, Rifle):
+    """
+    Based on the RPG-7. Boss loot only ("store": false): a warlord's guard carries one. A rocket a shot.
+    """
+
+
+class VSS(FromData, Rifle, SelectiveFire):
+    """
+    Based on the VSS Vintorez (1987), the spetsnaz's quiet rifle: an SVD's reach, harder hitting, and a 20-round box. Boss loot only.
+    """
+
+
 # --- Ammo: a box per caliber, stat blocks in data/ammo.json. Reloading takes the first box that fits. ---
 
 AMMO_STATS = Data.load(DATA_FOLDER / "ammo.json", _ENUM_FIELDS)
@@ -737,4 +751,12 @@ class Ammo545(AmmoFromData, Ammo):
 
 
 class Ammo127(AmmoFromData, Ammo):
+    pass
+
+
+class AmmoPG7V(AmmoFromData, Ammo):
+    pass
+
+
+class Ammo939(AmmoFromData, Ammo):
     pass

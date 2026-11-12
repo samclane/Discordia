@@ -1520,6 +1520,7 @@ def test_the_idle_numbers_are_per_hour_at_the_servers_tick(adapter):
     adapter.tick_seconds = 10  # a slower server pays less an hour
     assert adapter.hideout_text(player) == (
         "Hideout level 1: $60 an hour into your stash, which is worth $150. The next level costs $2,300."
+        " Level 3 opens a workbench: one more salvage from every cache."
     )
 
 
@@ -2491,3 +2492,92 @@ def test_a_goat_left_hungry_for_days_wanders_off(adapter):
         player.feed_pet(world.ticks)
     player.adopt_pet("Gul", world.ticks)  # room for another
     assert player.pet_name == "Gul" and not player.pet_gone(world.ticks)
+
+
+# --- Endgame: boss loot, warlords on the deepest caches, hideout rooms ------------------------------
+
+
+def test_boss_loot_comes_from_nowhere_else_and_its_ammo_is_on_the_shelves():
+    loot = set(Actors.BOSS_LOOT)
+    assert not loot & set(Data.stocked()) and not loot & set(GameSpace.CACHE_ONLY)
+    assert {Weapons.AmmoPG7V, Weapons.Ammo939} <= set(Data.stocked())
+    rpg = Weapons.RPG7()
+    assert rpg.caliber == Weapons.AmmoPG7V().caliber and rpg.is_single_shot
+    assert Weapons.VSS().caliber == Weapons.Ammo939().caliber
+    assert Armor.Chest6B4()._armor_count > Armor.Chest6B45()._armor_count
+
+
+def test_a_warlord_holds_the_deepest_cache_until_killed_and_returns_with_its_refill(adapter, lone_raider):
+    world, player = adapter.world, adapter.get_player(1)
+    spot = _open_ground(world, 1)
+    cache = GameSpace.Cache(spot.x, spot.y, spot.terrain)
+    cache.level = GameSpace.WILDS_MAX_LEVEL
+    world.caches.append(cache)
+    player.location = world.starting_town  # near, but safe in town
+    assert world.near_a_player(cache)
+
+    def warlords():
+        return [n for n in world.npcs if isinstance(n, Actors.Warlord)]
+
+    world.tick()
+    world.tick()
+    [boss] = warlords()  # posted once, not once a tick
+    assert "dug in" in cache.run_event(player)[0].text and cache.looted_at is None
+
+    boss.take_damage(Actors.BOSS_HIT_POINTS)
+    response = GameSpace.PlayerActionResponse()
+    player.currency = 0
+    player.loot(boss, response)
+    assert player.currency == Actors.BOSS_CURRENCY
+    assert len(response.items) == 1 and isinstance(response.items[0], Actors.BOSS_LOOT)
+    assert any(boss.name in text for _, text in world.announcements)
+
+    world.tick()
+    assert warlords() == []  # dead, and not back before the refill
+    assert "find a cache" in cache.run_event(player)[0].text
+
+    world.ticks += GameSpace.CACHE_REFILL_TICKS
+    world.tick()
+    assert len(warlords()) == 1
+
+
+def test_a_warlord_never_flees_and_hits_through_the_best_armor(adapter):
+    world, player = adapter.world, adapter.get_player(1)
+    player.equip(Armor.Chest6B4())
+    player.equip(Armor.HelmAltyn())
+    boss = Actors.Warlord.generate()
+    boss.parent_world = world
+    boss.hit_points = 1
+    health = player.hit_points
+    assert boss.brain.update(player) == Actors.BOSS_ATTACK
+    assert player.hit_points < health
+
+
+def test_armor_stops_a_hit_but_never_heals():
+    player = Actors.PlayerCharacter(parent_world=None, name="Tester")
+    player.equip(Armor.Chest6B4())  # stops 4.8 at the least, against a raider's 2
+    player.hit_points = 10
+    player.take_damage(2)
+    assert player.hit_points == 10
+
+
+def test_hideout_rooms_open_with_its_levels(adapter):
+    player = adapter.get_player(1)
+
+    def salvage():
+        cache = GameSpace.Cache(0, 0)
+        player.inventory = Actors.Inventory()
+        cache.run_event(player)
+        return sum(isinstance(i, Items.Salvage) for i in player.inventory)
+
+    sight, heal, plain = player.fov, player.camp_heal, salvage()
+    player.hideout_level, player.currency = 2, 10**6
+    assert "workbench" in player.build_hideout()
+    assert salvage() == plain + 1 and player.fov == sight
+    player.hideout_level = 6
+    assert player.fov == sight + 1 and player.camp_heal == heal
+    player.hideout_level = 9
+    assert player.camp_heal == 2 * heal and not player.has_perk("map room")
+    assert "Level 12 opens a map room" in adapter.hideout_text(player)
+    player.hideout_level = 12
+    assert "a map room" in adapter.hideout_text(player)

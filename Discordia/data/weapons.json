@@ -324,5 +324,27 @@
     "range_falloff": 0.3,
     "base_damage": 25,
     "weight_lb": 75
+  },
+  "RPG7": {
+    "name": "RPG-7",
+    "store": false,
+    "caliber": "PG_7",
+    "action": "SingleShot",
+    "capacity": 1,
+    "range_": 4,
+    "range_falloff": 0.2,
+    "base_damage": 60,
+    "weight_lb": 15.4
+  },
+  "VSS": {
+    "name": "VSS Vintorez",
+    "store": false,
+    "range_": 6,
+    "caliber": "MM_939",
+    "action": "SemiAutomatic",
+    "capacity": 20,
+    "range_falloff": 0.15,
+    "base_damage": 18,
+    "weight_lb": 5.7
   }
 }

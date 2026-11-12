@@ -263,3 +263,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   `--seeds 10` replaced on 2026-10-31 (seed 0 and 1 at 2000 ticks, seed 0 at 500), reruns of one commit and
   settings (seeded, so copies; kept the last) and `+dirty` runs; every time in UTC. Kept the one-off runs at other
   settings (4/8/10 bots, 5000/10000 ticks). The dropped rows are in git before this commit.
+- 2026-11-11 Endgame (asked 2026-11-11): a `Warlord` boss (500 HP, hits for 25, never flees or heals) holds every
+  danger-8 cache, which won't open while it stands within sight, and comes back with the refill. It alone drops
+  `BOSS_LOOT`: RPG-7, VSS, Altyn helmet, 6B4 vest (rockets and 9x39 are on shelves). Hideout rooms at levels
+  3/6/9/12 (workbench, radio, aid station, map room); a prestige gives them up. Armor no longer heals a hit it outweighs.

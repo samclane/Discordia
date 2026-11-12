@@ -34,5 +34,20 @@
     "efficiency": 0.3,
     "armor_count": 7,
     "weight_lb": 26.5
+  },
+  "HelmAltyn": {
+    "name": "Altyn titanium helmet",
+    "store": false,
+    "coverage": 0.8,
+    "armor_count": 5,
+    "weight_lb": 9.5
+  },
+  "Chest6B4": {
+    "name": "6B4 ceramic vest",
+    "store": false,
+    "coverage": 0.8,
+    "efficiency": 0.4,
+    "armor_count": 12,
+    "weight_lb": 26.0
   }
 }

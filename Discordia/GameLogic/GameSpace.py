@@ -687,12 +687,23 @@ class Cache(Space):
         # World.ticks when it was last emptied, or None if it's full.
         # ponytail: not saved, so a restart refills every cache early. Save opened caches if anyone farms that.
         self.looted_at: int | None = None
+        # World.ticks a warlord was last posted here (World._post_warlords), or None. Not saved either: a restart
+        # can post a new one early, if the last was killed. A living one nearby is saved, and blocks a second.
+        self.guarded_at: int | None = None
 
     def run_event(self, player) -> List[PlayerActionResponse]:
         response = PlayerActionResponse(is_successful=True, source=player)
         now = player.parent_world.ticks
         if self.looted_at is not None and now - self.looted_at < CACHE_REFILL_TICKS:
             response.text = "There's a cache here, already emptied. Someone will restock it, in time."
+            return [response]
+        guard = next(
+            (n for n in player.parent_world.npcs if isinstance(n, Actors.Warlord) and not n.is_dead
+             and n.location.distance(self) <= NPC_SIGHT),
+            None,
+        )
+        if guard is not None:  # kill it or lure it off: either way it's earned
+            response.text = f"{guard.name}'s men are dug in around the cache. Nobody opens it while they hold it."
             return [response]
         self.looted_at = now
         level = max(self.level, 1)
@@ -704,7 +715,7 @@ class Cache(Space):
         if random.random() < level / WILDS_MAX_LEVEL:  # its own roll: against the store's best it would lose
             kit.append(random.choice(CACHE_ONLY)())
         # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
-        extra = isinstance(player.player_class, Actors.Scavenger)
+        extra = isinstance(player.player_class, Actors.Scavenger) + player.has_perk("workbench")
         salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE + extra)]
         for item in kit + salvage:
             player.inventory.append(item)
@@ -1319,6 +1330,21 @@ class World:
                 milkings = end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS
                 p.stash.extend(Items.GoatMilk() for _ in range(milkings * p.pet_yield))
 
+    def _post_warlords(self):
+        """Put an Actors.Warlord on every WILDS_MAX_LEVEL cache a player comes near, once per CACHE_REFILL_TICKS and
+        never while one still stands within a chunk of it: kill it, and the cache is yours until it refills."""
+        for cache in self.caches:
+            if (
+                cache.level >= WILDS_MAX_LEVEL
+                and (cache.guarded_at is None or self.ticks - cache.guarded_at >= CACHE_REFILL_TICKS)
+                and self.near_a_player(cache)
+                and not any(
+                    isinstance(n, Actors.Warlord) and n.location.distance(cache) <= CHUNK_SIZE for n in self.npcs
+                )
+            ):
+                cache.guarded_at = self.ticks
+                self.add_actor(Actors.Warlord.generate(), cache)
+
     def tick(self) -> List[PlayerActionResponse]:
         """One step of world time: NPCs spawn, wander and fight without any player input.
 
@@ -1344,6 +1370,7 @@ class World:
                     )
                 )
         self.npcs = [npc for npc in self.npcs if not npc.is_dead]
+        self._post_warlords()
         if self.wilds and len(self.npcs) < len(self.wilds) // WILDS_PER_RAIDER:
             kind = Actors.Animal if random.random() < ANIMAL_SHARE else Actors.Raider
             self.add_actor(kind.generate(1), random.choice(self.wilds))

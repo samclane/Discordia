@@ -6,7 +6,7 @@ from typing import Any, Tuple, List, Type, Union
 from enum import Enum, auto
 
 from Discordia import SPRITE_FOLDER
-from Discordia.GameLogic import Behavior, GameSpace, Items, Weapons, Procedural
+from Discordia.GameLogic import Armor, Behavior, GameSpace, Items, Weapons, Procedural
 from Discordia.GameLogic.Items import Equipment, MainHandEquipment, OffHandEquipment
 from Discordia.GameLogic.StringGenerator import FemaleNameGenerator, MaleNameGenerator
 
@@ -28,6 +28,20 @@ HIDEOUT_PAY_TICKS = 60
 # level 15 a new level takes about six days of income to pay for itself, where the curve flattens out.
 PRESTIGE_LEVEL = 15
 PRESTIGE_BONUS = 0.1
+# Rooms a hideout opens up on the way there: (level, what it does). Each is read where its effect lands
+# (has_perk), and a prestige gives them all up with the rest.
+HIDEOUT_PERKS = {
+    "workbench": (3, "one more salvage from every cache"),
+    "radio": (6, "one more square of sight"),
+    "aid station": (9, "camps heal twice as fast"),
+    "map room": (12, "twice the XP for a haul brought home"),
+}
+# Warlords (Warlord): one holds every cache at WILDS_MAX_LEVEL, and comes back with its refill. Tough enough that
+# it takes a few raids or a few players: it never flees, never heals, and keeps its wounds through a restart.
+# Its hit gets through most armor, and its death drops one piece of BOSS_LOOT, which nothing else carries.
+BOSS_HIT_POINTS = 500
+BOSS_ATTACK = 25
+BOSS_CURRENCY = 2000
 # A camp out past the towns heals CAMP_HEAL_SHARE of your hit points every CAMP_HEAL_TICKS: full in twenty minutes
 # at a 5-second tick. Slow next to an inn, which is the point: it saves the walk, not the time.
 CAMP_HEAL_TICKS = 12
@@ -350,6 +364,39 @@ class Animal(NPC):
         return str(SPRITE_FOLDER / "Actors" / ("small_animal.png" if small else "animal.png"))
 
 
+class Warlord(NPC):
+    """A commander holding the deepest ground (World._post_warlords): the endgame fight, and the only source of
+    BOSS_LOOT. Not a Raider, so it spares nobody."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flavor_text = "A warlord and his guard, holding the pass. They don't run."
+        self.base_attack = BOSS_ATTACK
+        assert isinstance(self.brain.current_state, Behavior.Aggressive)
+        self.brain.current_state.flee_at = 0  # holds its ground to the end
+
+    @classmethod
+    def generate(cls, level=0) -> NPC:
+        generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator
+        boss = cls(None, BOSS_HIT_POINTS, f"Commander {generator.generate_name()}", Humanoid())
+        boss.currency = BOSS_CURRENCY
+        return boss
+
+    def on_death(self) -> Inventory:
+        # Rolled at death, not birth: the npc table saves money and wounds, not kit.
+        self.inventory.append(random.choice(BOSS_LOOT)())
+        return super().on_death()
+
+    @property
+    def sprite_path(self) -> str:
+        # ponytail: a raider's sprite. Draw a warlord if players can't tell them apart on the map.
+        return str(SPRITE_FOLDER / "Actors" / "raider_class.png")
+
+
+# What a Warlord drops, and nothing else does: every block here says "store": false.
+BOSS_LOOT: Tuple[type, ...] = (Weapons.RPG7, Weapons.VSS, Armor.HelmAltyn, Armor.Chest6B4)
+
+
 class PlayerClass(ABC):
     # What the class does for you, in a sentence for a player. The rules that make it true live where they apply.
     perk: str = ""
@@ -639,7 +686,8 @@ class PlayerCharacter(Actor):
             found.append(f"${self.currency - money}")
         self.best_haul = max(self.best_haul, max(self.currency - money, 0) + sum(int(i.base_value) for i in new))
         # Bringing loot home is what levels you: the deeper the raid went, the more it pays.
-        levels = self.gain_experience(EXTRACT_XP_PER_DANGER * self.raid_deepest) if found else 0
+        xp = EXTRACT_XP_PER_DANGER * self.raid_deepest * (2 if self.has_perk("map room") else 1)
+        levels = self.gain_experience(xp) if found else 0
         if self.experience > experience:
             found.append(f"{self.experience - experience} XP" + (f" (level {self.level}!)" if levels else ""))
         haul = ", ".join(found) if found else "nothing but the walk"
@@ -761,6 +809,9 @@ class PlayerCharacter(Actor):
         corpse.currency = 0
         self.parent_world.stats.kills += 1
         self.kills += 1
+        if isinstance(corpse, Warlord):
+            prize = ", ".join(item.name for item in response.items[-1:])
+            self.parent_world.announcements.append((self, f"{self.name} brought down {corpse.name} and took {prize}."))
 
         # A tougher corpse is worth more, and one below your level pays its share of yours: levels keep pace with
         # how deep you raid, rather than piling up on the wilds next to town.
@@ -775,12 +826,17 @@ class PlayerCharacter(Actor):
     @property
     def camp_heal(self) -> int:
         """Hit points a camp gives back every CAMP_HEAL_TICKS: twice that for a Medic."""
-        return max(1, round(self.hit_points_max * CAMP_HEAL_SHARE)) * (2 if isinstance(self.player_class, Medic) else 1)
+        heal = max(1, round(self.hit_points_max * CAMP_HEAL_SHARE)) * (2 if isinstance(self.player_class, Medic) else 1)
+        return heal * (2 if self.has_perk("aid station") else 1)
 
     @property
     def fov(self) -> int:
-        """How many squares you see either way: one more for a Scout."""
-        return self.fov_default + isinstance(self.player_class, Scout)
+        """How many squares you see either way: one more for a Scout, and one more with a hideout radio."""
+        return self.fov_default + isinstance(self.player_class, Scout) + self.has_perk("radio")
+
+    def has_perk(self, perk: str) -> bool:
+        """Whether your hideout has reached the HIDEOUT_PERKS room `perk`."""
+        return self.hideout_level >= HIDEOUT_PERKS[perk][0]
 
     def stash_put(self, index: int | None = None, money: int = 0) -> str:
         """Bank the carried item at `index` and/or `money`. Callers check the player is in a town."""
@@ -863,9 +919,12 @@ class PlayerCharacter(Actor):
             self.inventory.remove(part)  # Inventory.remove skips what isn't there
             self.stash.remove(part)
         self.hideout_level += 1
+        opened = "".join(
+            f" It opens a {perk}: {what}." for perk, (level, what) in HIDEOUT_PERKS.items() if level == self.hideout_level
+        )
         return (
             f"Your hideout is level {self.hideout_level}: ${self.hideout_income} into your stash "
-            f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not."
+            f"every {HIDEOUT_PAY_TICKS} ticks, whether you're here or not.{opened}"
         )
 
     def adopt_pet(self, name: str | None, now: int, kind: str = "goat"):
@@ -970,8 +1029,8 @@ class PlayerCharacter(Actor):
         return lost
 
     def take_damage(self, damage: float):
-        damage -= self.equipment_set.armor_count
-        self.hit_points -= damage
+        # Armor stops a hit, it doesn't heal you: a 6B45's 10 against a raider's 2 used to hand back 8.
+        self.hit_points -= max(0, damage - self.equipment_set.armor_count)
 
     def on_death(self):
         self.parent_world.handle_player_death(self)

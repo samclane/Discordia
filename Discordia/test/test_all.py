@@ -238,6 +238,9 @@ class TestGeneral(unittest.TestCase):
         wounded.hit_points -= 3
         self.world.add_actor(wounded, self.world.wilds[0])
         self.world.add_actor(Actors.Animal.generate(1), self.world.wilds[1])
+        warlord = Actors.Warlord.generate()
+        warlord.hit_points -= 100  # wounds carry over: it never heals
+        self.world.add_actor(warlord, self.world.wilds[2])
         shopper, store = self.adapter.get_player(1), self.world.starting_town.store
         shopper.currency = 10**6
         self.assertTrue(store.sell_item(0, shopper))  # the shelf is one short
@@ -304,6 +307,7 @@ class TestGeneral(unittest.TestCase):
             [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in self.world.npcs],
         )
         self.assertIsInstance(adapter.world.npcs[1].brain.current_state, Behavior.Fleeing)  # still an animal
+        self.assertEqual(adapter.world.npcs[2].base_attack, Actors.BOSS_ATTACK)  # still a warlord
         assert player.auto_raid is not None
         self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.

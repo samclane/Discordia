@@ -89,5 +89,19 @@
     "quantity": 10,
     "base_value": 40,
     "weight_lb": 3.0
+  },
+  "AmmoPG7V": {
+    "name": "PG-7V rockets",
+    "caliber": "PG_7",
+    "quantity": 3,
+    "base_value": 150,
+    "weight_lb": 6.0
+  },
+  "Ammo939": {
+    "name": "9x39mm SP-5 rounds",
+    "caliber": "MM_939",
+    "quantity": 20,
+    "base_value": 60,
+    "weight_lb": 1.0
   }
 }

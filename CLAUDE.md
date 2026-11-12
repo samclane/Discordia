@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (simplex-noise terrain,
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 350 tests, ~40s, no token needed
+python -m pytest Discordia/test -q                     # 366 tests, ~40s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -19,7 +19,9 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     `world.space_at(x, y)`, never a grid. `world.towns`/`wilds` hold loaded chunks only. Wilds roll their events on
     first visit. NPCs only act within `NPC_AWAKE_RADIUS` (a chunk) of a player and never step into
     an unloaded chunk: only players explore.
-  - `Actors.py` Actor -> NPC/Raider and PlayerCharacter; PlayerClass (Wanderer/Soldier/Raider).
+  - `Actors.py` Actor -> NPC/Raider/Warlord and PlayerCharacter; PlayerClass (Wanderer/Soldier/Raider).
+    Endgame: a `Warlord` boss holds each `WILDS_MAX_LEVEL` cache (`World._post_warlords`) and alone drops
+    `BOSS_LOOT`; hideout levels open `HIDEOUT_PERKS` rooms, read where they apply via `has_perk`.
   - `Events.py` Wilds events: CombatEvent (real), EncounterEvent/MerchantEvent (stubs).
   - `Behavior.py` NPC finite state machine (Aggressive -> Fleeing).
   - `Items.py` Equipment/EquipmentSet, `Weapons.py`, `Armor.py`: stat blocks load from `data/*.json` via `Data.py` (`FromData`).

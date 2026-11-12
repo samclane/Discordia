@@ -87,3 +87,15 @@ class Chest6B3(FromData, ChestArmor):
     """
     Based on the Soviet 6B3 (1983), the answer to that: stops more, weighs twice as much in the mountains.
     """
+
+
+class HelmAltyn(FromData, Helmet):
+    """
+    Based on the Soviet Altyn titanium helmet, issued to special units only. Boss loot only.
+    """
+
+
+class Chest6B4(FromData, ChestArmor):
+    """
+    Based on the Soviet 6B4 (1985), ceramic plates: the best vest of the war, and the heaviest. Boss loot only.
+    """
