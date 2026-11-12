@@ -267,3 +267,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   danger-8 cache, which won't open while it stands within sight, and comes back with the refill. It alone drops
   `BOSS_LOOT`: RPG-7, VSS, Altyn helmet, 6B4 vest (rockets and 9x39 are on shelves). Hideout rooms at levels
   3/6/9/12 (workbench, radio, aid station, map room); a prestige gives them up. Armor no longer heals a hit it outweighs.
+- 2026-11-11 `mean armor worn` 0.03 -> 0 at ab39a16: the armor fix, not warlords (none posted in 10 seeds x 2000) or
+  noise. Both runs find and wear two pieces; with heal-on-hit patched back in, HEAD's two 6B45 wearers live and it
+  reads 0.03 again. Before, 70% of a raider's 2-point hits on a 6B45 (blocks 10) healed 8, so its wearers never died.
