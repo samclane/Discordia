@@ -175,7 +175,7 @@ class WorldAdapter:
         self.is_owner: Optional[Callable[[int], Awaitable[bool]]] = None
         # What each tick did, for that dashboard. Appended on the bot loop, read off it with samples().
         # ponytail: in memory, like _news: a restart starts the charts over.
-        self._samples: Deque[Dict[str, float]] = deque(maxlen=SAMPLES_KEPT)
+        self._samples: Deque[Dict[str, Any]] = deque(maxlen=SAMPLES_KEPT)
         self.started: float = time.time()
         # Seconds per World.tick, set by the running bot; what turns per-tick income into per-hour.
         self.tick_seconds: float = 5.0
@@ -205,7 +205,7 @@ class WorldAdapter:
             }
         )
 
-    def samples(self, since: int = -1) -> List[Dict[str, float]]:
+    def samples(self, since: int = -1) -> List[Dict[str, Any]]:
         """The rows after tick `since`, oldest first. A snapshot: safe to call off the bot loop."""
         return [row for row in list(self._samples) if row["tick"] > since]
 
