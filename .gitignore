@@ -73,7 +73,7 @@ target/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version is committed: uv reads it
 
 # celery beat schedule file
 celerybeat-schedule

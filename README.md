@@ -14,11 +14,9 @@ Requires Python 3.12.
 
 # Starting 
 
-To install:
+Install [uv](https://docs.astral.sh/uv/), then:
 
-`pip install -r requirements.txt`
-
-`python main.py [-W PORT] [--database PATH]`
+`uv run main.py [-W PORT] [--database PATH]`
 
 Set the `DISCORD_TOKEN` environment variable, or fill in `Token` under `[Discord]` in `config.ini`.
 
@@ -27,19 +25,19 @@ Set the `DISCORD_TOKEN` environment variable, or fill in `Token` under `[Discord
 * `--database PATH` is the save file (default `./discordia.db`). The world is saved on a timer and on shutdown,
   and a restart pays hideouts for the time it was down.
 
-Tests: `python -m pytest Discordia/test -q`, no Discord token needed.
+Tests: `uv run pytest -q`, no Discord token needed.
 
 # Deploying (Linode / any Ubuntu 24.04 box)
 
 A Nanode (1 GB) is plenty. As root:
 
 ```
-apt update && apt install -y git python3-venv python3-dev build-essential
+apt update && apt install -y git python3
+curl -LsSf https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh
 useradd --system --home /opt/discordia discordia
 git clone https://github.com/samclane/Discordia.git /opt/discordia
-python3 -m venv /opt/discordia/venv
-/opt/discordia/venv/bin/pip install -r /opt/discordia/requirements.txt
 chown -R discordia: /opt/discordia
+cd /opt/discordia && sudo -u discordia UV_PYTHON_PREFERENCE=only-system uv sync --locked --no-dev
 echo "DISCORD_TOKEN=your-token" > /etc/discordia.env && chmod 600 /etc/discordia.env
 cp /opt/discordia/deploy/discordia.service /etc/systemd/system/
 install -m 755 /opt/discordia/deploy/remote.sh /usr/local/sbin/discordia-deploy

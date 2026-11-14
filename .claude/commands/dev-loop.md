@@ -27,7 +27,7 @@ Requested focus (may be empty): $ARGUMENTS
    save/load in the same commit.
 5. **Test.** Add or extend one test per behavior in `Discordia/test/` (plain pytest, no Discord token), then run:
    ```
-   python -m pytest Discordia/test -q
+   uv run -m pytest Discordia/test -q
    ```
    Everything must pass. Fix what you broke; do not skip or delete tests to get green.
 6. **Record.** Check the item off in `ROADMAP.md` and add one line under **Done** (`- YYYY-MM-DD item: what shipped`).
@@ -37,9 +37,9 @@ Requested focus (may be empty): $ARGUMENTS
 8. **Simulate.** If the iteration changed code, run on the now-clean tree (each appends a line to
    `Discordia/test/sim_history.jsonl` at the item's commit, under half a minute in all):
    ```
-   python -m Discordia.test.test_simulation --seeds 10
-   python -m Discordia.test.test_server_simulation
-   python -m Discordia.test.sim_history
+   uv run -m Discordia.test.test_simulation --seeds 10
+   uv run -m Discordia.test.test_server_simulation
+   uv run -m Discordia.test.sim_history
    ```
    The last prints what moved since the previous run of the same settings. Seeded runs are deterministic apart
    from timings, so a moved metric is a real behavior change; the game's are means over 10 seeds, because one
@@ -53,6 +53,6 @@ Requested focus (may be empty): $ARGUMENTS
 - Never start a second item in the same iteration. Small, finished, green.
 - If the item cannot be done (blocked, needs a design decision), do not guess: leave it unchecked, add a
   `(blocked: reason)` note after it in the roadmap, and move to the next item.
-- Do not touch `discordia.db`, `config.ini`, or `venv/`.
+- Do not touch `discordia.db`, `config.ini`, or `.venv/` (dependencies change via `uv add`).
 - Final message: three lines. What shipped, test count and what the simulators' drift said, what the next
   iteration should pick up.

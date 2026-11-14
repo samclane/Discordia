@@ -5,11 +5,11 @@ Discord extraction idle game: a persistent 2D tile world (simplex-noise terrain,
 ## Run / test
 
 ```
-python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 369 tests, ~40s, no token needed
+uv run main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
+uv run pytest -q                                       # 369 tests, ~40s, no token needed
 ```
 
-CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
+Dependencies live in `pyproject.toml` + `uv.lock` (`uv add <pkg>`). CI runs `uv run pytest -q` on push (`.github/workflows`). Keep it green.
 
 ## Layout
 
@@ -66,7 +66,7 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - Anything on a saved character (new field, new equipment slot) needs a `Database` save/load change and a round-trip test in `test_game_logic.py`.
 - Tests: pytest, plain functions, no Discord token. Discord commands are tested with fake interactions in `test_discord_interface.py`; copy an existing one. The web map page is tested in headless Chrome/Edge over DevTools in `test_webclient.py` (skipped without a browser): `page.js(...)` runs script in it.
 - `test_simulation.py` is a player simulator: bots play through `WorldAdapter` in lockstep with `World.tick()` and
-  flag anomalies. `python -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl --html sim.html` for a long run to analyse;
+  flag anomalies. `uv run -m Discordia.test.test_simulation --ticks 5000 --out sim.jsonl --html sim.html` for a long run to analyse;
   `--html` draws it (trails and deaths on the map, charts over time) from the `sim_template.html` template.
   `--seeds N` plays N seeds from `--seed` and records the means: one seed's deaths are mostly the map it rolled.
   Even those means swing with the random stream: one extra `random` call per bot goal (no behaviour change) moved
@@ -74,10 +74,10 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
 - `test_server_simulation.py` is a Discord server simulator: members on two fake servers use the real slash commands
   (discord.py's checks and error handlers, a fake Discord behind them) and every message the bot sends is checked
   for spam, posts outside allowed channels, leaked links, mass pings and unanswered interactions. New rule: add it
-  in `Discord.post` or `_check_rates`. `python -m Discordia.test.test_server_simulation --ticks 500 --out s.jsonl --html s.html`
+  in `Discord.post` or `_check_rates`. `uv run -m Discordia.test.test_server_simulation --ticks 500 --out s.jsonl --html s.html`
   (`--from s.jsonl --html s.html` redraws an old run; `server_template.html` is the dashboard template).
 - Both simulators' command lines append the run's headline numbers to `Discordia/test/sim_history.jsonl` (commit,
-  time, settings, metrics; `--no-record` skips it, pytest never records). `python -m Discordia.test.sim_history
+  time, settings, metrics; `--no-record` skips it, pytest never records). `uv run -m Discordia.test.sim_history
   --html history.html` charts every metric across runs, one line per settings combination, and prints what moved
   since the last run of the same settings (seeded runs are deterministic, timings aside). `/dev-loop` runs both
   after each item and commits the history separately. A new metric goes in the simulator's `metrics()`.

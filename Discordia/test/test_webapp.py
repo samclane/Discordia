@@ -251,7 +251,7 @@ def test_actors_json_revalidates_until_someone_moves():
     [
         "/sprites/../../../../main.py",
         "/sprites/..%2f..%2f..%2f..%2fmain.py",
-        "/sprites/Terrain/../../../../setup.py",
+        "/sprites/Terrain/../../../../pyproject.toml",
         "/sprites/Terrain",  # a directory, not a sprite
         "/nope",
     ],

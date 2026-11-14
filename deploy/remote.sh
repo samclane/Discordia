@@ -14,7 +14,7 @@ echo "$old -> $new"
 # Stop, back up, start rather than restart: stopping (SIGINT) makes the old process save the world and post its
 # digest, so the backup is that final save, taken before the new code migrates it.
 systemctl stop discordia
-trap "systemctl start discordia" EXIT # a failed backup or pip install must not leave the bot down
+trap "systemctl start discordia" EXIT # a failed backup or uv sync must not leave the bot down
 # Backups go where the bot can't write: root prunes them by name, and the bot names what's in its own folder.
 db=/var/lib/discordia/discordia.db
 backups=/var/backups/discordia
@@ -23,9 +23,8 @@ if [ -f "$db" ]; then
     cp "$db" "$backups/discordia.db.$(date +%Y%m%d-%H%M%S).$old.bak"
     ls -t "$backups"/discordia.db.*.bak | tail -n +6 | xargs -r rm -- # keep the last 5
 fi
-if ! sudo -u discordia git diff --quiet "$old" HEAD -- requirements.txt; then
-    sudo -u discordia venv/bin/pip install -q -r requirements.txt
-fi
+# A no-op when uv.lock hasn't changed. System Python only: the unit's ProtectHome hides a uv-managed one in ~.
+sudo -u discordia UV_PYTHON_PREFERENCE=only-system uv sync --locked --no-dev -q
 systemctl start discordia
 
 sleep 5
