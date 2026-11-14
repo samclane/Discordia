@@ -955,3 +955,14 @@ def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
     assert stocked.tobytes() != empty.tobytes(), "the stash shows on the floor"
     character.best_haul, character.achievements = 300, {"a_roof"}
     assert drawn(1).tobytes() != stocked.tobytes(), "trophies show on the wall"
+    trophied = drawn(1)
+    character.adopt_pet("Billy", now=0)
+    goat = drawn(1)
+    assert goat.tobytes() != trophied.tobytes(), "the pet stands in the room"
+    character.pet_kind = "dog"
+    assert drawn(1).tobytes() not in (
+        goat.tobytes(),
+        trophied.tobytes(),
+    ), "a dog isn't a goat"
+    character.pet_fed_until = -Actors.PET_RUNAWAY_TICKS
+    assert drawn(1).tobytes() == trophied.tobytes(), "a pet that wandered off is gone"

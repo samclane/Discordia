@@ -43,6 +43,8 @@ HIDEOUT_MONEY = 254
 HIDEOUT_TROPHY = 363
 HIDEOUT_BEST_HAUL = 390
 HIDEOUT_SCALE = 3
+# The pet stands beside you at home. The dog is the wild animal's sprite; goat.png is it recoloured, with horns.
+PET_SPRITES = {"goat": "goat.png", "dog": "animal.png"}
 
 
 def _png(image: Image.Image) -> bytes:
@@ -263,6 +265,16 @@ class Renderer:
             for x, index in zip(range(1, width - 1), trophies):
                 image.alpha_composite(self._sheet_tile(index), (x * TILE, 0))
             self._paste(character.sprite_path_string, width // 2, height - 2, image)
+            if character.pet_name and not character.pet_gone(
+                self.world_adapter.world.ticks
+            ):
+                sprite = PET_SPRITES[character.pet_kind]
+                self._paste(
+                    str(SPRITE_FOLDER / "Actors" / sprite),
+                    width // 2 + 1,
+                    height - 2,
+                    image,
+                )
         size = (image.width * HIDEOUT_SCALE, image.height * HIDEOUT_SCALE)
         return _png(image.resize(size, Image.Resampling.NEAREST))
 
