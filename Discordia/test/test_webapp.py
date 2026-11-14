@@ -881,6 +881,9 @@ def test_the_dashboard_is_the_bot_owners_alone():
             status == 200 and 'id="charts"' in page and asked == [0]
         ), "asks about the logged-in member"
 
+        ann = adapter.world.players[0]
+        ann.money = Actors.PET_PRICE
+        ann.adopt_pet("Bodo", adapter.world.ticks, kind="dog")
         for tick in range(3):
             adapter.world.ticks = tick
             adapter.record_tick(
@@ -893,6 +896,7 @@ def test_the_dashboard_is_the_bot_owners_alone():
             and data["samples"][0]["messages"] == 2
         )
         assert "memory_mb" in data["samples"][0]
+        assert (data["samples"][0]["dogs"], data["samples"][0]["goats"]) == (1, 0)
         assert data["players"][0]["name"] == "Ann" and data["today"]["active"] == 0
         assert [
             s["tick"] for s in json.loads(request("/admin.json?since=1")[2])["samples"]

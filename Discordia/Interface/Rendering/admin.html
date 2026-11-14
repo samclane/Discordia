@@ -75,6 +75,7 @@ const CHARTS = [
   { title: "Messages the bot sent (DMs, posts)", series: [["messages", "messages"]], agg: "sum" },
   { title: "Slowest tick (ms)", series: [["seconds", "ms"]], agg: "max", scale: 1000 },
   { title: "NPCs awake", series: [["npcs", "NPCs"]], agg: "last" },
+  { title: "Pets kept", series: [["goats", "goats"], ["dogs", "dogs"]], agg: "last" },
   { title: "Chunks explored", series: [["chunks", "chunks"]], agg: "last" },
   { title: "Memory (MB)", series: [["memory_mb", "MB"]], agg: "max" }, // read on Linux only: blank elsewhere
 ];

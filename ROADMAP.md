@@ -38,7 +38,8 @@ existing things to it when an item touches them anyway, not as a sweep.
 ## Extraction idle loop (the core)
 
 - [ ] Pets, more kinds by role (a donkey that carries more?), once the goat and the dog show what players use.
-  (blocked: waits on players having had the goat and the dog a while; nothing records which they adopt yet)
+  (blocked: waits on players having had the goat and the dog a while; `/admin` charts pets kept by kind since
+  2026-11-14, read it there)
 - [x] Make the hideout more expensive (asked 2026-11-05). Level 1 is `HIDEOUT_COST` $1000, about 8 hours of what
   it pays, and each after `HIDEOUT_GROWTH` x1.15.
 
@@ -276,3 +277,5 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-14 Walled compounds: `data/structures.json` templates stamped one to a chunk at `COMPOUND_CHANCE`, mud
   walls nothing walks through (`WallTerrain`, the first such ground) round a ruins yard. Gates and open corners
   keep greedy walkers moving; only the wilds under a wall went from saved maps.
+- 2026-11-14 Pets kept by kind on `/admin`: each tick's row counts the goats and dogs players keep (run-off ones
+  not), a "Pets kept" chart, so the pets item can read which roles players pay for. Blocked items otherwise all wait.

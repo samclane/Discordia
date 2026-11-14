@@ -225,6 +225,11 @@ class WorldAdapter:
     def record_tick(self, **measures: float):
         """One row of the dashboard: what the bot measured this tick, and how big the world is after it."""
         world = self.world
+        # Pets kept, by kind: which roles players pay for, before adding more kinds (ROADMAP).
+        pets = {f"{kind}s": 0 for kind in Actors.PET_KINDS}
+        for p in world.players:
+            if p.pet_name is not None and not p.pet_gone(world.ticks):
+                pets[f"{p.pet_kind}s"] += 1
         self._samples.append(
             {
                 "at": round(time.time(), 1),
@@ -233,6 +238,7 @@ class WorldAdapter:
                 "npcs": len(world.npcs),
                 "chunks": len(world.loaded_chunks()),
                 "memory_mb": memory_mb(),  # with chunks: when it's time to evict some (ROADMAP)
+                **pets,
                 **measures,
             }
         )
