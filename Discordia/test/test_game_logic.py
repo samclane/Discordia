@@ -629,7 +629,7 @@ def test_a_minecraft_sized_world_only_generates_where_somebody_goes():
 
 def test_terrain_covers_the_shares_it_was_tuned_for():
     """The thresholds were set on tcod's Simplex noise to give the mix the old pnoise3 maps had: water 18%, grass 29%,
-    mountains 3%, ruins and plazas 5% each, the rest paving."""
+    mountains 3%, ruins and plazas 5% each, the rest paving. Roads then took 3% from all of those but mountains."""
     kinds, n = Counter(), 0
     for seed in range(3):
         world = GameSpace.World("Mix", 384, 384, seed=seed)
@@ -643,6 +643,7 @@ def test_terrain_covers_the_shares_it_was_tuned_for():
     share = {kind: 100 * count / n for kind, count in kinds.items()}
     assert 13 < share["WaterTerrain"] < 24 and 23 < share["GrassTerrain"] < 35, share
     assert 1 < share["MountainTerrain"] < 6 and 3 < share["RuinsTerrain"] < 8 and 3 < share["PlazaTerrain"] < 8, share
+    assert 1.5 < share["RoadTerrain"] + share["BridgeTerrain"] < 5, share
 
 
 def test_generating_a_chunk_leaves_the_game_dice_alone():
@@ -1981,7 +1982,7 @@ def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_r
     adapter.register_player(2, "Pal")
     adapter.get_player(2).location = world.space_at(corner.x + 1, corner.y)
     text = adapter.look_text(player)
-    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops", "ruins", "plaza")
+    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops", "ruins", "plaza", "road", "bridge", "wall")
     danger = corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
     assert f"danger {danger}." in text.splitlines()[0]
     assert text.endswith("In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east.")
@@ -2033,6 +2034,100 @@ def test_ruins_and_plazas_are_paving_that_moved_nothing_on_the_map(monkeypatch):
     assert GameSpace.RuinsTerrain().buildable and GameSpace.PlazaTerrain().walkable
     monkeypatch.setattr(GameSpace, "DISTRICT_LEVEL", 2.0)  # noise never gets there: the map as it was before them
     assert _layout(world()) == _layout(with_districts)  # same towns, wilds, caches and exits, square for square
+
+
+def test_roads_cross_the_map_and_moved_nothing_on_it(monkeypatch):
+    monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 0)  # a compound is built across any road in its way
+
+    def world():
+        w = GameSpace.World("Roads", 192, 192, seed=4)
+        for x in range(0, 192, GameSpace.CHUNK_SIZE):
+            for y in range(0, 192, GameSpace.CHUNK_SIZE):
+                w.space_at(x, y)
+        return w
+
+    with_roads = world()
+    terrain = {(s.x, s.y): s.terrain for c in with_roads.loaded_chunks() for row in with_roads.loaded_chunk(*c) or [] for s in row}
+    roads = [at for at, t in terrain.items() if isinstance(t, GameSpace.RoadTerrain)]
+    assert any(type(terrain[at]) is GameSpace.BridgeTerrain for at in roads)  # over a canal
+    assert GameSpace.RoadTerrain().buildable and not GameSpace.BridgeTerrain().buildable
+    # A road never dead-ends, chunk seams included: only rooftops and the map's edge stop one.
+    for x, y in roads:
+        around = [terrain.get((x + dx, y + dy)) for dx, dy in GameSpace.NEIGHBOURS]
+        if None not in around and not any(isinstance(t, GameSpace.MountainTerrain) for t in around):
+            assert sum(isinstance(t, GameSpace.RoadTerrain) for t in around) >= 2, (x, y)
+    monkeypatch.setattr(GameSpace, "ROAD_SCALE", float("inf"))  # one noise value everywhere: the map before roads
+    without = world()
+    assert not any(isinstance(without.space_at(*at).terrain, GameSpace.RoadTerrain) for at in roads)
+    assert _layout(without) == _layout(with_roads)  # same towns, wilds, caches and exits, square for square
+
+
+def _walls(world):
+    return [s for c in world.loaded_chunks() for row in world.loaded_chunk(*c) or [] for s in row
+            if isinstance(s.terrain, GameSpace.WallTerrain)]
+
+
+def test_structures_wall_in_a_yard_and_moved_nothing_but_the_wilds_under_them(monkeypatch):
+    size = GameSpace.CHUNK_SIZE
+
+    def world():
+        w = GameSpace.World("Compounds", 192, 192, seed=4)
+        for x in range(0, 192, size):
+            for y in range(0, 192, size):
+                w.space_at(x, y)
+        return w
+
+    built = world()
+    walls = _walls(built)
+    assert walls and all(type(wall) is GameSpace.Space for wall in walls)  # nothing is ever walled in
+    assert all(0 < wall.x % size < size - 1 and 0 < wall.y % size < size - 1 for wall in walls)  # whole in a chunk
+    wall = walls[0]
+    assert not built.is_coords_valid(wall.x, wall.y) and "wall" == wall.terrain.label
+    raider = Actors.Raider(built, 50, "Climber")
+    built.add_actor(raider, next(s for s in built.get_adjacent_spaces(wall) if built.is_space_valid(s)))
+    start = raider.location
+    assert raider.attempt_move((wall.x - start.x, wall.y - start.y))[0].failed and raider.location is start
+    yards = [s for wall in walls for s in built.get_adjacent_spaces(wall) if isinstance(s.terrain, GameSpace.RuinsTerrain)]
+    assert yards  # cover, behind the walls
+
+    monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 0)
+    bare = world()
+    assert not _walls(bare)
+    assert _layout(built) == [(kind, x, y) for kind, x, y in _layout(bare) if built.is_coords_valid(x, y)]
+
+
+def test_a_greedy_walker_gets_through_every_structure(monkeypatch):
+    """Nothing that walks plans a route (Actor.step), so a structure must leave a closer step open whichever way a
+    walker comes at it and wherever it is going: or raiders pile up on a wall and a /raid never comes home."""
+    monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 1)
+    size = GameSpace.CHUNK_SIZE
+    for plan in GameSpace.STRUCTURES:
+        monkeypatch.setattr(GameSpace, "STRUCTURES", [plan])
+        world = GameSpace.World("Walls", 5 * size, 5 * size, seed=3)
+        for cx, cy in product(range(5), repeat=2):
+            world.space_at(cx * size, cy * size)
+        chunk = next(rows for cx, cy in product(range(1, 4), repeat=2) if _walls_in(rows := world.loaded_chunk(cx, cy)))
+        walls = _walls_in(chunk)
+        x0, y0 = min(w.x for w in walls), min(w.y for w in walls)
+        x1, y1 = x0 + len(plan[0]), y0 + len(plan)
+        walker = Actors.Raider(world, 50, "Walker")
+        world.add_actor(walker, world.space_at(x0 - 1, y0 - 1))
+        box = [world.space_at(x, y) for x in range(x0 - 2, x1 + 2) for y in range(y0 - 2, y1 + 2)]
+        far = [world.space_at(x, y) for x in range(x0 - 10, x1 + 10) for y in range(y0 - 10, y1 + 10)
+               if x in (x0 - 10, x1 + 9) or y in (y0 - 10, y1 + 9)]
+        for start in box:
+            for goal in box + far:
+                if not (world.is_space_valid(start) and world.is_space_valid(goal)):
+                    continue
+                walker.location = start
+                for _ in range(2 * size):
+                    if walker.location == goal or not walker.step(goal):
+                        break
+                assert walker.location == goal, (plan, start, goal, walker.location)
+
+
+def _walls_in(rows):
+    return [s for row in rows or [] for s in row if isinstance(s.terrain, GameSpace.WallTerrain)]
 
 
 def test_ruins_hide_you_from_raiders_and_a_plaza_shows_you_from_twice_as_far(adapter):

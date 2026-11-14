@@ -6,7 +6,7 @@ Discord extraction idle game: a persistent 2D tile world (simplex-noise terrain,
 
 ```
 python main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or config.ini [Discord] Token
-python -m pytest Discordia/test -q                     # 366 tests, ~40s, no token needed
+python -m pytest Discordia/test -q                     # 369 tests, ~40s, no token needed
 ```
 
 CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
@@ -18,7 +18,12 @@ CI runs `pytest -q` on push (`.github/workflows`). Keep it green.
     The map is generated lazily in `CHUNK_SIZE` chunks, deterministic per (seed, chunk): reach squares through
     `world.space_at(x, y)`, never a grid. `world.towns`/`wilds` hold loaded chunks only. Wilds roll their events on
     first visit. NPCs only act within `NPC_AWAKE_RADIUS` (a chunk) of a player and never step into
-    an unloaded chunk: only players explore.
+    an unloaded chunk: only players explore. Roads are where a noise layer changes sign (`ROAD_SCALE`), a
+    one-square line that crosses chunks for free. New terrain must not change which squares are `buildable`, or
+    every town and wilds on a saved map moves (`RoadTerrain`/`BridgeTerrain` show how). Structures bigger than a
+    square (walled compounds) are stamped per chunk from `data/structures.json` (`World._structure`); their
+    `WallTerrain` is the only ground nothing walks on, and since every walker is greedy (`Actor.step`) a new
+    template must pass `test_a_greedy_walker_gets_through_every_structure`.
   - `Actors.py` Actor -> NPC/Raider/Warlord and PlayerCharacter; PlayerClass (Wanderer/Soldier/Raider).
     Endgame: a `Warlord` boss holds each `WILDS_MAX_LEVEL` cache (`World._post_warlords`) and alone drops
     `BOSS_LOOT`; hideout levels open `HIDEOUT_PERKS` rooms, read where they apply via `has_perk`.

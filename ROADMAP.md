@@ -117,6 +117,7 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - [ ] NPC chase via `tcod.path` (a Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go if `AStarPathfinder` moves over too. Only if
   stuck NPCs show up in play or the simulator. (blocked: tcod is in now; waits on stuck NPCs showing up)
+  Walls (2026-11-14) make this the gate on structure shapes: until it lands, no closed rings and no one-door houses.
 
 ## Done
 
@@ -270,3 +271,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-11 `mean armor worn` 0.03 -> 0 at ab39a16: the armor fix, not warlords (none posted in 10 seeds x 2000) or
   noise. Both runs find and wear two pieces; with heal-on-hit patched back in, HEAD's two 6B45 wearers live and it
   reads 0.03 again. Before, 70% of a raider's 2-point hits on a 6B45 (blocks 10) healed 8, so its wearers never died.
+- 2026-11-14 Roads: asphalt one square wide where a fifth noise layer changes sign (`ROAD_SCALE`), bridges over
+  canals; never dead-end, moved nothing on saved maps. Looks only so far. 10 seeds x 2000: within noise.
+- 2026-11-14 Walled compounds: `data/structures.json` templates stamped one to a chunk at `COMPOUND_CHANCE`, mud
+  walls nothing walks through (`WallTerrain`, the first such ground) round a ruins yard. Gates and open corners
+  keep greedy walkers moving; only the wilds under a wall went from saved maps.

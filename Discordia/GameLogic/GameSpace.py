@@ -141,6 +141,20 @@ NPC_AWAKE_RADIUS = CHUNK_SIZE
 # plaza (exposed): see RuinsTerrain and PlazaTerrain.
 DISTRICT_LEVEL = 0.655
 
+# Roads run where a fifth noise layer changes sign: a line one square wide that never dead-ends (it closes on
+# itself or runs off the map). ROAD_SCALE is squares per unit of that noise: bigger is longer, straighter roads
+# further apart.
+ROAD_SCALE = 40
+
+# Structures: more than a square each, stamped whole from data/structures.json: '#' is wall, which nothing walks
+# through, '.' is yard, which is ruins (cover), and a space leaves the ground as it was. A chunk rolls
+# COMPOUND_CHANCE for one, and it lands a square or more inside the chunk's edge, so none straddles two chunks.
+# ponytail: everything that walks is greedy (Actor.step), so a template has to leave a closer step open from any
+# side: runs of wall two long at most, corners and mid-sides open. A closed ring strands walkers for good
+# (test_a_greedy_walker_gets_through_every_structure). Real pathfinding (tcod.path, in ROADMAP) lifts that.
+COMPOUND_CHANCE = 0.25
+STRUCTURES: List[List[str]] = [block["rows"] for block in Data.load(Data.DATA_FOLDER / "structures.json").values()]
+
 
 # How far a raider spots a player from, in squares either way. Further than /look's 2, so the first a
 # player knows of one is its warning, while there's still room to run.
@@ -283,6 +297,49 @@ class PlazaTerrain(SandTerrain):
     @property
     def name(self) -> str:
         return "plaza"
+
+
+class RoadTerrain(SandTerrain):
+    """Asphalt through whatever was there. Paving in every way but its looks, so like ruins and plazas it moved
+    nothing on any saved map."""
+
+    label = "road"
+
+    @property
+    def name(self) -> str:
+        return "road"
+
+
+class BridgeTerrain(RoadTerrain):
+    """A road where it crosses a canal. No more buildable than the water under it, for the same reason."""
+
+    label = "bridge"
+
+    @property
+    def buildable(self) -> bool:
+        return False
+
+
+class WallTerrain(Terrain):
+    """A structure's wall (World._structure): the one terrain nothing walks on."""
+
+    label = "wall"
+
+    @property
+    def walkable(self) -> bool:
+        return False
+
+    @property
+    def name(self) -> str:
+        return "wall"
+
+    @property
+    def buildable(self) -> bool:
+        return False
+
+    @property
+    def layer(self) -> int:
+        return 2
 
 
 class GrassTerrain(Terrain):
@@ -853,7 +910,7 @@ class World:
                 implementation=tcod.noise.Implementation.SIMPLE,
                 seed=random.Random(f"{self.seed}:{layer}").getrandbits(31),
             )
-            for layer in ("water", "mountains", "grass", "districts")
+            for layer in ("water", "mountains", "grass", "districts", "roads")
         }
         self._choose_spawn()
 
@@ -904,6 +961,16 @@ class World:
         water, mountains, grass, district = (
             self._noise[layer][gx, gy] for layer in ("water", "mountains", "grass", "districts")
         )
+        # One square further east and south than the block: a road is a square whose neighbour that way is on
+        # the other side of zero.
+        side = (
+            self._noise["roads"][
+                np.arange(xs.start, xs.stop + 1)[:, None] / ROAD_SCALE,
+                np.arange(ys.start, ys.stop + 1)[None, :] / ROAD_SCALE,
+            ]
+            > 0
+        )
+        road = (side[:-1, :-1] != side[1:, :-1]) | (side[:-1, :-1] != side[:-1, 1:])
         params = self.gen_params
         block: Dict[Tuple[int, int], Terrain] = {}
         for i, x in enumerate(xs):
@@ -918,6 +985,11 @@ class World:
                         terrain = RuinsTerrain()
                     elif district[i, j] < -DISTRICT_LEVEL:
                         terrain = PlazaTerrain()
+                if road[i, j]:
+                    if terrain.buildable:
+                        terrain = RoadTerrain()
+                    elif isinstance(terrain, WaterTerrain):
+                        terrain = BridgeTerrain()
                 block[x, y] = terrain
         return block
 
@@ -996,13 +1068,33 @@ class World:
         x, y = spot.x % CHUNK_SIZE, spot.y % CHUNK_SIZE
         rows[y][x] = Cache(spot.x, spot.y, spot.terrain)
 
+    def _structure(self, cx: int, cy: int) -> Dict[Tuple[int, int], Terrain]:
+        """The walls and yard of this chunk's structure, by square: empty for most chunks (see COMPOUND_CHANCE)."""
+        # Never in the chunk a cache or an extraction point may land in: both choose among the chunk's open
+        # squares, so a wall there would move them on a saved map.
+        if any(self._cell_picked(cx, cy, kind, 1) for kind in ("cache", "extract")):
+            return {}
+        with _seeded(self.seed, cx, cy, "structure"):
+            if random.random() >= COMPOUND_CHANCE:
+                return {}
+            plan = random.choice(STRUCTURES)
+            x0 = cx * CHUNK_SIZE + random.randint(1, CHUNK_SIZE - len(plan[0]) - 1)
+            y0 = cy * CHUNK_SIZE + random.randint(1, CHUNK_SIZE - len(plan) - 1)
+        return {
+            (x0 + i, y0 + j): WallTerrain() if mark == "#" else RuinsTerrain()
+            for j, line in enumerate(plan)
+            for i, mark in enumerate(line)
+            if mark != " "
+        }
+
     def _roll_chunk(self, cx: int, cy: int) -> List[List[Space]]:
         """A chunk's squares, towns and wilds. No side effects: the same chunk comes out every call."""
         x0, y0 = cx * CHUNK_SIZE, cy * CHUNK_SIZE
         xs = range(x0, min(x0 + CHUNK_SIZE, self.width))
         ys = range(y0, min(y0 + CHUNK_SIZE, self.height))
         # A square of margin: edges look at neighbours, and those can be in the next chunk over.
-        terrain = self._terrain_block(range(xs.start - 1, xs.stop + 1), range(ys.start - 1, ys.stop + 1))
+        ground = self._terrain_block(range(xs.start - 1, xs.stop + 1), range(ys.start - 1, ys.stop + 1))
+        terrain = {**ground, **self._structure(cx, cy)}
 
         rows: List[List[Space]] = []
         with _seeded(self.seed, cx, cy):
@@ -1010,14 +1102,9 @@ class World:
                 row: List[Space] = []
                 for x in xs:
                     here = terrain[x, y]
-                    here.neighbours = sum(
-                        1 << bit
-                        for bit, (dx, dy) in enumerate(NEIGHBOURS)
-                        if terrain[x + dx, y + dy].name == here.name
-                    )
-
                     space: Space = Space(x, y, here)
-                    if here.buildable:
+                    # Rolled on the ground under any structure, so building one moves no town or wilds elsewhere.
+                    if ground[x, y].buildable:
                         if random.random() <= self.gen_params.towns:
                             space = Town.generate_town(x, y, terrain=here)
                         elif random.random() <= self.gen_params.wilds:
@@ -1025,8 +1112,20 @@ class World:
                             space = Wilds(
                                 x, y, WildsNameGenerator.generate_name(), here
                             )
+                        if not here.walkable:
+                            if isinstance(space, Town):  # a town outranks a wall: it stays, as a breach
+                                space.terrain = terrain[x, y] = ground[x, y]
+                            else:  # wilds under a wall are gone
+                                space = Space(x, y, here)
                     row.append(space)
                 rows.append(row)
+        for row in rows:
+            for space in row:
+                space.terrain.neighbours = sum(
+                    1 << bit
+                    for bit, (dx, dy) in enumerate(NEIGHBOURS)
+                    if terrain[space.x + dx, space.y + dy].name == space.terrain.name
+                )
         return rows
 
     def _populate_chunk(self, cx: int, cy: int):

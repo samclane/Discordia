@@ -30,6 +30,8 @@ GROUND = 117
 # Top-left tile of each terrain's block in the sheet. Every block has the same layout: a 3x3 of corners,
 # edges and middle at columns 0-2, and inside corners at columns 5-6 of the top two rows.
 BLOCKS = {"water": 170, "grass": 0, "mountain": 81, "ruins": 8, "plaza": 89}
+# Terrain that is one tile whatever is around it: asphalt and mud brick have no kerbed block in the sheet.
+FLAT = {"road": 441, "wall": 180}
 # Pixels a square in the zoomed-out overview: still reads as coast and towns, at a tenth of the bytes.
 MINI_TILE = 2
 # The hideout: a walled room sliced from one of the sheet's 3x3 blocks, a square wider per level, with the
@@ -121,6 +123,8 @@ class Renderer:
         sides and the corner the same terrain is middle, both sides but not the corner an inside corner,
         one side an edge, neither an outside corner. None for terrain drawn as bare ground.
         """
+        if name in FLAT:
+            return self._sheet_tile(FLAT[name])
         if name not in BLOCKS:
             return None
         block = BLOCKS[name]

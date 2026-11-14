@@ -62,7 +62,7 @@ ME_HTML = Path(__file__).with_name("me.html")
 ADMIN_HTML = Path(__file__).with_name("admin.html")  # the bot owner's dashboard
 SPRITES_ROOT = SPRITE_FOLDER.resolve()
 # Bump when the sprites change, or browsers keep revalidating the old art against an unchanged ETag.
-ART_VERSION = 8
+ART_VERSION = 9
 ADMIN_ROUTE = re.compile(r"/admin/(\d+)")  # a Discord server's settings, for its admins
 ORDER_SECONDS = 30  # how long /act waits for a tick
 DISCORD_SECONDS = 10  # how long the admin pages wait on Discord
