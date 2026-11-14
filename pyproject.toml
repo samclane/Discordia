@@ -11,4 +11,18 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "black>=26.10.1",
+    "poethepoet>=0.49.0",
+    "pytest",
+]
+
+# `uv run poe <task>` (or plain `poe` after `uv tool install poethepoet`); extra args are passed on.
+[tool.poe.tasks]
+bot = "python main.py -W 8080"
+test = "pytest -q"
+fmt = "black ."
+sim = "python -m Discordia.test.test_simulation --seeds 10"
+server-sim = "python -m Discordia.test.test_server_simulation"
+history = "python -m Discordia.test.sim_history"
+sims = ["sim", "server-sim", "history"]

@@ -9,7 +9,8 @@ uv run main.py [-W 8080] [--database discordia.db]   # needs DISCORD_TOKEN or co
 uv run pytest -q                                       # 369 tests, ~40s, no token needed
 ```
 
-Dependencies live in `pyproject.toml` + `uv.lock` (`uv add <pkg>`). CI runs `uv run pytest -q` on push (`.github/workflows`). Keep it green.
+Shortcuts: `uv run poe <task>` (`bot`, `test`, `fmt`, `sims`, ...; `[tool.poe.tasks]` in `pyproject.toml`, extra
+args pass through). Dependencies live in `pyproject.toml` + `uv.lock` (`uv add <pkg>`). CI runs `uv run pytest -q` on push (`.github/workflows`). Keep it green.
 
 ## Layout
 
