@@ -35,7 +35,16 @@ BROWSERS = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ]
-BROWSER = next((p for p in (shutil.which(b) or (b if os.path.isfile(b) else None) for b in BROWSERS) if p), None)
+BROWSER = next(
+    (
+        p
+        for p in (
+            shutil.which(b) or (b if os.path.isfile(b) else None) for b in BROWSERS
+        )
+        if p
+    ),
+    None,
+)
 pytestmark = pytest.mark.skipif(BROWSER is None, reason="no Chrome or Edge to drive")
 
 # Under 700px wide the sidebar folds away, and 600x400 fits the whole 8x8-chunk world at about 1.5 screen
@@ -63,10 +72,14 @@ class Page:
         call_id = self._id
 
         async def call():
-            await self._ws.send_json({"id": call_id, "method": method, "params": params})
+            await self._ws.send_json(
+                {"id": call_id, "method": method, "params": params}
+            )
             async for message in self._ws:
                 data = json.loads(message.data)
-                if data.get("id") == call_id:  # events in between are dropped: nothing here listens
+                if (
+                    data.get("id") == call_id
+                ):  # events in between are dropped: nothing here listens
                     if "error" in data:
                         raise RuntimeError(f"{method}: {data['error']}")
                     return data["result"]
@@ -75,7 +88,12 @@ class Page:
         return self._run(asyncio.wait_for(call(), 30))
 
     def js(self, expression: str):
-        result = self.send("Runtime.evaluate", expression=expression, awaitPromise=True, returnByValue=True)
+        result = self.send(
+            "Runtime.evaluate",
+            expression=expression,
+            awaitPromise=True,
+            returnByValue=True,
+        )
         if "exceptionDetails" in result:
             raise AssertionError(result["exceptionDetails"])
         return result["result"].get("value")
@@ -108,7 +126,9 @@ class Page:
 def adapter():
     world = GameSpace.World("Webland", 256, 256, seed=7)
     size = GameSpace.CHUNK_SIZE
-    for y in range(0, world.height, size):  # explore all of it, so a fit view is wide and far out
+    for y in range(
+        0, world.height, size
+    ):  # explore all of it, so a fit view is wide and far out
         for x in range(0, world.width, size):
             world.space_at(x, y)
     return WorldAdapter(world)
@@ -124,12 +144,25 @@ def base_url(adapter):
 @pytest.fixture(scope="module")
 def browser():
     profile = tempfile.mkdtemp()
-    args = [BROWSER, "--headless=new", "--remote-debugging-port=0", f"--user-data-dir={profile}",
-            "--no-first-run", "--no-default-browser-check", "about:blank"]
+    args = [
+        BROWSER,
+        "--headless=new",
+        "--remote-debugging-port=0",
+        f"--user-data-dir={profile}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "about:blank",
+    ]
     if sys.platform.startswith("linux"):
-        args.append("--no-sandbox")  # CI runners forbid the user namespaces Chrome's sandbox wants
-    process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    port_file = Path(profile) / "DevToolsActivePort"  # where port 0 tells us the port it picked
+        args.append(
+            "--no-sandbox"
+        )  # CI runners forbid the user namespaces Chrome's sandbox wants
+    process = subprocess.Popen(
+        args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    port_file = (
+        Path(profile) / "DevToolsActivePort"
+    )  # where port 0 tells us the port it picked
     deadline = time.time() + 20
     while not (port_file.exists() and port_file.read_text().strip()):
         assert time.time() < deadline, "browser never opened its debugging port"
@@ -138,7 +171,10 @@ def browser():
     targets = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
     page = Page(next(t for t in targets if t["type"] == "page")["webSocketDebuggerUrl"])
     # The default 250-entry buffer would fill with chunk images before the tests looked.
-    page.send("Page.addScriptToEvaluateOnNewDocument", source="performance.setResourceTimingBufferSize(100000)")
+    page.send(
+        "Page.addScriptToEvaluateOnNewDocument",
+        source="performance.setResourceTimingBufferSize(100000)",
+    )
     yield page
     page.send("Browser.close")
     page.close()
@@ -150,9 +186,17 @@ def browser():
 def page(browser, base_url, request):
     """The map, freshly loaded and fitted, with every chunk image in view finished loading."""
     dpr = getattr(request, "param", 1)
-    browser.send("Emulation.setDeviceMetricsOverride", width=WIDTH, height=HEIGHT, deviceScaleFactor=dpr, mobile=False)
+    browser.send(
+        "Emulation.setDeviceMetricsOverride",
+        width=WIDTH,
+        height=HEIGHT,
+        deviceScaleFactor=dpr,
+        mobile=False,
+    )
     browser.send("Network.clearBrowserCache")  # each test sees a first visit
-    browser.send("Network.setCookie", name="session", value=SESSION, url=base_url)  # past the gate
+    browser.send(
+        "Network.setCookie", name="session", value=SESSION, url=base_url
+    )  # past the gate
     browser.send("Page.navigate", url=base_url + "/map")
     assert browser.wait_for(
         "typeof chunkEls !== 'undefined' && chunkEls.size > 0 && [...chunkEls.values()].every((i) => i.complete)"
@@ -161,21 +205,29 @@ def page(browser, base_url, request):
 
 
 def chunk_kinds(page) -> set:
-    return set(page.js("[...chunkEls.values()].map((el) => el.getAttribute('src').split('.').slice(1).join('.'))"))
+    return set(
+        page.js(
+            "[...chunkEls.values()].map((el) => el.getAttribute('src').split('.').slice(1).join('.'))"
+        )
+    )
 
 
 def test_zoomed_out_load_fetches_overviews_and_no_chunk_descriptions(page):
     """Full chunks at a fit view were 34 KB each, and their JSON came along whether anyone hovered or not."""
     assert page.js("2 ** map.getZoom()") < 4  # pixels a square
     assert len(page.fetched(r"\/chunk\/\d+\/\d+\.mini\.png")) == 64
-    assert page.fetched(r"\/chunk\/\d+\/\d+\.png$") == []  # not even before the fit landed
+    assert (
+        page.fetched(r"\/chunk\/\d+\/\d+\.png$") == []
+    )  # not even before the fit landed
     assert page.fetched(r"\/chunk\/.*\.json") == []
 
 
 def test_zooming_in_swaps_overviews_for_full_chunks(page):
     assert chunk_kinds(page) == {"mini.png"}
     page.js("map.setZoom(3, { animate: false }); 0")
-    assert page.wait_for("![...chunkEls.values()].some((el) => el.src.includes('.mini.'))")
+    assert page.wait_for(
+        "![...chunkEls.values()].some((el) => el.src.includes('.mini.'))"
+    )
     assert chunk_kinds(page) == {"png"}
     page.js("fitToViewport(); 0")
     page.sleep(100)
@@ -183,35 +235,57 @@ def test_zooming_in_swaps_overviews_for_full_chunks(page):
 
 
 def test_hovering_fetches_just_that_chunks_description(page):
-    page.send("Input.dispatchMouseEvent", type="mouseMoved", x=WIDTH // 2, y=HEIGHT // 2)
-    assert page.wait_for("((t) => t && !t.includes('…'))(document.getElementById('hover').textContent)")
+    page.send(
+        "Input.dispatchMouseEvent", type="mouseMoved", x=WIDTH // 2, y=HEIGHT // 2
+    )
+    assert page.wait_for(
+        "((t) => t && !t.includes('…'))(document.getElementById('hover').textContent)"
+    )
     assert len(page.fetched(r"\/chunk\/.*\.json")) == 1
     hover = page.js("document.getElementById('hover').textContent")
-    assert re.match(r"\d+[EW] \d+[NS] ", hover) and hover.split(" ", 2)[2] not in ("", "unexplored")
+    assert re.match(r"\d+[EW] \d+[NS] ", hover) and hover.split(" ", 2)[2] not in (
+        "",
+        "unexplored",
+    )
 
 
 def test_scrolling_out_from_a_fit_does_not_zoom_in(page):
     """A fit is far out; a zoom floor above it once made the first wheel-out snap back in."""
     before = page.js("map.getZoom()")
-    page.send("Input.dispatchMouseEvent", type="mouseWheel", x=WIDTH // 2, y=HEIGHT // 2, deltaX=0, deltaY=120)
+    page.send(
+        "Input.dispatchMouseEvent",
+        type="mouseWheel",
+        x=WIDTH // 2,
+        y=HEIGHT // 2,
+        deltaX=0,
+        deltaY=120,
+    )
     page.sleep(400)
     assert page.js("map.getZoom()") < before
 
 
 def test_town_labels_hide_when_too_far_out_to_read(page):
     assert page.js("2 ** map.getZoom()") < 2
-    assert page.js("getComputedStyle(document.getElementById('labels')).display") == "none"
+    assert (
+        page.js("getComputedStyle(document.getElementById('labels')).display") == "none"
+    )
     page.js("map.setZoom(2, { animate: false }); 0")
-    assert page.js("getComputedStyle(document.getElementById('labels')).display") == "block"
-    assert page.js("document.querySelector('.label span').getBoundingClientRect().width") > 0
+    assert (
+        page.js("getComputedStyle(document.getElementById('labels')).display")
+        == "block"
+    )
+    assert (
+        page.js("document.querySelector('.label span').getBoundingClientRect().width")
+        > 0
+    )
 
 
 @pytest.mark.parametrize("page", [1, 1.25], indirect=True, ids=["dpr1", "dpr1.25"])
 def test_chunk_edges_land_on_whole_pixels_and_clicks_hit_the_drawn_square(page):
     """Edges between pixels let the background through, a faint grid over the map. Snapping what's drawn
-    mustn't move what a click picks. A drag leaves the map anywhere, not on whole pixels: so do these."""
-    bad = page.js(
-        """(async () => {
+    mustn't move what a click picks. A drag leaves the map anywhere, not on whole pixels: so do these.
+    """
+    bad = page.js("""(async () => {
           const d = devicePixelRatio, bad = [], frame = () => new Promise((r) => requestAnimationFrame(r));
           const pane = map.getPane('mapPane');
           for (const zoom of [-2, -1, 0, 1, 3, 5]) {
@@ -236,8 +310,7 @@ def test_chunk_edges_land_on_whole_pixels_and_clicks_hit_the_drawn_square(page):
             }
           }
           return bad.slice(0, 5);
-        })()"""
-    )
+        })()""")
     assert bad == []
 
 
@@ -247,11 +320,20 @@ def test_a_slow_pinch_still_zooms(page):
     x, y = WIDTH // 2, HEIGHT // 2
 
     def fingers(kind, spread):
-        points = [{"x": x - spread, "y": y, "id": 0}, {"x": x + spread, "y": y, "id": 1}]
-        page.send("Input.dispatchTouchEvent", type=kind, touchPoints=points if kind != "touchEnd" else [])
+        points = [
+            {"x": x - spread, "y": y, "id": 0},
+            {"x": x + spread, "y": y, "id": 1},
+        ]
+        page.send(
+            "Input.dispatchTouchEvent",
+            type=kind,
+            touchPoints=points if kind != "touchEnd" else [],
+        )
 
     fingers("touchStart", 40)
-    for step in range(1, 61):  # 40 -> 70 pixels apart, half a pixel at a time: 0.8 of a zoom level
+    for step in range(
+        1, 61
+    ):  # 40 -> 70 pixels apart, half a pixel at a time: 0.8 of a zoom level
         fingers("touchMove", 40 + step * 0.5)
     fingers("touchEnd", 70)
     page.sleep(400)
@@ -259,27 +341,28 @@ def test_a_slow_pinch_still_zooms(page):
 
 
 def test_a_selected_town_lists_its_residents(page):
-    page.js("const [tx, ty] = document.querySelector('#towns .row').dataset.at.split(',').map(Number); selectTile(tx, ty, false); 0")
-    assert page.wait_for("document.getElementById('info').textContent.includes(', the innkeeper: ')")
+    page.js(
+        "const [tx, ty] = document.querySelector('#towns .row').dataset.at.split(',').map(Number); selectTile(tx, ty, false); 0"
+    )
+    assert page.wait_for(
+        "document.getElementById('info').textContent.includes(', the innkeeper: ')"
+    )
 
 
 def test_clicking_a_name_in_the_info_panel_picks_that_actor_out_of_a_crowd(page):
-    result = page.js(
-        """(() => {
+    result = page.js("""(() => {
           const { x, y } = world.spawn;
           const npc = (id, name) => ({ id, kind: 'npc', name, x, y, hp: 5, hp_max: 10, sprite: '' });
           actors = [npc('npc:1', 'Deserter'), npc('npc:2', 'Bandit')];  // until the next poll, in 2s
           selectTile(x, y, false);
           document.querySelector('#info [data-actor="npc:2"]').click();
           return { selected, follow, marked: actorEls.get('npc:2').getElement().classList.contains('selected') };
-        })()"""
-    )
+        })()""")
     assert result == {"selected": {"actor": "npc:2"}, "follow": True, "marked": True}
 
 
 def test_the_info_panel_keeps_earlier_picks_above_the_live_one_and_scrolls_to_it(page):
-    result = page.js(
-        """(() => {
+    result = page.js("""(() => {
           const { x, y } = world.spawn;
           for (let i = 0; i < 60; i++) selectTile(x + i, y, false);
           selectTile(x + 59, y, false);  // the same square again adds nothing
@@ -291,17 +374,17 @@ def test_the_info_panel_keeps_earlier_picks_above_the_live_one_and_scrolls_to_it
             bottom: info.scrollHeight - info.scrollTop - info.clientHeight,
             scrolls: info.scrollHeight > info.clientHeight,
           };
-        })()"""
-    )
+        })()""")
     assert result["count"] == 51  # INFO_LOG old ones and the live one
-    assert "9E 0N" in result["first"] and "59E 0N" in result["last"]  # squares east of the spawn
+    assert (
+        "9E 0N" in result["first"] and "59E 0N" in result["last"]
+    )  # squares east of the spawn
     assert result["old"] and result["scrolls"] and result["bottom"] < 2
 
 
 def test_selecting_moves_the_highlight_without_rebuilding_the_town_list(page):
     """Rebuilding a thousand rows on every click took 40ms."""
-    result = page.js(
-        """(() => {
+    result = page.js("""(() => {
           const rows = [...document.querySelectorAll('#towns .row')];
           const [a, b] = rows;
           const [ax, ay] = a.dataset.at.split(',').map(Number);
@@ -313,23 +396,30 @@ def test_selecting_moves_the_highlight_without_rebuilding_the_town_list(page):
           clearSelection();
           const cleared = rows.filter((r) => r.classList.contains('selected')).length;
           return { first, second, cleared, a: a.dataset.at, b: b.dataset.at, kept: rows.every((r) => r.isConnected) };
-        })()"""
-    )
+        })()""")
     assert result["first"] == [result["a"]] and result["second"] == [result["b"]]
     assert result["cleared"] == 0
     assert result["kept"]  # the same elements, restyled, not replaced
 
 
 def test_a_background_tab_stops_polling(page):
-    page.js("performance.clearResourceTimings(); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); pollActors(); pollExplored(); 0")
+    page.js(
+        "performance.clearResourceTimings(); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); pollActors(); pollExplored(); 0"
+    )
     page.sleep(300)
     assert page.fetched(r"(actors|explored)\.json") == []
 
-    page.js("delete document.hidden; pollActors(); 0")  # the control: visible, it does fetch
-    assert page.wait_for("performance.getEntriesByType('resource').some((e) => e.name.endsWith('/actors.json'))")
+    page.js(
+        "delete document.hidden; pollActors(); 0"
+    )  # the control: visible, it does fetch
+    assert page.wait_for(
+        "performance.getEntriesByType('resource').some((e) => e.name.endsWith('/actors.json'))"
+    )
 
 
-@pytest.mark.parametrize("route, poll", [("explored", "pollExplored"), ("actors", "pollActors")])
+@pytest.mark.parametrize(
+    "route, poll", [("explored", "pollExplored"), ("actors", "pollActors")]
+)
 def test_polls_revalidate_instead_of_redownloading(page, monkeypatch, route, poll):
     """Nothing changes in this world, so after the page's first poll each one should be an empty 304."""
     codes = []
@@ -353,12 +443,19 @@ def test_polls_revalidate_instead_of_redownloading(page, monkeypatch, route, pol
 def test_a_weblogin_link_opens_the_map_on_your_own_character(page, adapter, base_url):
     adapter.register_player(99, "Browser")
     try:
-        page.send("Page.navigate", url=f"{base_url}/login?t={adapter.web_logins.new_link_token(99)}")
+        page.send(
+            "Page.navigate",
+            url=f"{base_url}/login?t={adapter.web_logins.new_link_token(99)}",
+        )
         assert page.wait_for("document.querySelector('form button')")
         page.js("document.querySelector('form button').click()")
-        for _ in range(50):  # script run mid-navigation fails outright, rather than waiting for the next page
+        for _ in range(
+            50
+        ):  # script run mid-navigation fails outright, rather than waiting for the next page
             try:
-                if page.js("location.pathname === '/map' && document.readyState === 'complete'"):
+                if page.js(
+                    "location.pathname === '/map' && document.readyState === 'complete'"
+                ):
                     break
             except RuntimeError:
                 pass
@@ -367,7 +464,9 @@ def test_a_weblogin_link_opens_the_map_on_your_own_character(page, adapter, base
         assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Browser'")
         assert page.wait_for("selected?.actor === me.id && follow")
         assert "Browser" in page.js("document.getElementById('you').textContent")
-        assert page.wait_for("actorEls.get(me.id)?.getElement().classList.contains('me')")
+        assert page.wait_for(
+            "actorEls.get(me.id)?.getElement().classList.contains('me')"
+        )
     finally:
         page.send("Network.clearBrowserCookies")
         adapter._discord_player_map.pop(99)  # the other tests' map has no players on it
@@ -391,15 +490,21 @@ def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
     adapter.register_player(97, "Pilot")
     orders = []
     swing = GameSpace.PlayerActionResponse(text="You swing at nothing.")
-    adapter.place_order = answers(lambda character, _action: orders.append(character.name) or swing)
+    adapter.place_order = answers(
+        lambda character, _action: orders.append(character.name) or swing
+    )
     try:
         session = LOGINS.redeem(LOGINS.new_link_token(97))
         page.send("Network.setCookie", name="session", value=session, url=base_url)
         page.send("Page.navigate", url=base_url + "/map")
-        assert page.wait_for("typeof me !== 'undefined' && me?.name === 'Pilot' && !play.hidden")
+        assert page.wait_for(
+            "typeof me !== 'undefined' && me?.name === 'Pilot' && !play.hidden"
+        )
         page.js("document.querySelector('#play [data-mode=attack]').click()")
         page.js("document.querySelector('#play [data-dir=n]').click()")
-        assert page.wait_for("document.querySelector('#log li')?.textContent.includes('You swing at nothing.')")
+        assert page.wait_for(
+            "document.querySelector('#log li')?.textContent.includes('You swing at nothing.')"
+        )
         assert orders == ["Pilot"], "one order, for the logged-in player"
         assert page.js("play.classList.contains('attack')")
     finally:
@@ -410,7 +515,8 @@ def test_the_pad_plays_your_character_from_the_map(page, adapter, base_url):
 
 def test_pressing_on_a_tile_never_starts_the_browsers_image_drag(page):
     """Firefox ignores -webkit-user-drag: a press on a chunk <img> began a native drag, which cancelled the
-    pointer, so drag-to-pan did nothing there. Chrome can't reproduce that, but it can check the cancel."""
+    pointer, so drag-to-pan did nothing there. Chrome can't reproduce that, but it can check the cancel.
+    """
     cancelled = page.js(
         "(() => { const e = new DragEvent('dragstart', { bubbles: true, cancelable: true });"
         " chunkEls.values().next().value.dispatchEvent(e); return e.defaultPrevented; })()"

@@ -41,7 +41,6 @@ class TestGeneral(unittest.TestCase):
         # Fixed by default so failures reproduce; set DISCORDIA_TEST_SEED to fuzz.
         cls.random_seed = int(os.environ.get("DISCORDIA_TEST_SEED", 0))
 
-
         LOG.info("Discordia server started")
 
     def setUp(self) -> None:
@@ -99,7 +98,9 @@ class TestGeneral(unittest.TestCase):
                 pass
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
-            img: Image.Image = Image.open(io.BytesIO(self.adapter.get_player_screenshot(player)))
+            img: Image.Image = Image.open(
+                io.BytesIO(self.adapter.get_player_screenshot(player))
+            )
             self.assertFalse(
                 all(p == (0, 0, 0, 255) for p in img.getdata()),
                 "Black screenshot taken",
@@ -203,7 +204,11 @@ class TestGeneral(unittest.TestCase):
         """
         player = self.adapter.get_player(0)
         player.player_class = Actors.RaiderClass()
-        player.pet_name, player.pet_fed_until, player.pet_care = "Bibi", self.world.ticks + 100, 2
+        player.pet_name, player.pet_fed_until, player.pet_care = (
+            "Bibi",
+            self.world.ticks + 100,
+            2,
+        )
         player.pet_kind = "dog"
         player.currency = 4321
         player.gain_experience(250)
@@ -213,7 +218,9 @@ class TestGeneral(unittest.TestCase):
         jezail.fire()  # a single shot, now empty
         helmet = Armor.Helmet()
         player.inventory.append(helmet)
-        player.equip(helmet)  # worn from the backpack, as /inventory equip does: one helmet, not two
+        player.equip(
+            helmet
+        )  # worn from the backpack, as /inventory equip does: one helmet, not two
         player.stash.append(Jezail())
         balls = Weapons.MusketBalls()
         balls.take(3)
@@ -228,11 +235,15 @@ class TestGeneral(unittest.TestCase):
         player.best_haul = 640
         player.achievements = {"first_blood", "home_alive"}
         self.adapter.start_raid(player, 60, depth=4)
-        self.adapter.guild_settings[5] = GuildSettings(channels=[11, 12], digest_channel=12)
+        self.adapter.guild_settings[5] = GuildSettings(
+            channels=[11, 12], digest_channel=12
+        )
         for _ in self._move_randomly():
             pass
         player.camping = True  # after the moves, which break camp
-        player.work_until = 10**9  # and end shifts; one that outlasts the save's catch-up
+        player.work_until = (
+            10**9
+        )  # and end shifts; one that outlasts the save's catch-up
         self.world.npcs = []
         wounded = Actors.Raider.generate(2)
         wounded.hit_points -= 3
@@ -244,13 +255,17 @@ class TestGeneral(unittest.TestCase):
         shopper, store = self.adapter.get_player(1), self.world.starting_town.store
         shopper.currency = 10**6
         self.assertTrue(store.sell_item(0, shopper))  # the shelf is one short
-        store.buy_item(shopper.inventory[-1], shopper)  # and it's back, at the end of the shelf
+        store.buy_item(
+            shopper.inventory[-1], shopper
+        )  # and it's back, at the end of the shelf
         store.sell_item(0, shopper)
         used = Weapons.Ammo9mm()
         used.take(5)
         shopper.inventory.append(used)
         store.buy_item(used, shopper)  # a part-used box on the shelf stays part-used
-        stock = [(type(item), getattr(item, "quantity", None)) for item in store.inventory]
+        stock = [
+            (type(item), getattr(item, "quantity", None)) for item in store.inventory
+        ]
 
         path = Path(self.temp_dir.name) / "roundtrip.db"
         database = Database(path)
@@ -274,11 +289,20 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(len(list(adapter.iter_registered())), self.NUM_USERS)
         town = adapter.world.space_at(*self.world.starting_town)
         assert isinstance(town, GameSpace.Town)
-        self.assertEqual([(type(item), getattr(item, "quantity", None)) for item in town.store.inventory], stock)
+        self.assertEqual(
+            [
+                (type(item), getattr(item, "quantity", None))
+                for item in town.store.inventory
+            ],
+            stock,
+        )
 
         restored = adapter.get_player(0)
         self.assertEqual(restored.name, player.name)
-        self.assertEqual((restored.pet_name, restored.pet_fed_until, restored.pet_care), ("Bibi", player.pet_fed_until, 2))
+        self.assertEqual(
+            (restored.pet_name, restored.pet_fed_until, restored.pet_care),
+            ("Bibi", player.pet_fed_until, 2),
+        )
         self.assertEqual(restored.pet_kind, "dog")
         self.assertEqual(restored.currency, player.currency)
         self.assertEqual(restored.experience, player.experience)
@@ -290,31 +314,76 @@ class TestGeneral(unittest.TestCase):
         self.assertTrue(restored.weapon.is_empty)  # not reloaded by the restart
         box = restored.stash[1]
         assert isinstance(box, Weapons.MusketBalls)
-        self.assertEqual((box.quantity, box.base_value), (balls.quantity, balls.base_value))
+        self.assertEqual(
+            (box.quantity, box.base_value), (balls.quantity, balls.base_value)
+        )
         self.assertEqual(box.quantity, Weapons.MusketBalls().quantity - 3)
         self.assertEqual([type(item) for item in restored.inventory], [Armor.Helmet])
-        self.assertIs(restored.equipment_set.head, restored.inventory[0])  # still worn, and the same one
-        self.assertEqual([type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls])
+        self.assertIs(
+            restored.equipment_set.head, restored.inventory[0]
+        )  # still worn, and the same one
+        self.assertEqual(
+            [type(item) for item in restored.stash], [Jezail, Weapons.MusketBalls]
+        )
         self.assertEqual(restored.stash_currency, 77)
         self.assertIsInstance(restored.pouch, Weapons.MusketBalls)
-        self.assertEqual((restored.hideout_level, restored.prestige, restored.side), (3, 2, "West"))
+        self.assertEqual(
+            (restored.hideout_level, restored.prestige, restored.side), (3, 2, "West")
+        )
         self.assertTrue(restored.camping)
         self.assertEqual(restored.work_until, 10**9)
-        self.assertEqual((restored.kills, restored.extractions, restored.best_haul), (7, 3, 640))
+        self.assertEqual(
+            (restored.kills, restored.extractions, restored.best_haul), (7, 3, 640)
+        )
         self.assertEqual(restored.achievements, {"first_blood", "home_alive"})
         self.assertEqual(
-            [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in adapter.world.npcs],
-            [(type(n), type(n.body_type), n.name, n.hit_points, n.currency, n.location) for n in self.world.npcs],
+            [
+                (
+                    type(n),
+                    type(n.body_type),
+                    n.name,
+                    n.hit_points,
+                    n.currency,
+                    n.location,
+                )
+                for n in adapter.world.npcs
+            ],
+            [
+                (
+                    type(n),
+                    type(n.body_type),
+                    n.name,
+                    n.hit_points,
+                    n.currency,
+                    n.location,
+                )
+                for n in self.world.npcs
+            ],
         )
-        self.assertIsInstance(adapter.world.npcs[1].brain.current_state, Behavior.Fleeing)  # still an animal
-        self.assertEqual(adapter.world.npcs[2].base_attack, Actors.BOSS_ATTACK)  # still a warlord
+        self.assertIsInstance(
+            adapter.world.npcs[1].brain.current_state, Behavior.Fleeing
+        )  # still an animal
+        self.assertEqual(
+            adapter.world.npcs[2].base_attack, Actors.BOSS_ATTACK
+        )  # still a warlord
         assert player.auto_raid is not None
-        self.assertEqual(restored.auto_raid, (player.auto_raid[0], 0, 4))  # deaths aren't saved: counted afresh
+        self.assertEqual(
+            restored.auto_raid, (player.auto_raid[0], 0, 4)
+        )  # deaths aren't saved: counted afresh
         # Out of town, the walk home still reports a haul: what's gained since the restart.
-        self.assertEqual(restored.raid_start is None, isinstance(restored.location, GameSpace.Town))
-        if restored.raid_start is not None:  # and the depth it pays for counts from where it stands
-            self.assertEqual(restored.raid_deepest, adapter.world.danger_at(restored.location))
-        self.assertEqual(adapter.guild_settings, {5: GuildSettings(channels=[11, 12], digest_channel=12)})
+        self.assertEqual(
+            restored.raid_start is None, isinstance(restored.location, GameSpace.Town)
+        )
+        if (
+            restored.raid_start is not None
+        ):  # and the depth it pays for counts from where it stands
+            self.assertEqual(
+                restored.raid_deepest, adapter.world.danger_at(restored.location)
+            )
+        self.assertEqual(
+            adapter.guild_settings,
+            {5: GuildSettings(channels=[11, 12], digest_channel=12)},
+        )
         self.assertEqual(
             (restored.location.x, restored.location.y),
             (player.location.x, player.location.y),
@@ -340,13 +409,17 @@ class TestGeneral(unittest.TestCase):
         connection.execute("ALTER TABLE character DROP COLUMN pet_fed_until")
         connection.execute("ALTER TABLE character DROP COLUMN pet_care")
         connection.execute("ALTER TABLE character DROP COLUMN pet_kind")
-        connection.execute("PRAGMA user_version = 0")  # an older build never numbered its files
+        connection.execute(
+            "PRAGMA user_version = 0"
+        )  # an older build never numbered its files
         connection.commit()
         connection.close()
 
         migrated = Database(path)
         version = migrated.connection.execute("PRAGMA user_version").fetchone()[0]
-        self.assertEqual(version, len(MIGRATIONS))  # caught up, so the steps don't run again
+        self.assertEqual(
+            version, len(MIGRATIONS)
+        )  # caught up, so the steps don't run again
         adapter = migrated.load()
         self.assertIsNotNone(adapter)
         assert adapter is not None  # for the type checker
@@ -355,7 +428,10 @@ class TestGeneral(unittest.TestCase):
 
         self.assertEqual(adapter.get_player(0).experience, 0)
         self.assertEqual(adapter.get_player(0).level, 1)
-        self.assertEqual((adapter.get_player(0).hideout_level, adapter.get_player(0).prestige), (0, 0))
+        self.assertEqual(
+            (adapter.get_player(0).hideout_level, adapter.get_player(0).prestige),
+            (0, 0),
+        )
         self.assertIsNone(adapter.get_player(0).side)
         self.assertIsNone(adapter.get_player(0).pet_name)
         self.assertEqual(adapter.get_player(0).pet_kind, "goat")
@@ -368,7 +444,14 @@ class TestGeneral(unittest.TestCase):
         database.save(self.adapter)
         database.close()
         connection = sqlite3.connect(path)
-        old = {"resolution_constant": 0.2, "water": 0.075, "grass": 0.3, "mountains": 0.4, "wilds": 0.1, "towns": 0.003}
+        old = {
+            "resolution_constant": 0.2,
+            "water": 0.075,
+            "grass": 0.3,
+            "mountains": 0.4,
+            "wilds": 0.1,
+            "towns": 0.003,
+        }
         connection.execute("UPDATE world SET gen_params = ?", (json.dumps(old),))
         connection.execute("UPDATE character SET x = 3, y = 4, camping = 1")
         connection.execute("PRAGMA user_version = 4")  # the version before the move
@@ -380,17 +463,24 @@ class TestGeneral(unittest.TestCase):
         assert adapter is not None
         self.assertEqual(adapter.world.gen_params.water, 0.22)
         self.assertEqual(adapter.world.gen_params.towns, 0.003)  # the rest kept
-        self.assertEqual(migrated.connection.execute("SELECT count(*) FROM npc").fetchone()[0], 0)
+        self.assertEqual(
+            migrated.connection.execute("SELECT count(*) FROM npc").fetchone()[0], 0
+        )
         player = adapter.get_player(0)
         self.assertIs(player.location, adapter.world.starting_town)
         self.assertFalse(player.camping)
         migrated.save(adapter)  # and the next save writes the real square
-        self.assertGreaterEqual(migrated.connection.execute("SELECT min(x) FROM character").fetchone()[0], 0)
+        self.assertGreaterEqual(
+            migrated.connection.execute("SELECT min(x) FROM character").fetchone()[0], 0
+        )
         migrated.close()
 
     def test_a_new_save_file_starts_at_the_latest_schema_version(self):
         database = Database(Path(self.temp_dir.name) / "new.db")
-        self.assertEqual(database.connection.execute("PRAGMA user_version").fetchone()[0], len(MIGRATIONS))
+        self.assertEqual(
+            database.connection.execute("PRAGMA user_version").fetchone()[0],
+            len(MIGRATIONS),
+        )
         database.close()
 
     def test_database_loads_a_shelf_saved_as_bare_class_paths(self):
@@ -400,14 +490,18 @@ class TestGeneral(unittest.TestCase):
         database = Database(path)
         database.save(self.adapter)
         database.connection.execute(
-            "INSERT OR REPLACE INTO store VALUES (?, ?, ?)", (town.x, town.y, '["Discordia.GameLogic.Weapons.Ammo9mm"]')
+            "INSERT OR REPLACE INTO store VALUES (?, ?, ?)",
+            (town.x, town.y, '["Discordia.GameLogic.Weapons.Ammo9mm"]'),
         )
         database.connection.commit()
         adapter = database.load()
         database.close()
         assert adapter is not None  # for the type checker
         shelf = adapter.world.space_at(town.x, town.y).store.inventory
-        self.assertEqual([(type(i), i.quantity) for i in shelf], [(Weapons.Ammo9mm, Weapons.Ammo9mm().quantity)])
+        self.assertEqual(
+            [(type(i), i.quantity) for i in shelf],
+            [(Weapons.Ammo9mm, Weapons.Ammo9mm().quantity)],
+        )
 
     def test_loading_pays_hideouts_for_the_downtime(self):
         """A restart moves the clock on by however long the save sat on disk, so idle income isn't lost."""
@@ -416,14 +510,20 @@ class TestGeneral(unittest.TestCase):
         path = Path(self.temp_dir.name) / "downtime.db"
         database = Database(path)
         database.save(self.adapter)
-        down = 3 * Actors.HIDEOUT_PAY_TICKS * 5  # three pay days, at the default 5 seconds a tick
-        database.connection.execute("UPDATE world SET ticks = 0, saved_at = saved_at - ?", (down,))
+        down = (
+            3 * Actors.HIDEOUT_PAY_TICKS * 5
+        )  # three pay days, at the default 5 seconds a tick
+        database.connection.execute(
+            "UPDATE world SET ticks = 0, saved_at = saved_at - ?", (down,)
+        )
         database.connection.commit()
 
         adapter = database.load(tick_seconds=5)
         database.close()
         assert adapter is not None
-        self.assertEqual(adapter.get_player(0).stash_currency, 3 * 2 * Actors.HIDEOUT_INCOME)
+        self.assertEqual(
+            adapter.get_player(0).stash_currency, 3 * 2 * Actors.HIDEOUT_INCOME
+        )
 
     def test_database_starts_empty(self):
         """

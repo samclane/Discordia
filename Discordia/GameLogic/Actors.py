@@ -14,7 +14,9 @@ CURRENCY_PER_LEVEL = 25  # average money a generated NPC carries, per wilds leve
 HIT_POINTS_PER_LEVEL = 25  # half a fresh Wanderer at level 1, and up from there
 EXPERIENCE_PER_LEVEL = 100  # flat: level 2 at 100 experience, level 3 at 200, and so on
 HIT_POINTS_PER_PLAYER_LEVEL = 10  # what each player level adds on top of the class base
-EXTRACT_XP_PER_DANGER = 10  # extracting with loot pays this per danger level of the deepest square reached
+EXTRACT_XP_PER_DANGER = (
+    10  # extracting with loot pays this per danger level of the deepest square reached
+)
 # Each hideout level pays HIDEOUT_INCOME into the stash every HIDEOUT_PAY_TICKS world ticks: $120 an hour at the
 # default 5-second tick. The first costs HIDEOUT_COST, about sixteen hours of what it pays, and each after costs
 # HIDEOUT_GROWTH times more (Cookie Clicker's curve), so every level takes a little longer to pay for itself.
@@ -235,7 +237,9 @@ class Actor(AbstractActor, ABC):
     def on_death(self):
         return []
 
-    def step(self, space: GameSpace.Space, toward: bool = True) -> List[GameSpace.PlayerActionResponse]:
+    def step(
+        self, space: GameSpace.Space, toward: bool = True
+    ) -> List[GameSpace.PlayerActionResponse]:
         """One square closer to `space`, or further from it. Stays put, returning [], if no step helps;
         otherwise returns what the move did."""
         # ponytail: greedy, so a coastline between it and you stops it cold. A* would go round, but the
@@ -246,12 +250,22 @@ class Actor(AbstractActor, ABC):
             return (here.x + d[0] - space.x) ** 2 + (here.y + d[1] - space.y) ** 2
 
         now = gap((0, 0))
-        steps = [d for d in GameSpace.DIRECTION_VECTORS.values() if (gap(d) < now if toward else gap(d) > now)]
-        random.shuffle(steps)  # equally good steps in any order, so it doesn't always favour one side
+        steps = [
+            d
+            for d in GameSpace.DIRECTION_VECTORS.values()
+            if (gap(d) < now if toward else gap(d) > now)
+        ]
+        random.shuffle(
+            steps
+        )  # equally good steps in any order, so it doesn't always favour one side
         for shift in sorted(steps, key=gap, reverse=not toward):
             results = self.attempt_move(shift)
-            if not results or not results[0].failed:  # a wilds event can move you and have nothing to say
-                return results or [GameSpace.PlayerActionResponse(is_successful=True, source=self)]
+            if (
+                not results or not results[0].failed
+            ):  # a wilds event can move you and have nothing to say
+                return results or [
+                    GameSpace.PlayerActionResponse(is_successful=True, source=self)
+                ]
         return []
 
     @property
@@ -264,7 +278,9 @@ class Actor(AbstractActor, ABC):
 
 
 class NPC(Actor):
-    BODIES: Tuple[Type[BodyType], ...] = (Humanoid,)  # what generate() picks a body from
+    BODIES: Tuple[Type[BodyType], ...] = (
+        Humanoid,
+    )  # what generate() picks a body from
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -340,15 +356,21 @@ class Raider(NPC):
 
 class Animal(NPC):
     """Wildlife: keeps away from players and never fights back. Carries no money, but a kill is experience, and
-    running one down is how a fresh character with a gun levels without a raider shooting back."""
+    running one down is how a fresh character with a gun levels without a raider shooting back.
+    """
 
     BODIES = (SmallAnimal, LargeAnimal)
-    KINDS = {SmallAnimal: ["rat", "feral cat", "crow", "fox"], LargeAnimal: ["stray dog", "wild boar", "deer"]}
+    KINDS = {
+        SmallAnimal: ["rat", "feral cat", "crow", "fox"],
+        LargeAnimal: ["stray dog", "wild boar", "deer"],
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.flavor_text = "Something wild, and wary of you."
-        self.brain = Behavior.FiniteStateMachine(self, Behavior.Fleeing())  # never hits, steps away from you
+        self.brain = Behavior.FiniteStateMachine(
+            self, Behavior.Fleeing()
+        )  # never hits, steps away from you
 
     @classmethod
     def generate(cls, level) -> NPC:
@@ -361,7 +383,9 @@ class Animal(NPC):
     def sprite_path(self) -> str:
         # By size: a rat and a wild boar shouldn't look alike. People are drawn by what they are (Raider, a class).
         small = isinstance(self.body_type, SmallAnimal)
-        return str(SPRITE_FOLDER / "Actors" / ("small_animal.png" if small else "animal.png"))
+        return str(
+            SPRITE_FOLDER / "Actors" / ("small_animal.png" if small else "animal.png")
+        )
 
 
 class Warlord(NPC):
@@ -378,7 +402,9 @@ class Warlord(NPC):
     @classmethod
     def generate(cls, level=0) -> NPC:
         generator = MaleNameGenerator if random.random() > 0.5 else FemaleNameGenerator
-        boss = cls(None, BOSS_HIT_POINTS, f"Commander {generator.generate_name()}", Humanoid())
+        boss = cls(
+            None, BOSS_HIT_POINTS, f"Commander {generator.generate_name()}", Humanoid()
+        )
         boss.currency = BOSS_CURRENCY
         return boss
 
@@ -394,7 +420,12 @@ class Warlord(NPC):
 
 
 # What a Warlord drops, and nothing else does: every block here says "store": false.
-BOSS_LOOT: Tuple[type, ...] = (Weapons.RPG7, Weapons.VSS, Armor.HelmAltyn, Armor.Chest6B4)
+BOSS_LOOT: Tuple[type, ...] = (
+    Weapons.RPG7,
+    Weapons.VSS,
+    Armor.HelmAltyn,
+    Armor.Chest6B4,
+)
 
 
 class PlayerClass(ABC):
@@ -572,17 +603,52 @@ class Fixer(PlayerClass):
 # key: (icon, title, how to earn it, whether a player has). Checked every World.tick, kept once earned. The key is what's
 # saved: retitle freely, but a new key or a removed one is a new achievement or a lost one.
 ACHIEVEMENTS = {
-    "first_blood": ("🩸", "First blood", "Kill something out past the towns.", lambda p: p.kills >= 1),
+    "first_blood": (
+        "🩸",
+        "First blood",
+        "Kill something out past the towns.",
+        lambda p: p.kills >= 1,
+    ),
     "veteran": ("🎖️", "Veteran", "Kill fifty.", lambda p: p.kills >= 50),
-    "home_alive": ("🏠", "Home alive", "Bring a raid's haul back to town.", lambda p: p.extractions >= 1),
-    "old_hand": ("🎒", "Old hand", "Bring twenty-five hauls home.", lambda p: p.extractions >= 25),
-    "cargo_200": ("⚰️", "Cargo 200", "Die. It happens to everyone.", lambda p: p.deaths >= 1),
+    "home_alive": (
+        "🏠",
+        "Home alive",
+        "Bring a raid's haul back to town.",
+        lambda p: p.extractions >= 1,
+    ),
+    "old_hand": (
+        "🎒",
+        "Old hand",
+        "Bring twenty-five hauls home.",
+        lambda p: p.extractions >= 25,
+    ),
+    "cargo_200": (
+        "⚰️",
+        "Cargo 200",
+        "Die. It happens to everyone.",
+        lambda p: p.deaths >= 1,
+    ),
     "seasoned": ("⭐", "Seasoned", "Reach level 5.", lambda p: p.level >= 5),
     "hardened": ("🛡️", "Hardened", "Reach level 10.", lambda p: p.level >= 10),
-    "enlisted": ("🪖", "Enlisted", "Train with either army at a military base.", lambda p: p.side is not None),
-    "gone_rogue": ("🏴", "Gone rogue", "Live as a Raider.", lambda p: isinstance(p.player_class, RaiderClass)),
+    "enlisted": (
+        "🪖",
+        "Enlisted",
+        "Train with either army at a military base.",
+        lambda p: p.side is not None,
+    ),
+    "gone_rogue": (
+        "🏴",
+        "Gone rogue",
+        "Live as a Raider.",
+        lambda p: isinstance(p.player_class, RaiderClass),
+    ),
     "a_roof": ("🛖", "A roof", "Build a hideout.", lambda p: p.hideout_level >= 1),
-    "walk_away": ("🚶", "Walk away", "Prestige your hideout.", lambda p: p.prestige >= 1),
+    "walk_away": (
+        "🚶",
+        "Walk away",
+        "Prestige your hideout.",
+        lambda p: p.prestige >= 1,
+    ),
     "fat_stash": (
         "💰",
         "Fat stash",
@@ -664,16 +730,34 @@ class PlayerCharacter(Actor):
             self.raid_deepest = 0
         responses = super().attempt_move(shift)
         # ponytail: an extraction point moves you on to town before this looks, so its own square isn't counted.
-        if self.raid_start is not None and not isinstance(self.location, GameSpace.Town):
-            self.raid_deepest = max(self.raid_deepest, self.parent_world.danger_at(self.location))
+        if self.raid_start is not None and not isinstance(
+            self.location, GameSpace.Town
+        ):
+            self.raid_deepest = max(
+                self.raid_deepest, self.parent_world.danger_at(self.location)
+            )
         if (found := self.parent_world.pick_up_remains(self)) is not None:
             responses.append(found)
-        quiet = isinstance(self.location, GameSpace.Wilds) and not any(r.text for r in responses)
-        if self.pet_name is not None and quiet and (fetched := self._fetch()) is not None:
+        quiet = isinstance(self.location, GameSpace.Wilds) and not any(
+            r.text for r in responses
+        )
+        if (
+            self.pet_name is not None
+            and quiet
+            and (fetched := self._fetch()) is not None
+        ):
             responses.append(fetched)
         # A death on the way lands you in town too, but it already threw raid_start away: no haul to report.
-        if was_out and isinstance(self.location, GameSpace.Town) and self.raid_start is not None:
-            responses.append(GameSpace.PlayerActionResponse(is_successful=True, source=self, text=self.extract()))
+        if (
+            was_out
+            and isinstance(self.location, GameSpace.Town)
+            and self.raid_start is not None
+        ):
+            responses.append(
+                GameSpace.PlayerActionResponse(
+                    is_successful=True, source=self, text=self.extract()
+                )
+            )
         return responses
 
     def extract(self) -> str:
@@ -684,16 +768,28 @@ class PlayerCharacter(Actor):
         found = [str(item) for item in new]
         if self.currency > money:
             found.append(f"${self.currency - money}")
-        self.best_haul = max(self.best_haul, max(self.currency - money, 0) + sum(int(i.base_value) for i in new))
+        self.best_haul = max(
+            self.best_haul,
+            max(self.currency - money, 0) + sum(int(i.base_value) for i in new),
+        )
         # Bringing loot home is what levels you: the deeper the raid went, the more it pays.
-        xp = EXTRACT_XP_PER_DANGER * self.raid_deepest * (2 if self.has_perk("map room") else 1)
+        xp = (
+            EXTRACT_XP_PER_DANGER
+            * self.raid_deepest
+            * (2 if self.has_perk("map room") else 1)
+        )
         levels = self.gain_experience(xp) if found else 0
         if self.experience > experience:
-            found.append(f"{self.experience - experience} XP" + (f" (level {self.level}!)" if levels else ""))
+            found.append(
+                f"{self.experience - experience} XP"
+                + (f" (level {self.level}!)" if levels else "")
+            )
         haul = ", ".join(found) if found else "nothing but the walk"
         if found:
             self.extractions += 1
-            self.parent_world.announcements.append((self, f"{self.name} made it back to {self.location.name} with {haul}."))
+            self.parent_world.announcements.append(
+                (self, f"{self.name} made it back to {self.location.name} with {haul}.")
+            )
         return f"You make it back to {self.location.name}. Raid over, you brought home: {haul}."
 
     @property
@@ -712,13 +808,18 @@ class PlayerCharacter(Actor):
 
     def check_achievements(self) -> List[str]:
         """Award every ACHIEVEMENTS key you now qualify for. Returns the newly earned keys."""
-        new = [key for key, (*_, has) in ACHIEVEMENTS.items() if key not in self.achievements and has(self)]
+        new = [
+            key
+            for key, (*_, has) in ACHIEVEMENTS.items()
+            if key not in self.achievements and has(self)
+        ]
         self.achievements.update(new)
         return new
 
     def turn_raider(self) -> str:
         """Robbing a stranger or killing a player puts you outside any army: a Raider, keeping the hit points
-        you have (the player_class setter would heal you). Returns the news for a player, "" if you already were."""
+        you have (the player_class setter would heal you). Returns the news for a player, "" if you already were.
+        """
         if isinstance(self._player_class, RaiderClass):
             return ""
         self._player_class, self.side = RaiderClass(), None
@@ -772,7 +873,8 @@ class PlayerCharacter(Actor):
 
     def ready_weapon(self) -> Union[Weapons.Weapon, None]:
         """What to hit with right now: the weapon in hand, reloaded from the pack if it has run dry, or bare
-        fists if there is nothing to load. An empty gun is a club, never a reason to stand there and take it."""
+        fists if there is nothing to load. An empty gun is a club, never a reason to stand there and take it.
+        """
         weapon = self.weapon
         if isinstance(weapon, Weapons.ProjectileWeapon) and weapon.is_empty:
             weapon.reload(self)
@@ -789,7 +891,9 @@ class PlayerCharacter(Actor):
     def unequip(self, equipment: Equipment):
         self.equipment_set.unequip(equipment)
         equipment.on_unequip(self)
-        if self.weapon is None:  # an empty hand is a fist, as at birth and after a death (decided 2026-11-03)
+        if (
+            self.weapon is None
+        ):  # an empty hand is a fist, as at birth and after a death (decided 2026-11-03)
             self.equipment_set.equip(Weapons.Fist(), MainHandEquipment)
 
     def loot(self, corpse: NPC, response: GameSpace.PlayerActionResponse) -> str:
@@ -811,11 +915,15 @@ class PlayerCharacter(Actor):
         self.kills += 1
         if isinstance(corpse, Warlord):
             prize = ", ".join(item.name for item in response.items[-1:])
-            self.parent_world.announcements.append((self, f"{self.name} brought down {corpse.name} and took {prize}."))
+            self.parent_world.announcements.append(
+                (self, f"{self.name} brought down {corpse.name} and took {prize}.")
+            )
 
         # A tougher corpse is worth more, and one below your level pays its share of yours: levels keep pace with
         # how deep you raid, rather than piling up on the wilds next to town.
-        experience = corpse.hit_points_max // 2 * min(corpse.level, self.level) // self.level
+        experience = (
+            corpse.hit_points_max // 2 * min(corpse.level, self.level) // self.level
+        )
         levels = self.gain_experience(experience)
         if experience:
             taken.append(f"{experience} XP")
@@ -826,13 +934,19 @@ class PlayerCharacter(Actor):
     @property
     def camp_heal(self) -> int:
         """Hit points a camp gives back every CAMP_HEAL_TICKS: twice that for a Medic."""
-        heal = max(1, round(self.hit_points_max * CAMP_HEAL_SHARE)) * (2 if isinstance(self.player_class, Medic) else 1)
+        heal = max(1, round(self.hit_points_max * CAMP_HEAL_SHARE)) * (
+            2 if isinstance(self.player_class, Medic) else 1
+        )
         return heal * (2 if self.has_perk("aid station") else 1)
 
     @property
     def fov(self) -> int:
         """How many squares you see either way: one more for a Scout, and one more with a hideout radio."""
-        return self.fov_default + isinstance(self.player_class, Scout) + self.has_perk("radio")
+        return (
+            self.fov_default
+            + isinstance(self.player_class, Scout)
+            + self.has_perk("radio")
+        )
 
     def has_perk(self, perk: str) -> bool:
         """Whether your hideout has reached the HIDEOUT_PERKS room `perk`."""
@@ -848,7 +962,9 @@ class PlayerCharacter(Actor):
 
     def _stash_move(self, index: int | None, money: int, to_stash: bool) -> str:
         """Returns what moved, phrased for a player. Raises ValueError, checked before anything moves."""
-        source, dest = (self.inventory, self.stash) if to_stash else (self.stash, self.inventory)
+        source, dest = (
+            (self.inventory, self.stash) if to_stash else (self.stash, self.inventory)
+        )
         available = self.currency if to_stash else self.stash_currency
         if index is not None and not 0 <= index < len(source):
             raise ValueError(f"There's nothing at #{index}.")
@@ -873,13 +989,18 @@ class PlayerCharacter(Actor):
 
     def pouch_swap(self, index: int | None = None) -> str:
         """Move the backpack item at `index` into the pouch, and whatever was in it back to the backpack.
-        None just empties the pouch. Returns what moved, phrased for a player. Raises ValueError first."""
+        None just empties the pouch. Returns what moved, phrased for a player. Raises ValueError first.
+        """
         if index is not None and not 0 <= index < len(self.inventory):
             raise ValueError(f"There's nothing at #{index}.")
-        out, self.pouch = self.pouch, self.inventory.pop(index) if index is not None else None
+        out, self.pouch = self.pouch, (
+            self.inventory.pop(index) if index is not None else None
+        )
         moved = []
         if self.pouch is not None:
-            if self.pouch.is_equipped:  # a pouched item isn't in your hands, or a death would strip it
+            if (
+                self.pouch.is_equipped
+            ):  # a pouched item isn't in your hands, or a death would strip it
                 self.unequip(self.pouch)
             moved.append(f"{self.pouch} into your pouch")
         if out is not None:
@@ -897,7 +1018,9 @@ class PlayerCharacter(Actor):
     @property
     def hideout_income(self) -> int:
         """What the hideout pays into the stash each pay day."""
-        return int(HIDEOUT_INCOME * self.hideout_level * (1 + PRESTIGE_BONUS * self.prestige))
+        return int(
+            HIDEOUT_INCOME * self.hideout_level * (1 + PRESTIGE_BONUS * self.prestige)
+        )
 
     @property
     def stash_value(self) -> int:
@@ -906,12 +1029,21 @@ class PlayerCharacter(Actor):
 
     def build_hideout(self) -> str:
         """Buy the next hideout level, from what's carried first and the stash after. Callers check the
-        player is in a town. Returns what it bought, phrased for a player; raises ValueError if it can't."""
+        player is in a town. Returns what it bought, phrased for a player; raises ValueError if it can't.
+        """
         money, salvage = self.hideout_price
-        parts = [item for item in self.inventory + self.stash if isinstance(item, Items.Salvage)][:salvage]
+        parts = [
+            item
+            for item in self.inventory + self.stash
+            if isinstance(item, Items.Salvage)
+        ][:salvage]
         if self.currency + self.stash_currency < money or len(parts) < salvage:
-            cost = f"{salvage} {Items.Salvage().name.lower()}" if salvage else f"${money}"
-            raise ValueError(f"The next hideout level costs {cost}, carried and stashed together.")
+            cost = (
+                f"{salvage} {Items.Salvage().name.lower()}" if salvage else f"${money}"
+            )
+            raise ValueError(
+                f"The next hideout level costs {cost}, carried and stashed together."
+            )
         from_pocket = min(self.currency, money)
         self.currency -= from_pocket
         self.stash_currency -= money - from_pocket
@@ -920,7 +1052,9 @@ class PlayerCharacter(Actor):
             self.stash.remove(part)
         self.hideout_level += 1
         opened = "".join(
-            f" It opens a {perk}: {what}." for perk, (level, what) in HIDEOUT_PERKS.items() if level == self.hideout_level
+            f" It opens a {perk}: {what}."
+            for perk, (level, what) in HIDEOUT_PERKS.items()
+            if level == self.hideout_level
         )
         return (
             f"Your hideout is level {self.hideout_level}: ${self.hideout_income} into your stash "
@@ -936,23 +1070,40 @@ class PlayerCharacter(Actor):
         if self.pet_name is not None and not self.pet_gone(now):
             raise ValueError(f"You keep {self.pet_name} already.")
         self._pay(PET_PRICE, f"A {kind}")
-        name = name or random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name()
-        self.pet_name, self.pet_kind, self.pet_fed_until, self.pet_care = name, kind, now + PET_FEED_TICKS, 0
+        name = (
+            name
+            or random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name()
+        )
+        self.pet_name, self.pet_kind, self.pet_fed_until, self.pet_care = (
+            name,
+            kind,
+            now + PET_FEED_TICKS,
+            0,
+        )
 
     def feed_pet(self, now: int):
         """Fodder for PET_FEED_TICKS from `now`: a meal doesn't keep, so feeding early wastes what's left of the last.
-        Callers check the player is in a town. Raises ValueError with no pet or no money."""
+        Callers check the player is in a town. Raises ValueError with no pet or no money.
+        """
         if self.pet_name is None:
-            raise ValueError("You don't keep a pet. `/pet adopt` in any town buys a goat or a dog.")
+            raise ValueError(
+                "You don't keep a pet. `/pet adopt` in any town buys a goat or a dog."
+            )
         if self.pet_gone(now):
-            raise ValueError(f"{self.pet_name} got tired of waiting and wandered off. `/pet adopt` another in any town.")
+            raise ValueError(
+                f"{self.pet_name} got tired of waiting and wandered off. `/pet adopt` another in any town."
+            )
         self._pay(PET_FEED_COST, f"Fodder for {self.pet_name}")
-        self.pet_care = min(self.pet_care + 1, PET_CARE_MAX) if self.pet_fed_until > now else 0
+        self.pet_care = (
+            min(self.pet_care + 1, PET_CARE_MAX) if self.pet_fed_until > now else 0
+        )
         self.pet_fed_until = now + PET_FEED_TICKS
 
     def pet_gone(self, now: int) -> bool:
         """Whether your pet has wandered off, hungry for PET_RUNAWAY_TICKS by `now`. Worked out, not stored."""
-        return self.pet_name is not None and now >= self.pet_fed_until + PET_RUNAWAY_TICKS
+        return (
+            self.pet_name is not None and now >= self.pet_fed_until + PET_RUNAWAY_TICKS
+        )
 
     @property
     def pet_yield(self) -> int:
@@ -968,7 +1119,11 @@ class PlayerCharacter(Actor):
     @property
     def _dog_along(self) -> bool:
         """A fed dog comes on raids; a hungry one stays home."""
-        return self.pet_name is not None and self.pet_kind == "dog" and self.pet_fed_until > self.parent_world.ticks
+        return (
+            self.pet_name is not None
+            and self.pet_kind == "dog"
+            and self.pet_fed_until > self.parent_world.ticks
+        )
 
     def _fetch(self) -> GameSpace.PlayerActionResponse | None:
         """A fed dog's chance of bringing back salvage, on a quiet step in the wilds."""
@@ -977,7 +1132,10 @@ class PlayerCharacter(Actor):
         salvage = Items.Salvage()
         self.inventory.append(salvage)
         return GameSpace.PlayerActionResponse(
-            is_successful=True, source=self, items=[salvage], text=f"{self.pet_name} trots back with a piece of salvage."
+            is_successful=True,
+            source=self,
+            items=[salvage],
+            text=f"{self.pet_name} trots back with a piece of salvage.",
         )
 
     def _pay(self, money: int, what: str):
@@ -991,9 +1149,12 @@ class PlayerCharacter(Actor):
     def prestige_hideout(self, confirm: bool = False) -> str:
         """Trade the hideout and the whole stash in for PRESTIGE_BONUS more income for good. Level, gear, the
         backpack and the pouch stay. Without `confirm` it only says what it would cost. Callers check the player
-        is in a town. Returns what happened, phrased for a player; raises ValueError below PRESTIGE_LEVEL."""
+        is in a town. Returns what happened, phrased for a player; raises ValueError below PRESTIGE_LEVEL.
+        """
         if self.hideout_level < PRESTIGE_LEVEL:
-            raise ValueError(f"Prestige needs a level {PRESTIGE_LEVEL} hideout; yours is level {self.hideout_level}.")
+            raise ValueError(
+                f"Prestige needs a level {PRESTIGE_LEVEL} hideout; yours is level {self.hideout_level}."
+            )
         bonus = int(PRESTIGE_BONUS * 100 * (self.prestige + 1))
         if not confirm:
             return (
@@ -1014,7 +1175,8 @@ class PlayerCharacter(Actor):
         worn = [
             item
             for item in self.equipment_set
-            if type(item) not in Items.EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+            if type(item)
+            not in Items.EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
             and not isinstance(item, Weapons.Fist)
             and not any(item is carried for carried in self.inventory)
         ]
@@ -1034,7 +1196,9 @@ class PlayerCharacter(Actor):
 
     def on_death(self):
         self.parent_world.handle_player_death(self)
-        return []  # nothing drops where they fell: handle_player_death deals with their gear
+        return (
+            []
+        )  # nothing drops where they fell: handle_player_death deals with their gear
 
     @property
     def sprite_path(self) -> str:

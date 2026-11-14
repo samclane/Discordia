@@ -28,7 +28,11 @@ def _version() -> str:
 
     try:
         out = subprocess.run(
-            ["git", "log", "-1", "--format=%h %cs"], cwd=Path(__file__).parent, capture_output=True, text=True, timeout=5
+            ["git", "log", "-1", "--format=%h %cs"],
+            cwd=Path(__file__).parent,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         commit, date = out.stdout.split()
         return f"{nice_name(commit)} ({commit}, {date})"

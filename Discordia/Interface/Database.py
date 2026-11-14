@@ -136,7 +136,9 @@ def _item_state(item: Equipment, worn: str | None = None) -> str | None:
 def _restore_item(class_path: str, state: str | None) -> Equipment:
     item = _resolve(class_path, Equipment)()
     for key, value in json.loads(state or "{}").items():
-        if key == "quantity":  # drained through take(), which prices a part-used box down too
+        if (
+            key == "quantity"
+        ):  # drained through take(), which prices a part-used box down too
             item.take(max(0, item.quantity - value))  # type: ignore[attr-defined]
         elif key in ITEM_STATE:
             setattr(item, key, value)
@@ -181,26 +183,38 @@ def _add_missing_columns(connection: sqlite3.Connection):
         ("world", "saved_at", "REAL"),
     ]
     for table, column, declaration in added:
-        if column not in {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}:
+        if column not in {
+            row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+        }:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
 def _add_pets(connection: sqlite3.Connection):
     connection.execute("ALTER TABLE character ADD COLUMN pet_name TEXT")
-    connection.execute("ALTER TABLE character ADD COLUMN pet_fed_until INTEGER NOT NULL DEFAULT 0")
+    connection.execute(
+        "ALTER TABLE character ADD COLUMN pet_fed_until INTEGER NOT NULL DEFAULT 0"
+    )
 
 
 def _reroll_terrain(connection: sqlite3.Connection):
     """Terrain moved from pnoise3 to tcod's Simplex noise (2026-11-05), so an old save's map re-rolls under it;
     decided: a wipe is fine. The thresholds move to the ones tuned for the new noise (as they stood then: later
     defaults are a new step), stores and NPCs tied to the old squares go, and every character's square becomes
-    -1, -1, which load() reads as the starting town, rather than waking up in what's a canal now."""
-    for world_id, params in connection.execute("SELECT id, gen_params FROM world").fetchall():
+    -1, -1, which load() reads as the starting town, rather than waking up in what's a canal now.
+    """
+    for world_id, params in connection.execute(
+        "SELECT id, gen_params FROM world"
+    ).fetchall():
         tuned = {**json.loads(params), "water": 0.22, "grass": 0.59, "mountains": 0.79}
-        connection.execute("UPDATE world SET gen_params = ? WHERE id = ?", (json.dumps(tuned), world_id))
+        connection.execute(
+            "UPDATE world SET gen_params = ? WHERE id = ?",
+            (json.dumps(tuned), world_id),
+        )
     connection.execute("DELETE FROM npc")
     connection.execute("DELETE FROM store")
-    connection.execute("UPDATE character SET x = -1, y = -1, camping = 0, work_until = NULL")
+    connection.execute(
+        "UPDATE character SET x = -1, y = -1, camping = 0, work_until = NULL"
+    )
 
 
 # How a save file catches up with SCHEMA: MIGRATIONS[n] takes a file at PRAGMA user_version n to n + 1. CREATE TABLE
@@ -209,8 +223,12 @@ def _reroll_terrain(connection: sqlite3.Connection):
 MIGRATIONS = [
     _add_missing_columns,
     _add_pets,
-    lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_care INTEGER NOT NULL DEFAULT 0"),
-    lambda connection: connection.execute("ALTER TABLE character ADD COLUMN pet_kind TEXT NOT NULL DEFAULT 'goat'"),
+    lambda connection: connection.execute(
+        "ALTER TABLE character ADD COLUMN pet_care INTEGER NOT NULL DEFAULT 0"
+    ),
+    lambda connection: connection.execute(
+        "ALTER TABLE character ADD COLUMN pet_kind TEXT NOT NULL DEFAULT 'goat'"
+    ),
     _reroll_terrain,
 ]
 
@@ -224,7 +242,10 @@ class Database:
         self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
-        fresh = self.connection.execute("SELECT count(*) FROM sqlite_master").fetchone()[0] == 0
+        fresh = (
+            self.connection.execute("SELECT count(*) FROM sqlite_master").fetchone()[0]
+            == 0
+        )
         self.connection.executescript(SCHEMA)
         if fresh:  # SCHEMA is already the latest version
             self.connection.execute(f"PRAGMA user_version = {len(MIGRATIONS)}")
@@ -245,7 +266,8 @@ class Database:
 
     def load(self, tick_seconds: float = 5.0) -> WorldAdapter | None:
         """Rebuild the server from disk, or None if this database has never been saved to. The world's clock
-        then runs on for however long it sat on disk, at `tick_seconds` a tick, paying hideouts as it goes."""
+        then runs on for however long it sat on disk, at `tick_seconds` a tick, paying hideouts as it goes.
+        """
         row = self.connection.execute("SELECT * FROM world WHERE id = 0").fetchone()
         if row is None:
             return None
@@ -263,15 +285,22 @@ class Database:
             self._load_character(adapter, character_row)
         for npc_row in self.connection.execute("SELECT * FROM npc"):
             npc = _resolve(npc_row["class_path"], Actors.NPC)(
-                None, npc_row["hit_points_max"], npc_row["name"], _resolve(npc_row["body_path"], Actors.BodyType)()
+                None,
+                npc_row["hit_points_max"],
+                npc_row["name"],
+                _resolve(npc_row["body_path"], Actors.BodyType)(),
             )
             npc.hit_points, npc.currency = npc_row["hit_points"], npc_row["currency"]
             world.add_actor(npc, world.space_at(npc_row["x"], npc_row["y"]))
         for store_row in self.connection.execute("SELECT * FROM store"):
             town = world.space_at(store_row["x"], store_row["y"])
-            if isinstance(town, GameSpace.Town):  # always, unless the map generator changed under the save
+            if isinstance(
+                town, GameSpace.Town
+            ):  # always, unless the map generator changed under the save
                 town.store.inventory = [
-                    _restore_item(*(entry if isinstance(entry, list) else (entry, None)))
+                    _restore_item(
+                        *(entry if isinstance(entry, list) else (entry, None))
+                    )
                     for entry in json.loads(store_row["items"])
                 ]
                 town.store.traded = True
@@ -305,17 +334,30 @@ class Database:
         character.side = row["side"]
         # -1: the map re-rolled under the save (_reroll_terrain), so its square means nothing now.
         character.location = (
-            adapter.world.starting_town if row["x"] < 0 else adapter.world.space_at(row["x"], row["y"])
+            adapter.world.starting_town
+            if row["x"] < 0
+            else adapter.world.space_at(row["x"], row["y"])
         )
-        character.camping = bool(row["camping"])  # World.advance heals it for the downtime
+        character.camping = bool(
+            row["camping"]
+        )  # World.advance heals it for the downtime
         character.work_until = row["work_until"]  # and pays the shift
         character.kills, character.extractions = row["kills"], row["extractions"]
         character.achievements = set(json.loads(row["achievements"]))
         character.best_haul = row["best_haul"]
-        character.pet_name, character.pet_fed_until = row["pet_name"], row["pet_fed_until"]  # milks for the downtime
+        character.pet_name, character.pet_fed_until = (
+            row["pet_name"],
+            row["pet_fed_until"],
+        )  # milks for the downtime
         character.pet_care, character.pet_kind = row["pet_care"], row["pet_kind"]
-        if row["raid_home_at"] is not None:  # deaths aren't saved, so the raid counts them from here
-            character.auto_raid = (row["raid_home_at"], character.deaths, row["raid_depth"])
+        if (
+            row["raid_home_at"] is not None
+        ):  # deaths aren't saved, so the raid counts them from here
+            character.auto_raid = (
+                row["raid_home_at"],
+                character.deaths,
+                row["raid_depth"],
+            )
 
         for item_row in self.connection.execute(
             "SELECT * FROM item WHERE discord_id = ?", (discord_id,)
@@ -323,7 +365,9 @@ class Database:
             item = _restore_item(item_row["class_path"], item_row["state"])
             if item_row["slot"] is None:
                 character.inventory.append(item)
-                if worn := json.loads(item_row["state"] or "{}").get("worn"):  # equipped from the backpack
+                if worn := json.loads(item_row["state"] or "{}").get(
+                    "worn"
+                ):  # equipped from the backpack
                     character.equip(item, EquipmentSet.SLOTS[worn])
             elif item_row["slot"] == STASH:
                 character.stash.append(item)
@@ -331,8 +375,14 @@ class Database:
                 character.pouch = item
             else:
                 character.equip(item, EquipmentSet.SLOTS[item_row["slot"]])
-        if not isinstance(character.location, GameSpace.Town):  # mid-raid: the haul counts from the restart
-            character.raid_start = (character.currency, character.carried, character.experience)
+        if not isinstance(
+            character.location, GameSpace.Town
+        ):  # mid-raid: the haul counts from the restart
+            character.raid_start = (
+                character.currency,
+                character.carried,
+                character.experience,
+            )
             character.raid_deepest = adapter.world.danger_at(character.location)
 
     def save(self, adapter: WorldAdapter):
@@ -363,8 +413,14 @@ class Database:
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     (
-                        _class_path(npc), _class_path(npc.body_type), npc.name, npc.hit_points, npc.hit_points_max,
-                        npc.currency, npc.location.x, npc.location.y,
+                        _class_path(npc),
+                        _class_path(npc.body_type),
+                        npc.name,
+                        npc.hit_points,
+                        npc.hit_points_max,
+                        npc.currency,
+                        npc.location.x,
+                        npc.location.y,
                     )
                     for npc in world.npcs
                     if not npc.is_dead  # a kill despawns it, but it stays listed until the next tick
@@ -374,7 +430,16 @@ class Database:
             self.connection.executemany(
                 "INSERT INTO store VALUES (?, ?, ?)",
                 [
-                    (town.x, town.y, json.dumps([[_class_path(i), _item_state(i)] for i in town.store.inventory]))
+                    (
+                        town.x,
+                        town.y,
+                        json.dumps(
+                            [
+                                [_class_path(i), _item_state(i)]
+                                for i in town.store.inventory
+                            ]
+                        ),
+                    )
                     for town in list(world.towns)
                     if town.store.traded
                 ],
@@ -383,7 +448,10 @@ class Database:
             self.connection.executemany(
                 "INSERT INTO guild VALUES (?, ?)",
                 # list(): the website changes settings from its own thread.
-                [(guild_id, json.dumps(asdict(settings))) for guild_id, settings in list(adapter.guild_settings.items())],
+                [
+                    (guild_id, json.dumps(asdict(settings)))
+                    for guild_id, settings in list(adapter.guild_settings.items())
+                ],
             )
 
     def _save_character(self, discord_id: int, character: Actors.PlayerCharacter):
@@ -406,7 +474,11 @@ class Database:
                 character.hideout_level,
                 character.prestige,
                 character.side,
-                *((character.auto_raid[0], character.auto_raid[2]) if character.auto_raid else (None, None)),
+                *(
+                    (character.auto_raid[0], character.auto_raid[2])
+                    if character.auto_raid
+                    else (None, None)
+                ),
                 character.camping,
                 character.kills,
                 character.extractions,
@@ -426,16 +498,27 @@ class Database:
             id(item): (item, slot)
             for slot in EquipmentSet.SLOTS
             for item in [getattr(character.equipment_set, slot)]
-            if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+            if type(item)
+            not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
         }
         carried = {id(item) for item in character.inventory}
         # (item, slot, also worn in): one row per item. Worn from the backpack is a backpack row that says so,
         # worn but not carried (fists, say) is a slot row.
-        rows = [(item, slot, None) for key, (item, slot) in worn.items() if key not in carried]
-        rows += [(item, None, worn[id(item)][1] if id(item) in worn else None) for item in character.inventory]
+        rows = [
+            (item, slot, None)
+            for key, (item, slot) in worn.items()
+            if key not in carried
+        ]
+        rows += [
+            (item, None, worn[id(item)][1] if id(item) in worn else None)
+            for item in character.inventory
+        ]
         rows += [(item, STASH, None) for item in character.stash]
         rows += [(character.pouch, POUCH, None)] if character.pouch is not None else []
         self.connection.executemany(
             "INSERT INTO item (discord_id, class_path, slot, state) VALUES (?, ?, ?, ?)",
-            [(discord_id, _class_path(item), slot, _item_state(item, also)) for item, slot, also in rows],
+            [
+                (discord_id, _class_path(item), slot, _item_state(item, also))
+                for item, slot, also in rows
+            ],
         )

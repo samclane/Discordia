@@ -70,7 +70,8 @@ class Ammo(Equipment):
 
 class Salvage(Data.FromData, Equipment):
     """Parts worth hauling home: what a hideout's bigger levels are bartered for. Never stocked by a store
-    ("store": false in barter.json), so the only way to get some is to go out and find it."""
+    ("store": false in barter.json), so the only way to get some is to go out and find it.
+    """
 
     STATS = Data.load(Data.DATA_FOLDER / "barter.json")
 

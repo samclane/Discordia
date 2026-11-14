@@ -5,7 +5,17 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Deque, Dict, Tuple, List, Iterator, Optional
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Deque,
+    Dict,
+    Tuple,
+    List,
+    Iterator,
+    Optional,
+)
 
 from Discordia.GameLogic import Actors, Events
 from Discordia.GameLogic.GameSpace import (
@@ -100,8 +110,12 @@ def move_text(results: List[PlayerActionResponse], direction_name: str) -> str:
     return "\n".join(lines) or f"You move {direction_name}."
 
 
-def attack_text(character: Actors.PlayerCharacter, response: PlayerActionResponse) -> str:
-    if response.target is None:  # nobody hit, and nothing refused: someone else got there first
+def attack_text(
+    character: Actors.PlayerCharacter, response: PlayerActionResponse
+) -> str:
+    if (
+        response.target is None
+    ):  # nobody hit, and nothing refused: someone else got there first
         return response.text
     return f"{character.name} deals {response.damage} to {response.target.name}.\n\n {response.text}"
 
@@ -125,7 +139,9 @@ DIRECTION_NAMES = {
 }
 
 NEWS_KEPT = 20  # world events remembered per player, for the website
-SAMPLES_KEPT = 17280  # ticks remembered for the owner's dashboard: a day of them at 5 seconds
+SAMPLES_KEPT = (
+    17280  # ticks remembered for the owner's dashboard: a day of them at 5 seconds
+)
 
 
 @dataclass
@@ -133,9 +149,15 @@ class GuildSettings:
     """One Discord server's settings, set by its admins on the website. Saved as JSON: a new setting is a
     new field with a default, and old saves load without a migration."""
 
-    channels: List[int] = field(default_factory=list)  # where commands work; empty means everywhere
-    digest_channel: Optional[int] = None  # where the daily digest goes; None means it doesn't
-    announce_channel: Optional[int] = None  # where its players' deaths and hauls are posted; None means nowhere
+    channels: List[int] = field(
+        default_factory=list
+    )  # where commands work; empty means everywhere
+    digest_channel: Optional[int] = (
+        None  # where the daily digest goes; None means it doesn't
+    )
+    announce_channel: Optional[int] = (
+        None  # where its players' deaths and hauls are posted; None means nowhere
+    )
 
 
 PROC_STATUS = "/proc/self/status"
@@ -160,15 +182,23 @@ class WorldAdapter:
         self.world: World = gameworld
         self._renderer = None
         self._discord_player_map: Dict[int, Actors.PlayerCharacter] = {}
-        self.web_logins = WebLogins()  # here because the bot and the web map both hold the adapter
+        self.web_logins = (
+            WebLogins()
+        )  # here because the bot and the web map both hold the adapter
         # Set by the running bot: queue an order for the next tick, and await its result. None when nothing
         # ticks the world (tests, a bare web server).
-        self.place_order: Optional[Callable[[Actors.PlayerCharacter, Callable[[], Any]], Awaitable[Any]]] = None
+        self.place_order: Optional[
+            Callable[[Actors.PlayerCharacter, Callable[[], Any]], Awaitable[Any]]
+        ] = None
         # Discord server id -> its settings. Servers nobody has configured aren't in it.
         self.guild_settings: Dict[int, GuildSettings] = {}
         # Also set by the running bot, for the website's settings page: (member id, server id) ->
         # (server name, [(channel id, channel name, bot may post)]) if that member may manage that server, else None.
-        self.guild_for_admin: Optional[Callable[[int, int], Awaitable[Optional[Tuple[str, List[Tuple[int, str, bool]]]]]]] = None
+        self.guild_for_admin: Optional[
+            Callable[
+                [int, int], Awaitable[Optional[Tuple[str, List[Tuple[int, str, bool]]]]]
+            ]
+        ] = None
         # And Discord's "add this bot to a server" link, for the website's /invite.
         self.invite_url: Optional[str] = None
         # And whether a member owns the bot, for the website's dashboard (/admin).
@@ -184,7 +214,9 @@ class WorldAdapter:
 
     def add_news(self, character: Actors.PlayerCharacter, text: str):
         """Remember something the world did to a player while they weren't looking (what the bot DMs)."""
-        self._news.setdefault(character, deque(maxlen=NEWS_KEPT)).append((time.time(), text))
+        self._news.setdefault(character, deque(maxlen=NEWS_KEPT)).append(
+            (time.time(), text)
+        )
 
     def news(self, character: Actors.PlayerCharacter) -> List[Tuple[float, str]]:
         """(unix time, text) pairs, oldest first. A snapshot: safe to call off the bot loop."""
@@ -243,20 +275,33 @@ class WorldAdapter:
     def camp(self, character: Actors.PlayerCharacter) -> str:
         """Rest where `character` stands, out past the towns: World.advance heals it until it moves or dies."""
         if isinstance(character.location, Town):
-            raise ValueError("You're in a town: `/town inn` patches you up on the spot.")
+            raise ValueError(
+                "You're in a town: `/town inn` patches you up on the spot."
+            )
         character.camping = True
         missing = character.hit_points_max - character.hit_points
-        minutes = math.ceil(missing / character.camp_heal) * Actors.CAMP_HEAL_TICKS * self.tick_seconds / 60
+        minutes = (
+            math.ceil(missing / character.camp_heal)
+            * Actors.CAMP_HEAL_TICKS
+            * self.tick_seconds
+            / 60
+        )
         return (
             f"{character.name} makes camp. Back to full in about {minutes:.0f} minutes, as long as you stay put."
             if missing > 0
             else f"{character.name} makes camp, already at full health."
         )
 
-    def start_raid(self, character: Actors.PlayerCharacter, minutes: int, depth: int = 1) -> str:
+    def start_raid(
+        self, character: Actors.PlayerCharacter, minutes: int, depth: int = 1
+    ) -> str:
         """Send `character` out unattended for `minutes`, no deeper than danger `depth`; World.tick walks it
         and says how it went."""
-        character.auto_raid = (self.world.ticks + int(minutes * 60 / self.tick_seconds), character.deaths, depth)
+        character.auto_raid = (
+            self.world.ticks + int(minutes * 60 / self.tick_seconds),
+            character.deaths,
+            depth,
+        )
         return (
             f"{character.name} heads out for the caches, no deeper than danger {depth}. Back in {minutes} minutes,"
             f" sooner if it goes badly: you'll get a message either way."
@@ -275,9 +320,17 @@ class WorldAdapter:
         if character.best_haul:
             text += f" Your best haul, ${character.best_haul:,}, hangs on its wall."
         perks = Actors.HIDEOUT_PERKS.items()
-        if rooms := [f"a {perk} ({what})" for perk, (_, what) in perks if character.has_perk(perk)]:
+        if rooms := [
+            f"a {perk} ({what})"
+            for perk, (_, what) in perks
+            if character.has_perk(perk)
+        ]:
             text += f" It has {', '.join(rooms)}."
-        if upcoming := [(level, perk, what) for perk, (level, what) in perks if not character.has_perk(perk)]:
+        if upcoming := [
+            (level, perk, what)
+            for perk, (level, what) in perks
+            if not character.has_perk(perk)
+        ]:
             text += " Level {} opens a {}: {}.".format(*min(upcoming))
         if character.hideout_level >= Actors.PRESTIGE_LEVEL:
             text += " `/hideout prestige` trades it and the stash in for more income for good."
@@ -295,7 +348,9 @@ class WorldAdapter:
             return f"{name} got tired of waiting and wandered off. `/pet adopt` another in any town."
         left = (character.pet_fed_until - now) * self.tick_seconds
         if left <= 0:
-            days = math.ceil((left + Actors.PET_RUNAWAY_TICKS * self.tick_seconds) / 86400)
+            days = math.ceil(
+                (left + Actors.PET_RUNAWAY_TICKS * self.tick_seconds) / 86400
+            )
             return (
                 f"{name} is hungry and {'gives nothing' if character.pet_kind == 'goat' else 'stays home'}, and"
                 f" wanders off within {days} day{'s' * (days > 1)} if nobody feeds it. `/pet feed` in any town, for"
@@ -310,10 +365,19 @@ class WorldAdapter:
             often = "now and then" if character.pet_yield > 1 else "once in a while"
             text += f"comes on your raids: it brings back salvage {often} when nothing else is going on."
         if character.pet_yield > 1:
-            return text + f" It's a happy {character.pet_kind}: keep feeding it on time."
+            return (
+                text + f" It's a happy {character.pet_kind}: keep feeding it on time."
+            )
         more = Actors.PET_CARE_MAX - character.pet_care
-        twice = "gives twice that" if character.pet_kind == "goat" else "fetches twice as often"
-        return text + f" Feed it before it's hungry {more} more time{'s' * (more > 1)} running and it {twice}."
+        twice = (
+            "gives twice that"
+            if character.pet_kind == "goat"
+            else "fetches twice as often"
+        )
+        return (
+            text
+            + f" Feed it before it's hungry {more} more time{'s' * (more > 1)} running and it {twice}."
+        )
 
     @property
     def width(self):
@@ -401,20 +465,29 @@ class WorldAdapter:
             text += f" You're in the wilds, {here.name}, danger {here.level}."
         else:
             text += f" Out here is danger {self.world.depth_at(here)}."
-        if not isinstance(here, Town):  # where a raid ends: a town, or a ride to one (towns and extracts load as explored)
+        if not isinstance(
+            here, Town
+        ):  # where a raid ends: a town, or a ride to one (towns and extracts load as explored)
             out = min(self.world.towns + self.world.extracts, key=here.distance)
             squares = max(abs(out.x - here.x), abs(out.y - here.y))
             where = out.name if isinstance(out, Town) else "an extraction point"
             text += f" Nearest way out: {where}, {squares} square{'s' * (squares != 1)} {bearing(here, out)}."
         seen: List[Tuple[str, Space]] = []
-        for actor in self.get_nearby_npcs(character) + self.get_nearby_players(character):
+        for actor in self.get_nearby_npcs(character) + self.get_nearby_players(
+            character
+        ):
             if actor is not character:
                 kind = " (raider)" if isinstance(actor, Actors.Raider) else ""
-                kind = " (player)" if isinstance(actor, Actors.PlayerCharacter) else kind
+                kind = (
+                    " (player)" if isinstance(actor, Actors.PlayerCharacter) else kind
+                )
                 seen.append((actor.name + kind, actor.location))
         for space in self.world.live_piles():
             pile = space.remains
-            if pile is not None and max(abs(space.x - here.x), abs(space.y - here.y)) <= character.fov:
+            if (
+                pile is not None
+                and max(abs(space.x - here.x), abs(space.y - here.y)) <= character.fov
+            ):
                 seen.append((f"{pile.owner.name}'s things ({pile})", space))
         if not seen:
             return text + " Nobody else in sight."
@@ -478,8 +551,16 @@ class WorldAdapter:
 
     def get_player_screenshot(self, character: Actors.PlayerCharacter) -> bytes | None:
         """The PNG /look attaches, or None without a renderer."""
-        return self._renderer.get_player_view(character) if self._renderer is not None else None
+        return (
+            self._renderer.get_player_view(character)
+            if self._renderer is not None
+            else None
+        )
 
     def hideout_png(self, character: Actors.PlayerCharacter) -> bytes | None:
         """A picture of the character's hideout, None before they build one or without a renderer."""
-        return self._renderer.hideout_png(character) if self._renderer is not None else None
+        return (
+            self._renderer.hideout_png(character)
+            if self._renderer is not None
+            else None
+        )

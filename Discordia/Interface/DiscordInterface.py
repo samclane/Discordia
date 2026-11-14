@@ -7,7 +7,18 @@ import io
 import logging
 import random
 import time
-from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, Tuple, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    cast,
+)
 
 import discord
 from discord import app_commands
@@ -125,14 +136,22 @@ STOCK_KINDS: List[Tuple[str, str, type, Callable[[Any], str]]] = [
     ("weapons", "dmg", Weapons.Weapon, lambda item: f"{item.damage:g}"),
     ("armor", "arm", Items.ArmorAbstract, lambda item: f"{item.armor_count:g}"),
     ("ammo", "rds", Items.Ammo, lambda item: str(item.quantity)),
-    ("other", "", Equipment, lambda item: ""),  # whatever players sold it, salvage and the like
+    (
+        "other",
+        "",
+        Equipment,
+        lambda item: "",
+    ),  # whatever players sold it, salvage and the like
 ]
 STOCK_NAME_WIDTH = 22  # keeps a row inside a phone's code block
 
 
-def _stock_listing(store: GameSpace.Store, character: Actors.PlayerCharacter, kind: str | None = None) -> str:
+def _stock_listing(
+    store: GameSpace.Store, character: Actors.PlayerCharacter, kind: str | None = None
+) -> str:
     """What's for sale, for a town store or a trader's blanket alike: grouped, cheapest first, in a code block
-    so the columns line up. The #s are the store's own, for buy. ✗ marks what you can't afford."""
+    so the columns line up. The #s are the store's own, for buy. ✗ marks what you can't afford.
+    """
     w = STOCK_NAME_WIDTH
     groups: Dict[str, List[Tuple[int, Equipment]]] = {}
     for index, item in enumerate(store.inventory):
@@ -143,18 +162,26 @@ def _stock_listing(store: GameSpace.Store, character: Actors.PlayerCharacter, ki
         if heading not in groups or kind not in (None, heading):
             continue
         lines.append(f"{heading.upper():<{w + 4}} {column:>4} {'price':>6}")
-        for index, item in sorted(groups[heading], key=lambda row: store.get_price(row[1], character)):
+        for index, item in sorted(
+            groups[heading], key=lambda row: store.get_price(row[1], character)
+        ):
             price = store.get_price(item, character)
             name = item.name if len(item.name) <= w else item.name[: w - 1] + "…"
             dear = " ✗" if price > character.currency else ""
-            lines.append(f"{'#' + str(index):<4}{name:<{w}} {stat(item):>4} {'$' + str(price):>6}{dear}")
+            lines.append(
+                f"{'#' + str(index):<4}{name:<{w}} {stat(item):>4} {'$' + str(price):>6}{dear}"
+            )
     if not lines:
         return f"Nothing in {kind} here right now."
     side = ""
-    if store.side is not None and character.side is not None:  # what get_price did to every price above
+    if (
+        store.side is not None and character.side is not None
+    ):  # what get_price did to every price above
         own = store.side == character.side
         side = f" {'Your' if own else 'The other'} side's base: {GameSpace.SIDE_DISCOUNT:.0%} {'off' if own else 'on top'}."
-    return f"You have ${character.currency:,}.{side}\n```\n" + "\n".join(lines) + "\n```"
+    return (
+        f"You have ${character.currency:,}.{side}\n```\n" + "\n".join(lines) + "\n```"
+    )
 
 
 def _stock_choices(
@@ -168,8 +195,14 @@ def _stock_choices(
         if typed in item.name.lower() or typed == str(index)
     ]
     return [
-        app_commands.Choice(name=f"{item.name} · ${store.get_price(item, buyer)}", value=index)
-        for index, item in sorted(matches, key=lambda row: store.get_price(row[1], buyer))[:25]  # Discord's cap
+        app_commands.Choice(
+            name=f"{item.name} · ${store.get_price(item, buyer)}", value=index
+        )
+        for index, item in sorted(
+            matches, key=lambda row: store.get_price(row[1], buyer)
+        )[
+            :25
+        ]  # Discord's cap
     ]
 
 
@@ -194,7 +227,12 @@ async def _send(interaction: discord.Interaction, content: str, **kwargs):
         LOG.info("Could not reply to /%s: %s", interaction.command, exc)
 
 
-async def _sell(interaction: discord.Interaction, character: Actors.PlayerCharacter, store: GameSpace.Store, index: int):
+async def _sell(
+    interaction: discord.Interaction,
+    character: Actors.PlayerCharacter,
+    store: GameSpace.Store,
+    index: int,
+):
     """Sell `store` the backpack item at `index`: /town store sell and /trade sell."""
     if not 0 <= index < len(character.inventory):
         await _send(interaction, f"Invalid index {index} given.", ephemeral=True)
@@ -227,10 +265,16 @@ class DiscordInterface(commands.Cog):
         name="trade", description="Deal with a trader you met on the road"
     )
     stash = app_commands.Group(
-        name="stash", description="Bank items and money in town, safe from whatever kills you out there"
+        name="stash",
+        description="Bank items and money in town, safe from whatever kills you out there",
     )
-    hideout = app_commands.Group(name="hideout", description="Build up a hideout that earns while you're away")
-    pet = app_commands.Group(name="pet", description="Keep a goat that gives milk or a dog that fetches, while it's fed")
+    hideout = app_commands.Group(
+        name="hideout", description="Build up a hideout that earns while you're away"
+    )
+    pet = app_commands.Group(
+        name="pet",
+        description="Keep a goat that gives milk or a dog that fetches, while it's fed",
+    )
 
     def __init__(
         self,
@@ -266,10 +310,16 @@ class DiscordInterface(commands.Cog):
         # Discord member id -> the servers they've used a command in: where their deaths and hauls are news.
         # ponytail: in memory, so after a restart a player's news reaches a server once they play there again.
         self._servers: Dict[int, set] = {}
-        self._sent = 0  # messages the bot sent on its own (DMs, posts), for the dashboard
-        self._mentions: Dict[str, str] = {}  # command name -> its clickable </name:id>, once synced
+        self._sent = (
+            0  # messages the bot sent on its own (DMs, posts), for the dashboard
+        )
+        self._mentions: Dict[str, str] = (
+            {}
+        )  # command name -> its clickable </name:id>, once synced
 
-    def _start_job(self, every: float | datetime.time, action: Callable[[], Any], name: str):
+    def _start_job(
+        self, every: float | datetime.time, action: Callable[[], Any], name: str
+    ):
         """Run `action` every `every` seconds, or daily at that time, on the bot's event loop: same thread as
         the commands, so no locking.
 
@@ -277,7 +327,11 @@ class DiscordInterface(commands.Cog):
         a coroutine function; the tick is one, because it sends DMs.
         """
 
-        loop = tasks.loop(time=every) if isinstance(every, datetime.time) else tasks.loop(seconds=every)
+        loop = (
+            tasks.loop(time=every)
+            if isinstance(every, datetime.time)
+            else tasks.loop(seconds=every)
+        )
 
         @loop
         async def job():
@@ -329,13 +383,21 @@ class DiscordInterface(commands.Cog):
         kills, fallen = stats.kills - kills, stats.deaths_by_level.total() - fallen
         fights, self._fights = self._fights, {}
         for character, events in news.items():
-            if isinstance(character, Actors.PlayerCharacter):  # the website gets the blow-by-blow
-                self.world_adapter.add_news(character, "\n".join(e.text for e in events))
+            if isinstance(
+                character, Actors.PlayerCharacter
+            ):  # the website gets the blow-by-blow
+                self.world_adapter.add_news(
+                    character, "\n".join(e.text for e in events)
+                )
             # A fight is two DMs, not one every tick: the first hit says it started, dying says how it ended.
             # A phone buzzing every 5 seconds is how a player mutes the bot.
             already, deaths = fights.get(character, (set(), None))
             died = deaths is not None and getattr(character, "deaths", deaths) != deaths
-            fresh = [e.text for e in events if died or not e.damage or e.source not in already]
+            fresh = [
+                e.text
+                for e in events
+                if died or not e.damage or e.source not in already
+            ]
             hitting = {e.source for e in events if e.damage}
             if hitting and not died:
                 self._fights[character] = (hitting, getattr(character, "deaths", 0))
@@ -347,7 +409,9 @@ class DiscordInterface(commands.Cog):
             kills=kills,
             deaths=fallen,
             messages=self._sent - sent,
-            seconds=round(time.perf_counter() - started, 4),  # sending included: it holds up the commands too
+            seconds=round(
+                time.perf_counter() - started, 4
+            ),  # sending included: it holds up the commands too
             servers=len(self.bot.guilds),
         )
 
@@ -359,7 +423,9 @@ class DiscordInterface(commands.Cog):
         by_server: Dict[int, List[str]] = {}
         for character, text in announcements:
             member_id = self.world_adapter.get_member_id(character)
-            for guild_id in self._servers.get(member_id, ()) if member_id is not None else ():
+            for guild_id in (
+                self._servers.get(member_id, ()) if member_id is not None else ()
+            ):
                 by_server.setdefault(guild_id, []).append(text)
         for guild_id, lines in by_server.items():
             settings = self.world_adapter.guild_settings.get(guild_id)
@@ -398,7 +464,9 @@ class DiscordInterface(commands.Cog):
             if settings.digest_channel is not None:
                 await self._post(settings.digest_channel, text)
 
-    async def guild_for_admin(self, member_id: int, guild_id: int) -> Optional[Tuple[str, List[Tuple[int, str, bool]]]]:
+    async def guild_for_admin(
+        self, member_id: int, guild_id: int
+    ) -> Optional[Tuple[str, List[Tuple[int, str, bool]]]]:
         """For the website's settings page: (server name, [(channel id, name, whether the bot may post there)]) if
         the member may manage that server, else None. Asks Discord every time rather than trusting a cache,
         so taking someone's Manage Server away locks them out at once."""
@@ -456,9 +524,18 @@ class DiscordInterface(commands.Cog):
         def channels():  # lazily: the system channel usually takes it
             if guild.system_channel is not None:
                 yield guild.system_channel
-            yield from (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages)
+            yield from (
+                c
+                for c in guild.text_channels
+                if c.permissions_for(guild.me).send_messages
+            )
 
-        text = WELCOME.format(**{name: self._mentions.get(name, f"`/{name}`") for name in ("register", "settings")})
+        text = WELCOME.format(
+            **{
+                name: self._mentions.get(name, f"`/{name}`")
+                for name in ("register", "settings")
+            }
+        )
         for channel in channels():
             try:
                 await channel.send(text)
@@ -483,7 +560,10 @@ class DiscordInterface(commands.Cog):
             )
             msg = "Something went wrong on the server."
         LOG.warning(f"{interaction.user.display_name}: {type(error).__name__}")
-        if interaction.response.type is discord.InteractionResponseType.deferred_channel_message:
+        if (
+            interaction.response.type
+            is discord.InteractionResponseType.deferred_channel_message
+        ):
             # The first followup after a public defer fills in its "thinking..." and so shows to everyone,
             # ephemeral or not. An error lands before any followup, so the placeholder is all there is: drop it,
             # and the refusal goes out as a message of its own.
@@ -491,22 +571,35 @@ class DiscordInterface(commands.Cog):
             try:
                 await interaction.delete_original_response()
             except discord.HTTPException as exc:
-                LOG.info("Could not delete the deferred /%s: %s", interaction.command, exc)
+                LOG.info(
+                    "Could not delete the deferred /%s: %s", interaction.command, exc
+                )
         await _send(interaction, msg, ephemeral=True)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Commands only work in the channels a server's admins picked on the website: all of them if
         they picked none. /settings works anywhere, so nobody locks themselves out."""
         if interaction.guild_id is not None:
-            self._servers.setdefault(interaction.user.id, set()).add(interaction.guild_id)
+            self._servers.setdefault(interaction.user.id, set()).add(
+                interaction.guild_id
+            )
         settings = self.world_adapter.guild_settings.get(interaction.guild_id or 0)
-        if settings is None or not settings.channels or getattr(interaction.command, "name", None) == "settings":
+        if (
+            settings is None
+            or not settings.channels
+            or getattr(interaction.command, "name", None) == "settings"
+        ):
             return True
         # A thread counts as the channel it hangs off.
-        if {interaction.channel_id, getattr(interaction.channel, "parent_id", None)} & set(settings.channels):
+        if {
+            interaction.channel_id,
+            getattr(interaction.channel, "parent_id", None),
+        } & set(settings.channels):
             return True
         raise WrongChannel(
-            "Discordia doesn't play in this channel. Try " + ", ".join(f"<#{c}>" for c in settings.channels) + "."
+            "Discordia doesn't play in this channel. Try "
+            + ", ".join(f"<#{c}>" for c in settings.channels)
+            + "."
         )
 
     def _player(self, interaction: discord.Interaction) -> Actors.PlayerCharacter:
@@ -526,11 +619,22 @@ class DiscordInterface(commands.Cog):
     @app_commands.command(name="help")
     async def help_(self, interaction: discord.Interaction):
         """Every command and what it does"""
-        commands_ = [c for c in self.bot.tree.walk_commands() if isinstance(c, app_commands.Command)]
-        commands_.sort(key=lambda c: c.name != "register")  # stable: the rest keep the cog's order
+        commands_ = [
+            c
+            for c in self.bot.tree.walk_commands()
+            if isinstance(c, app_commands.Command)
+        ]
+        commands_.sort(
+            key=lambda c: c.name != "register"
+        )  # stable: the rest keep the cog's order
         listing = "\n".join(f"`/{c.qualified_name}` {c.description}" for c in commands_)
         # An embed: the list is about Discord's 2000-character message limit on its own, and an embed takes 4096.
-        await _send(interaction, "", embed=discord.Embed(title="Discordia commands", description=listing), ephemeral=True)
+        await _send(
+            interaction,
+            "",
+            embed=discord.Embed(title="Discordia commands", description=listing),
+            ephemeral=True,
+        )
 
     @app_commands.command()
     @requires_character()
@@ -552,15 +656,23 @@ class DiscordInterface(commands.Cog):
 
     @app_commands.command()
     @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild=True)  # hides it from everyone else in the command list
+    @app_commands.default_permissions(
+        manage_guild=True
+    )  # hides it from everyone else in the command list
     async def settings(self, interaction: discord.Interaction):
         """Choose which channels Discordia plays in on this server (admins)"""
         if self.web_url is None:
-            await _send(interaction, "The website isn't running on this server.", ephemeral=True)
+            await _send(
+                interaction, "The website isn't running on this server.", ephemeral=True
+            )
             return
         # Server admins can hand the command to anyone; the website asks Discord again either way.
         if not interaction.permissions.manage_guild:
-            await _send(interaction, "You need Manage Server to change this server's settings.", ephemeral=True)
+            await _send(
+                interaction,
+                "You need Manage Server to change this server's settings.",
+                ephemeral=True,
+            )
             return
         token = self.world_adapter.web_logins.new_link_token(interaction.user.id)
         await _send(
@@ -669,7 +781,9 @@ class DiscordInterface(commands.Cog):
     ):
         """Decide what to do about whoever is waiting on the road, resolved on the next tick"""
         character = self._player(interaction)
-        if not isinstance(character.pending_event, Events.EncounterEvent):  # private, before the defer, like /move
+        if not isinstance(
+            character.pending_event, Events.EncounterEvent
+        ):  # private, before the defer, like /move
             raise NoEncounterException()
         await _defer(interaction)
         results = await self.order(
@@ -687,7 +801,10 @@ class DiscordInterface(commands.Cog):
     async def trade_list(self, interaction: discord.Interaction):
         """See what the trader in front of you is selling"""
         character = self._player(interaction)
-        await _send(interaction, _stock_listing(self.world_adapter.merchant_store(character), character))
+        await _send(
+            interaction,
+            _stock_listing(self.world_adapter.merchant_store(character), character),
+        )
 
     @trade.command(name="buy")
     @requires_character()
@@ -709,13 +826,17 @@ class DiscordInterface(commands.Cog):
     async def trade_sell(self, interaction: discord.Interaction, index: int):
         """Sell the trader the inventory item at the given index, for less than a town would pay"""
         character = self._player(interaction)
-        await _sell(interaction, character, self.world_adapter.merchant_store(character), index)
+        await _sell(
+            interaction, character, self.world_adapter.merchant_store(character), index
+        )
 
     @trade_buy.autocomplete("index")
     async def _trade_choices(self, interaction: discord.Interaction, current: str):
         # No checks run on an autocomplete: anyone not standing at a trader just gets no suggestions.
         try:
-            return _stock_choices(self.world_adapter.merchant_store(self._player(interaction)), current)
+            return _stock_choices(
+                self.world_adapter.merchant_store(self._player(interaction)), current
+            )
         except Exception:
             return []
 
@@ -726,26 +847,41 @@ class DiscordInterface(commands.Cog):
         """See what you've banked"""
         character = self._player(interaction)
         msg = f"{character.name}'s stash: ${character.stash_currency}\n"
-        msg += "".join(f"\t#{index}\t{item}\n" for index, item in enumerate(character.stash)) or "\t(No items)"
+        msg += (
+            "".join(
+                f"\t#{index}\t{item}\n" for index, item in enumerate(character.stash)
+            )
+            or "\t(No items)"
+        )
         await _send(interaction, msg)
 
     @stash.command(name="put")
     @requires_character()
     @requires_space(GameSpace.Town)
     async def stash_put(
-        self, interaction: discord.Interaction, item: Optional[int] = None, money: int = 0
+        self,
+        interaction: discord.Interaction,
+        item: Optional[int] = None,
+        money: int = 0,
     ):
         """Bank the inventory item at the given index, and/or some money"""
-        await self._stash_move(interaction, self._player(interaction).stash_put, item, money)
+        await self._stash_move(
+            interaction, self._player(interaction).stash_put, item, money
+        )
 
     @stash.command(name="take")
     @requires_character()
     @requires_space(GameSpace.Town)
     async def stash_take(
-        self, interaction: discord.Interaction, item: Optional[int] = None, money: int = 0
+        self,
+        interaction: discord.Interaction,
+        item: Optional[int] = None,
+        money: int = 0,
     ):
         """Take the stashed item at the given index, and/or some money, to carry"""
-        await self._stash_move(interaction, self._player(interaction).stash_take, item, money)
+        await self._stash_move(
+            interaction, self._player(interaction).stash_take, item, money
+        )
 
     @hideout.command(name="view")
     @requires_character()
@@ -754,7 +890,9 @@ class DiscordInterface(commands.Cog):
         character = self._player(interaction)
         png = self.world_adapter.hideout_png(character)
         files = [discord.File(io.BytesIO(png), "hideout.png")] if png else []
-        await _send(interaction, self.world_adapter.hideout_text(character), files=files)
+        await _send(
+            interaction, self.world_adapter.hideout_text(character), files=files
+        )
 
     @hideout.command(name="build")
     @requires_character()
@@ -769,7 +907,9 @@ class DiscordInterface(commands.Cog):
     @hideout.command(name="prestige")
     @requires_character()
     @requires_space(GameSpace.Town)
-    async def hideout_prestige(self, interaction: discord.Interaction, confirm: bool = False):
+    async def hideout_prestige(
+        self, interaction: discord.Interaction, confirm: bool = False
+    ):
         """From hideout level 15: trade the hideout and your whole stash in for +10% hideout income for good"""
         try:
             text = self._player(interaction).prestige_hideout(confirm)
@@ -794,7 +934,10 @@ class DiscordInterface(commands.Cog):
         except ValueError as exc:
             await _send(interaction, str(exc), ephemeral=True)
             return
-        await _send(interaction, f"{character.pet_name} is yours. {self.world_adapter.pet_text(character)}")
+        await _send(
+            interaction,
+            f"{character.pet_name} is yours. {self.world_adapter.pet_text(character)}",
+        )
 
     @pet.command(name="feed")
     @requires_character()
@@ -821,7 +964,11 @@ class DiscordInterface(commands.Cog):
         except ValueError as exc:
             await _send(interaction, str(exc), ephemeral=True)
             return
-        await _send(interaction, f"Moved {moved}." if moved else "Nothing to move.", ephemeral=not moved)
+        await _send(
+            interaction,
+            f"Moved {moved}." if moved else "Nothing to move.",
+            ephemeral=not moved,
+        )
 
     @inventory.command(name="list")
     @requires_character()
@@ -839,14 +986,20 @@ class DiscordInterface(commands.Cog):
 
     @inventory.command()
     @requires_character()
-    async def pouch(self, interaction: discord.Interaction, index: Optional[int] = None):
+    async def pouch(
+        self, interaction: discord.Interaction, index: Optional[int] = None
+    ):
         """Keep the item at the given index safe from death (one at a time); no index empties the pouch"""
         try:
             moved = self._player(interaction).pouch_swap(index)
         except ValueError as exc:
             await _send(interaction, str(exc), ephemeral=True)
             return
-        await _send(interaction, f"Moved {moved}." if moved else "Your pouch is already empty.", ephemeral=not moved)
+        await _send(
+            interaction,
+            f"Moved {moved}." if moved else "Your pouch is already empty.",
+            ephemeral=not moved,
+        )
 
     @inventory.command()
     @requires_character()
@@ -860,8 +1013,14 @@ class DiscordInterface(commands.Cog):
             return
         try:
             character.equip(item)
-        except ValueError:  # no slot takes it, like a box of rounds: those load themselves
-            await _send(interaction, f"{item.name} isn't something you wear or hold.", ephemeral=True)
+        except (
+            ValueError
+        ):  # no slot takes it, like a box of rounds: those load themselves
+            await _send(
+                interaction,
+                f"{item.name} isn't something you wear or hold.",
+                ephemeral=True,
+            )
             return
         await _send(interaction, f"Equipped {item.name}.")
 
@@ -877,8 +1036,14 @@ class DiscordInterface(commands.Cog):
             return
         try:
             character.unequip(item)
-        except ValueError:  # no slot takes it, like a box of rounds: those load themselves
-            await _send(interaction, f"{item.name} isn't something you wear or hold.", ephemeral=True)
+        except (
+            ValueError
+        ):  # no slot takes it, like a box of rounds: those load themselves
+            await _send(
+                interaction,
+                f"{item.name} isn't something you wear or hold.",
+                ephemeral=True,
+            )
             return
         await _send(interaction, f"Unequipped {item.name}.")
 
@@ -892,7 +1057,10 @@ class DiscordInterface(commands.Cog):
         depth: app_commands.Range[int, 1, GameSpace.WILDS_MAX_LEVEL] = 1,
     ):
         """Raid alone for this many minutes, no deeper than `depth`: deeper pays more and kills more"""
-        await _send(interaction, self.world_adapter.start_raid(self._player(interaction), minutes, depth))
+        await _send(
+            interaction,
+            self.world_adapter.start_raid(self._player(interaction), minutes, depth),
+        )
 
     @app_commands.command()
     @requires_character()
@@ -922,10 +1090,17 @@ class DiscordInterface(commands.Cog):
         """Check if you're in a town, and who's about"""
         town = self._player(interaction).location
         if isinstance(town, GameSpace.Town):
-            people = "\n".join(f'{name}, the {role}: "{line}"' for role, name, line in town.residents)
+            people = "\n".join(
+                f'{name}, the {role}: "{line}"' for role, name, line in town.residents
+            )
             trains = town.industry.recruitment_class
-            training = f" It trains {trains.name}s: {trains.perk}" if trains.perk else ""
-            await _send(interaction, f"You're in {town.name}, population {town.population}.{training}\n{people}")
+            training = (
+                f" It trains {trains.name}s: {trains.perk}" if trains.perk else ""
+            )
+            await _send(
+                interaction,
+                f"You're in {town.name}, population {town.population}.{training}\n{people}",
+            )
         else:
             await _send(interaction, "You're currently not in a town...")
 
@@ -958,7 +1133,9 @@ class DiscordInterface(commands.Cog):
     @requires_character()
     @requires_space(GameSpace.Town)
     async def store_list(
-        self, interaction: discord.Interaction, kind: Optional[Literal["weapons", "armor", "ammo", "other"]] = None
+        self,
+        interaction: discord.Interaction,
+        kind: Optional[Literal["weapons", "armor", "ammo", "other"]] = None,
     ):
         """List what this town's store has for sale, or just one kind of thing"""
         character = self._player(interaction)
@@ -985,7 +1162,11 @@ class DiscordInterface(commands.Cog):
         elif store.sell_item(index, character):
             await _send(interaction, "Item successfully bought.")
         else:
-            await _send(interaction, "You can't afford that, or there's nothing at that index.", ephemeral=True)
+            await _send(
+                interaction,
+                "You can't afford that, or there's nothing at that index.",
+                ephemeral=True,
+            )
 
     @buy.autocomplete("index")
     async def _buy_choices(self, interaction: discord.Interaction, current: str):
@@ -995,7 +1176,11 @@ class DiscordInterface(commands.Cog):
         except Exception:
             return []
         town = character.location
-        return _stock_choices(town.store, current, character) if isinstance(town, GameSpace.Town) else []
+        return (
+            _stock_choices(town.store, current, character)
+            if isinstance(town, GameSpace.Town)
+            else []
+        )
 
     @store.command()
     @requires_character()

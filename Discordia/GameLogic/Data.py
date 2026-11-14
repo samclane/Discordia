@@ -40,7 +40,9 @@ class FromData:
 
     def __init__(self):
         stats = self.STATS[type(self).__name__]
-        super().__init__(**{field: value for field, value in stats.items() if field != "store"})
+        super().__init__(
+            **{field: value for field, value in stats.items() if field != "store"}
+        )
 
 
 def _descendants(cls: type) -> Iterator[type]:
@@ -51,7 +53,8 @@ def _descendants(cls: type) -> Iterator[type]:
 
 def stocked() -> List[type]:
     """Every piece of gear with a stat block that a store may sell: all of them but blocks saying "store": false
-    (fists, salvage). In the order the classes are defined, which a world's seeded stores depend on."""
+    (fists, salvage). In the order the classes are defined, which a world's seeded stores depend on.
+    """
     found: List[type] = []
     for cls in _descendants(FromData):
         block = cls.STATS.get(cls.__name__)

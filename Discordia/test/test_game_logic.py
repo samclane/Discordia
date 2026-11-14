@@ -277,7 +277,9 @@ def test_unequipping_a_weapon_leaves_the_character_their_fists():
     rifle = Weapons.Jezail()
     character.equip(rifle)
     character.unequip(rifle)
-    assert isinstance(character.weapon, Weapons.Fist), "an empty hand punches, like a new character's"
+    assert isinstance(
+        character.weapon, Weapons.Fist
+    ), "an empty hand punches, like a new character's"
     character.unequip(character.weapon)  # and you can't take your fists off
     assert isinstance(character.weapon, Weapons.Fist)
 
@@ -315,9 +317,15 @@ def test_recruiting_promotes_you_once():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
 
     assert town.recruit(character).is_successful
-    assert isinstance(character.player_class, Actors.Soldier) and character.side == "East"
+    assert (
+        isinstance(character.player_class, Actors.Soldier) and character.side == "East"
+    )
     assert town.recruit(character).failed  # already a Solider; nothing left to offer
-    assert Town(1, 1, "Camp", industry=GameSpace.WesternMilitaryBase()).recruit(character).failed
+    assert (
+        Town(1, 1, "Camp", industry=GameSpace.WesternMilitaryBase())
+        .recruit(character)
+        .failed
+    )
     assert character.side == "East"  # no changing sides at the other base
 
 
@@ -327,13 +335,21 @@ def test_turning_raider_drops_your_side_and_keeps_your_wounds():
     assert character.side == "West"
     character.take_damage(30)
     assert character.turn_raider() == " That makes you a Raider."
-    assert isinstance(character.player_class, Actors.RaiderClass) and character.side is None
-    assert (character.hit_points, character.hit_points_max) == (45, 60)  # a Soldier's 75 less the hit: no healing
+    assert (
+        isinstance(character.player_class, Actors.RaiderClass)
+        and character.side is None
+    )
+    assert (character.hit_points, character.hit_points_max) == (
+        45,
+        60,
+    )  # a Soldier's 75 less the hit: no healing
     assert character.turn_raider() == ""  # already one
 
 
 def test_a_wanderer_town_cannot_promote_a_wanderer():
-    town = Town(1, 1, "Sleepy Hollow", industry=GameSpace.NullIndustry())  # no trade, so nothing to learn
+    town = Town(
+        1, 1, "Sleepy Hollow", industry=GameSpace.NullIndustry()
+    )  # no trade, so nothing to learn
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     assert town.recruit(character).failed
 
@@ -350,7 +366,9 @@ def test_a_wanderer_town_cannot_promote_a_wanderer():
 def test_each_trade_town_trains_its_own_class(industry, trained):
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     told = Town(1, 1, "T", industry=industry()).recruit(character)
-    assert isinstance(character.player_class, trained) and told.text.endswith(trained.perk)
+    assert isinstance(character.player_class, trained) and told.text.endswith(
+        trained.perk
+    )
     assert Path(character.player_class.sprite_path).is_file()
 
 
@@ -371,7 +389,9 @@ def test_a_medic_camps_twice_as_fast_and_a_scout_sees_further():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     sight = character.fov
     character.player_class = Actors.Medic()
-    assert character.camp_heal == 2 * max(1, round(character.hit_points_max * Actors.CAMP_HEAL_SHARE))
+    assert character.camp_heal == 2 * max(
+        1, round(character.hit_points_max * Actors.CAMP_HEAL_SHARE)
+    )
     character.player_class = Actors.Scout()
     assert character.fov == sight + 1
 
@@ -395,7 +415,13 @@ def test_store_price_follows_the_price_ratio():
 
 
 def test_a_soldier_pays_less_at_their_own_base_and_more_at_the_other():
-    east = GameSpace.Town(0, 0, "Bagram", industry=GameSpace.EasternMilitaryBase(), store=Store([Weapons.AK47()]))
+    east = GameSpace.Town(
+        0,
+        0,
+        "Bagram",
+        industry=GameSpace.EasternMilitaryBase(),
+        store=Store([Weapons.AK47()]),
+    )
     west = GameSpace.Town(1, 0, "Camp", industry=GameSpace.WesternMilitaryBase())
     market = GameSpace.Town(2, 0, "Bazaar", industry=GameSpace.MiningIndustry())
     soldier = Actors.PlayerCharacter(parent_world=None, name="Ivan")
@@ -409,7 +435,9 @@ def test_a_soldier_pays_less_at_their_own_base_and_more_at_the_other():
     assert west.store.get_price(rifle, soldier) == int(full * 1.2)
     assert market.store.get_price(rifle, soldier) == full  # a trade town takes no side
     assert east.store.get_price(rifle, wanderer) == east.store.get_price(rifle) == full
-    soldier.currency = int(full * 0.8)  # exactly the discounted price: the sale charges what the listing said
+    soldier.currency = int(
+        full * 0.8
+    )  # exactly the discounted price: the sale charges what the listing said
     assert east.store.sell_item(0, soldier) and soldier.currency == 0
 
 
@@ -554,9 +582,15 @@ def test_a_planted_town_only_goes_on_open_dry_ground():
     world = GameSpace.World("Pebble", 8, 8, seed=7)
     grass = GameSpace.GrassTerrain()
     assert world.is_space_buildable(GameSpace.Space(1, 1, grass))
-    taken = [GameSpace.Town(1, 1, "T", terrain=grass), GameSpace.Wilds(1, 1, "W", grass),
-             GameSpace.Cache(1, 1, grass), GameSpace.Extract(1, 1, grass)]
-    assert not any(map(world.is_space_buildable, taken))  # a fallback town never paves over a cache or exit
+    taken = [
+        GameSpace.Town(1, 1, "T", terrain=grass),
+        GameSpace.Wilds(1, 1, "W", grass),
+        GameSpace.Cache(1, 1, grass),
+        GameSpace.Extract(1, 1, grass),
+    ]
+    assert not any(
+        map(world.is_space_buildable, taken)
+    )  # a fallback town never paves over a cache or exit
     assert not world.is_space_buildable(GameSpace.Space(1, 1, WaterTerrain()))
 
 
@@ -629,7 +663,8 @@ def test_a_minecraft_sized_world_only_generates_where_somebody_goes():
 
 def test_terrain_covers_the_shares_it_was_tuned_for():
     """The thresholds were set on tcod's Simplex noise to give the mix the old pnoise3 maps had: water 18%, grass 29%,
-    mountains 3%, ruins and plazas 5% each, the rest paving. Roads then took 3% from all of those but mountains."""
+    mountains 3%, ruins and plazas 5% each, the rest paving. Roads then took 3% from all of those but mountains.
+    """
     kinds, n = Counter(), 0
     for seed in range(3):
         world = GameSpace.World("Mix", 384, 384, seed=seed)
@@ -642,7 +677,11 @@ def test_terrain_covers_the_shares_it_was_tuned_for():
                 n += len(row)
     share = {kind: 100 * count / n for kind, count in kinds.items()}
     assert 13 < share["WaterTerrain"] < 24 and 23 < share["GrassTerrain"] < 35, share
-    assert 1 < share["MountainTerrain"] < 6 and 3 < share["RuinsTerrain"] < 8 and 3 < share["PlazaTerrain"] < 8, share
+    assert (
+        1 < share["MountainTerrain"] < 6
+        and 3 < share["RuinsTerrain"] < 8
+        and 3 < share["PlazaTerrain"] < 8
+    ), share
     assert 1.5 < share["RoadTerrain"] + share["BridgeTerrain"] < 5, share
 
 
@@ -820,7 +859,9 @@ def test_robbing_a_stranger_who_loses_takes_their_money(adapter, monkeypatch):
     assert response.is_successful
     assert player.currency == purse + 60
     assert npc.currency == 0
-    assert response.text.endswith("$60 off Stranger and leave them in the dirt. That makes you a Raider.")
+    assert response.text.endswith(
+        "$60 off Stranger and leave them in the dirt. That makes you a Raider."
+    )
     assert isinstance(player.player_class, Actors.RaiderClass)
 
 
@@ -834,7 +875,9 @@ def test_robbing_a_stranger_who_wins_hurts(adapter, monkeypatch):
     assert player.currency == purse
     assert npc.currency == 60
     assert player.hit_points == health - 20  # a fifth of what the stranger can take
-    assert isinstance(player.player_class, Actors.WandererClass)  # a failed robbery makes no raider
+    assert isinstance(
+        player.player_class, Actors.WandererClass
+    )  # a failed robbery makes no raider
 
 
 def test_an_encounter_refuses_a_choice_it_does_not_offer(adapter):
@@ -911,7 +954,9 @@ def test_combat_without_a_weapon_reports_the_problem_instead_of_looping():
     event = Events.CombatEvent(1.0, "<test>", [enemy])
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     assert character.weapon is not None
-    character.equipment_set.unequip(character.weapon)  # nothing that can hit in hand: unequip would give fists
+    character.equipment_set.unequip(
+        character.weapon
+    )  # nothing that can hit in hand: unequip would give fists
 
     responses = list(event.run(character))
     assert not enemy.is_dead
@@ -954,7 +999,10 @@ def test_an_empty_gun_with_nothing_to_load_fights_on_with_fists(adapter):
 def test_a_long_fight_is_told_in_one_line_not_one_a_blow(adapter):
     """Fifty rounds of fists used to be a hundred lines, and /move split them over several messages."""
     enemy = Actors.NPC(None, 100, "Brick")
-    Behavior.Aggressive.flee_at, flee_at = 0, Behavior.Aggressive.flee_at  # fight to the end
+    Behavior.Aggressive.flee_at, flee_at = (
+        0,
+        Behavior.Aggressive.flee_at,
+    )  # fight to the end
     try:
         character = adapter.get_player(1)
         character.hit_points_max = character.hit_points = 1000
@@ -963,7 +1011,10 @@ def test_a_long_fight_is_told_in_one_line_not_one_a_blow(adapter):
         Behavior.Aggressive.flee_at = flee_at
     told = [r.text for r in responses if r.text]
     assert enemy.is_dead
-    assert sum(r.damage for r in responses if r.target is enemy and r.source is character) >= 100  # rounds kept
+    assert (
+        sum(r.damage for r in responses if r.target is enemy and r.source is character)
+        >= 100
+    )  # rounds kept
     assert len(told) == 3, told  # the exchange, the kill, the victory
     assert told[0].startswith("Tester fights Brick: 50 rounds, deals 100 dmg")
 
@@ -982,8 +1033,14 @@ def test_a_weapon_that_does_no_damage_still_ends_the_fight(adapter):
 
 def test_stores_stock_what_the_data_allows_and_never_fists_or_salvage():
     stocked = Data.stocked()
-    assert Weapons.Hammer in stocked and Weapons.Ammo9mm in stocked and Armor.SSh68 in stocked
-    assert not {Weapons.Fist, Items.Salvage, Armor.Chest6B45} & set(stocked)  # "store": false in their blocks
+    assert (
+        Weapons.Hammer in stocked
+        and Weapons.Ammo9mm in stocked
+        and Armor.SSh68 in stocked
+    )
+    assert not {Weapons.Fist, Items.Salvage, Armor.Chest6B45} & set(
+        stocked
+    )  # "store": false in their blocks
     assert Weapons.Fist().name == "Fist"  # the flag isn't passed on to the constructor
 
 
@@ -1000,7 +1057,9 @@ def test_a_fresh_shelf_has_a_box_for_every_gun_on_it():
     for _ in range(50):
         shelf = GameSpace.Store.generate_store().inventory
         boxes = {item.caliber for item in shelf if isinstance(item, Items.Ammo)}
-        assert {item.caliber for item in shelf if isinstance(item, Weapons.ProjectileWeapon)} <= boxes
+        assert {
+            item.caliber for item in shelf if isinstance(item, Weapons.ProjectileWeapon)
+        } <= boxes
 
 
 def test_a_part_used_ammo_box_sells_for_what_is_left_in_it():
@@ -1089,7 +1148,9 @@ def test_walking_into_impassable_terrain_raises(adapter):
 
 def test_attacking_bare_handed_raises(adapter):
     player = adapter.get_player(1)
-    player.equipment_set.unequip(player.weapon)  # nothing that can hit in hand: unequip would give fists
+    player.equipment_set.unequip(
+        player.weapon
+    )  # nothing that can hit in hand: unequip would give fists
     with pytest.raises(NoWeaponEquippedException):
         adapter.attack(player, None)
 
@@ -1098,7 +1159,11 @@ def _beside(world, steps=1):
     """An open square with open ground `steps` north of it, neither of them a town."""
     return next(
         here
-        for here in (world.space_at(x, y) for y in range(steps, world.height) for x in range(world.width))
+        for here in (
+            world.space_at(x, y)
+            for y in range(steps, world.height)
+            for x in range(world.width)
+        )
         if all(
             world.is_space_valid(s) and not isinstance(s, GameSpace.Town)
             for s in (here, world.space_at(here.x, here.y - steps))
@@ -1112,11 +1177,15 @@ def test_a_melee_swing_reaches_the_square_beside_you(adapter):
     player.equip(Weapons.Hammer())
     player.location = _beside(adapter.world)
     mook = Actors.NPC(None, 100, "Mook")
-    adapter.world.add_actor(mook, adapter.world.space_at(player.location.x, player.location.y - 1))
+    adapter.world.add_actor(
+        mook, adapter.world.space_at(player.location.x, player.location.y - 1)
+    )
 
     response = adapter.attack(player, DIRECTION_VECTORS["n"])
     assert response.target is mook
-    assert mook.hit_points == mook.hit_points_max - response.damage > 0  # full weight, no falloff
+    assert (
+        mook.hit_points == mook.hit_points_max - response.damage > 0
+    )  # full weight, no falloff
 
 
 def test_a_melee_swing_does_not_reach_two_squares(adapter):
@@ -1124,7 +1193,9 @@ def test_a_melee_swing_does_not_reach_two_squares(adapter):
     player.equip(Weapons.Hammer())
     player.location = _beside(adapter.world, steps=2)
     mook = Actors.NPC(None, 100, "Mook")
-    adapter.world.add_actor(mook, adapter.world.space_at(player.location.x, player.location.y - 2))
+    adapter.world.add_actor(
+        mook, adapter.world.space_at(player.location.x, player.location.y - 2)
+    )
 
     with pytest.raises(CombatException, match="within reach"):
         adapter.attack(player, DIRECTION_VECTORS["n"])
@@ -1137,7 +1208,9 @@ def test_a_melee_swing_hits_your_own_square_first(adapter):
     player.location = _beside(adapter.world)
     here, there = Actors.NPC(None, 100, "Here"), Actors.NPC(None, 100, "There")
     adapter.world.add_actor(here, player.location)
-    adapter.world.add_actor(there, adapter.world.space_at(player.location.x, player.location.y - 1))
+    adapter.world.add_actor(
+        there, adapter.world.space_at(player.location.x, player.location.y - 1)
+    )
 
     assert adapter.attack(player, DIRECTION_VECTORS["n"]).target is here
 
@@ -1150,13 +1223,23 @@ def test_a_fed_dog_bites_what_you_fight_on_your_square(adapter):
     here, there = Actors.NPC(None, 100, "Here"), Actors.NPC(None, 100, "There")
     world.add_actor(here, player.location)
     response = world.attack(player)
-    assert f"Rex bites for {Actors.PET_BITE_DAMAGE} of it." in response.text and here.hit_points == 100 - response.damage
+    assert (
+        f"Rex bites for {Actors.PET_BITE_DAMAGE} of it." in response.text
+        and here.hit_points == 100 - response.damage
+    )
 
     world.add_actor(there, world.space_at(player.location.x, player.location.y - 1))
     here.location = there.location
-    assert "Rex" not in world.attack(player, DIRECTION_VECTORS["n"]).text, "it stays at your side"
+    assert (
+        "Rex" not in world.attack(player, DIRECTION_VECTORS["n"]).text
+    ), "it stays at your side"
 
-    lines = [r.text for r in Events.CombatEvent(1.0, "<test>", [Actors.NPC(None, 1, "Mook")]).run(player)]
+    lines = [
+        r.text
+        for r in Events.CombatEvent(1.0, "<test>", [Actors.NPC(None, 1, "Mook")]).run(
+            player
+        )
+    ]
     assert any("fights Mook" in line and "Rex bites for" in line for line in lines)
     world.advance(Actors.PET_FEED_TICKS)
     assert player.pet_bite == 0, "a hungry dog stays home"
@@ -1177,7 +1260,9 @@ def test_pvp_hits_someone_standing_on_the_same_square(adapter):
     assert response.is_successful
     assert response.target is victim
     assert victim.hit_points < victim.hit_points_max
-    assert isinstance(attacker.player_class, Actors.WandererClass)  # a hit is not a kill
+    assert isinstance(
+        attacker.player_class, Actors.WandererClass
+    )  # a hit is not a kill
 
 
 def test_killing_a_player_makes_you_a_raider(adapter):
@@ -1191,8 +1276,6 @@ def test_killing_a_player_makes_you_a_raider(adapter):
     assert isinstance(attacker.player_class, Actors.RaiderClass)
 
 
-
-
 def test_an_attack_hits_the_raider_not_the_players_beside_you(adapter):
     adapter.register_player(2, "Ally")
     player, ally = adapter.get_player(1), adapter.get_player(2)
@@ -1203,6 +1286,7 @@ def test_an_attack_hits_the_raider_not_the_players_beside_you(adapter):
         assert adapter.attack(player, None).target is mook
     assert ally.hit_points == ally.hit_points_max
 
+
 def test_an_attack_that_loses_the_race_for_a_kill_says_so(adapter):
     """Orders run one after another before the tick: a second attack on the same raider finds it gone."""
     player = adapter.get_player(1)
@@ -1211,11 +1295,14 @@ def test_an_attack_that_loses_the_race_for_a_kill_says_so(adapter):
     adapter.world.add_actor(mook, player.location)
     mook.take_damage(1)  # an earlier order in the same tick killed it
 
-    response = adapter.attack(player, None)  # no CombatException: losing the race isn't a refusal
+    response = adapter.attack(
+        player, None
+    )  # no CombatException: losing the race isn't a refusal
     assert attack_text(player, response) == "Mook is already down."
     adapter.world.tick()  # the dead are cleared, and an empty square is an empty square again
     with pytest.raises(CombatException, match="Nothing in this square"):
         adapter.attack(player, None)
+
 
 def test_a_space_is_not_equal_to_things_that_are_not_coordinates():
     """A despawned actor's location is None, and combat compares locations every swing."""
@@ -1264,7 +1351,11 @@ def test_a_dead_npc_cannot_be_attacked_again(adapter):
 
     assert mook in adapter.world.npcs  # still on the roster until the next tick
     again = adapter.attack(player, None)
-    assert (again.target, again.damage, again.text) == (None, 0, "Mook is already down.")
+    assert (again.target, again.damage, again.text) == (
+        None,
+        0,
+        "Mook is already down.",
+    )
 
 
 def test_an_empty_gun_cannot_shoot_so_you_swing_fists(adapter):
@@ -1383,12 +1474,18 @@ def test_stepping_back_into_town_extracts_and_reports_the_haul(adapter):
 
     results = adapter.move_player(player, (-d[0], -d[1]))
     assert player.location == adapter.world.starting_town
-    xp = 40 + Actors.EXTRACT_XP_PER_DANGER * danger  # the kill's, and the haul's for how deep it went
+    xp = (
+        40 + Actors.EXTRACT_XP_PER_DANGER * danger
+    )  # the kill's, and the haul's for how deep it went
     assert results[-1].text.endswith(f"you brought home: {helmet}, $250, {xp} XP.")
     assert player.raid_start is None
-    assert player.best_haul == 250 + int(helmet.base_value), "what came home: the money and the new helmet, not the old"
+    assert player.best_haul == 250 + int(
+        helmet.base_value
+    ), "what came home: the money and the new helmet, not the old"
     town = adapter.world.starting_town.name
-    assert adapter.world.announcements == [(player, f"Tester made it back to {town} with {helmet}, $250, {xp} XP.")]
+    assert adapter.world.announcements == [
+        (player, f"Tester made it back to {town} with {helmet}, $250, {xp} XP.")
+    ]
 
 
 def test_extracting_empty_handed_pays_no_xp(adapter):
@@ -1414,10 +1511,15 @@ def test_a_raid_death_is_news_and_says_where_the_loot_lies(adapter):
     here, player.currency = player.location, 300
     player.take_damage(player.hit_points_max)
     [(who, text)] = world.announcements
-    assert who is player and text.startswith(f"Tester died at {world.grid(here.x, here.y)}, danger ")
+    assert who is player and text.startswith(
+        f"Tester died at {world.grid(here.x, here.y)}, danger "
+    )
     assert text.endswith("$300 lie there for whoever gets to them first.")
     assert world.live_piles() == [here]
-    assert f"Tester's things ($300), 1 square {GameSpace.bearing(player.location, here)}" in adapter.look_text(player)
+    assert (
+        f"Tester's things ($300), 1 square {GameSpace.bearing(player.location, here)}"
+        in adapter.look_text(player)
+    )
     world.announcements.clear()
     here.remains = None  # or the next step out is a corpse run, and that's a haul
     assert world.live_piles() == []
@@ -1447,13 +1549,17 @@ def test_the_pouch_survives_a_raid_death(adapter):
     assert str(rifle) not in GameSpace.death_toll_text(player)
 
     player.inventory.append(helmet)
-    assert player.pouch_swap(0) == f"{helmet} into your pouch, {rifle} back into your pack"
+    assert (
+        player.pouch_swap(0) == f"{helmet} into your pouch, {rifle} back into your pack"
+    )
     assert player.pouch_swap() == f"{helmet} back into your pack"
     with pytest.raises(ValueError):
         player.pouch_swap(5)
 
 
-def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_stash(adapter):
+def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_stash(
+    adapter,
+):
     player = adapter.get_player(1)
     player.currency, player.stash_currency = 400, Actors.HIDEOUT_COST - 400
     player.build_hideout()
@@ -1462,7 +1568,9 @@ def test_a_hideout_is_bought_with_carried_then_stashed_money_and_pays_into_the_s
         player.build_hideout()
     assert player.hideout_level == 1
 
-    player.location = adapter.world.wilds[0]  # out on a raid, or not playing at all: it pays either way
+    player.location = adapter.world.wilds[
+        0
+    ]  # out on a raid, or not playing at all: it pays either way
     for _ in range(Actors.HIDEOUT_PAY_TICKS):
         adapter.world.tick()
     assert player.stash_currency == Actors.HIDEOUT_INCOME
@@ -1487,7 +1595,6 @@ def test_hideout_levels_cost_more_each_time_and_some_cost_salvage(adapter):
     assert player.hideout_price == (int(2000 * 1.15**5), 0)
 
 
-
 def test_prestige_trades_the_hideout_and_stash_for_income_for_good(adapter):
     player = adapter.get_player(1)
     player.hideout_level = Actors.PRESTIGE_LEVEL - 1
@@ -1498,12 +1605,23 @@ def test_prestige_trades_the_hideout_and_stash_for_income_for_good(adapter):
     player.stash.append(Items.Salvage())
     pouch = player.pouch = Items.Salvage()
     player.experience = 500
-    assert "$5,000 and 1 items" in player.prestige_hideout()  # a warning: nothing gone yet
+    assert (
+        "$5,000 and 1 items" in player.prestige_hideout()
+    )  # a warning: nothing gone yet
     assert (player.hideout_level, player.stash_currency) == (15, 5000)
 
     player.prestige_hideout(confirm=True)
-    assert (player.prestige, player.hideout_level, player.stash_currency, list(player.stash)) == (1, 0, 0, [])
-    assert (player.currency, player.pouch, player.level) == (300, pouch, 6)  # what's on you stays
+    assert (
+        player.prestige,
+        player.hideout_level,
+        player.stash_currency,
+        list(player.stash),
+    ) == (1, 0, 0, [])
+    assert (player.currency, player.pouch, player.level) == (
+        300,
+        pouch,
+        6,
+    )  # what's on you stays
     player.hideout_level = 1
     assert player.hideout_income == 11  # +10% on every level from now on
     assert "prestige" not in adapter.hideout_text(player)
@@ -1552,7 +1670,13 @@ def test_chest_armor_comes_from_caches_and_likelier_deep(adapter):
 
 
 def test_period_kit_loads_and_the_heavy_stuff_is_cache_only():
-    assert {Weapons.AK74, Weapons.AKS74U, Weapons.SVD, Weapons.Ammo545, Weapons.Ammo127} <= set(Data.stocked())
+    assert {
+        Weapons.AK74,
+        Weapons.AKS74U,
+        Weapons.SVD,
+        Weapons.Ammo545,
+        Weapons.Ammo127,
+    } <= set(Data.stocked())
     assert not {Weapons.DShK, Armor.Chest6B2, Armor.Chest6B3} & set(Data.stocked())
     dshk = Weapons.DShK()
     assert dshk.caliber == Weapons.Ammo127().caliber and dshk.mountable
@@ -1573,7 +1697,9 @@ def test_a_far_cache_pays_better_than_a_near_one(adapter):
         return player.currency, kit[0].base_value, len(player.inventory) - len(kit)
 
     near, far = haul(1), haul(9)
-    assert far[0] > near[0] and far[1] >= near[1]  # more money, kit as dear or dearer (a near one can luck into the best)
+    assert (
+        far[0] > near[0] and far[1] >= near[1]
+    )  # more money, kit as dear or dearer (a near one can luck into the best)
     assert (near[2], far[2]) == (1, 1 + 9 // GameSpace.CACHE_LEVELS_PER_SALVAGE)
 
 
@@ -1593,7 +1719,11 @@ def test_an_auto_raid_goes_out_comes_back_and_says_how_it_went(adapter):
     adapter.start_raid(player, 1)  # 12 ticks out at 5 seconds a tick, then home
     told, left = [], False
     for _ in range(500):
-        told += [e.text for e in adapter.world.tick() if e.target is player and e.text.startswith("Your raid")]
+        told += [
+            e.text
+            for e in adapter.world.tick()
+            if e.target is player and e.text.startswith("Your raid")
+        ]
         left = left or not isinstance(player.location, GameSpace.Town)
         if player.auto_raid is None:
             break
@@ -1602,21 +1732,29 @@ def test_an_auto_raid_goes_out_comes_back_and_says_how_it_went(adapter):
     assert isinstance(player.location, GameSpace.Town)  # extracted, or respawned
 
 
-def test_an_auto_raid_only_heads_for_caches_no_deeper_than_its_depth(adapter, monkeypatch):
+def test_an_auto_raid_only_heads_for_caches_no_deeper_than_its_depth(
+    adapter, monkeypatch
+):
     world, player = adapter.world, adapter.get_player(1)
     town = world.starting_town
-    near_but_deep, far_but_shallow = GameSpace.Cache(town.x + 2, town.y), GameSpace.Cache(town.x + 9, town.y)
+    near_but_deep, far_but_shallow = GameSpace.Cache(
+        town.x + 2, town.y
+    ), GameSpace.Cache(town.x + 9, town.y)
     near_but_deep.level, far_but_shallow.level = 5, 2
     world.caches = [near_but_deep, far_but_shallow]
     targets = []
-    monkeypatch.setattr(player, "step", lambda space, toward=True: targets.append(space) or [])
+    monkeypatch.setattr(
+        player, "step", lambda space, toward=True: targets.append(space) or []
+    )
     adapter.start_raid(player, 60, depth=2)
     world.tick()
     assert targets == [far_but_shallow]
 
 
 def test_an_auto_raid_with_no_cache_keeps_to_its_depth(adapter, monkeypatch):
-    monkeypatch.setattr(GameSpace, "DANGER_TILES_PER_LEVEL", 4)  # a level every 4 squares, on a small map
+    monkeypatch.setattr(
+        GameSpace, "DANGER_TILES_PER_LEVEL", 4
+    )  # a level every 4 squares, on a small map
     world, player = adapter.world, adapter.get_player(1)
     world.caches = []
     adapter.start_raid(player, 60, depth=2)
@@ -1626,7 +1764,9 @@ def test_an_auto_raid_with_no_cache_keeps_to_its_depth(adapter, monkeypatch):
         if player.deaths:
             break
         deepest = max(deepest, world.depth_at(player.location))
-    assert 2 <= deepest <= 3  # got there, and a wandering step past the edge is walked straight back
+    assert (
+        2 <= deepest <= 3
+    )  # got there, and a wandering step past the edge is walked straight back
 
 
 def test_an_extraction_point_drives_you_to_the_nearest_town_and_ends_the_raid():
@@ -1635,21 +1775,31 @@ def test_an_extraction_point_drives_you_to_the_nearest_town_and_ends_the_raid():
         for cy in range(640 // GameSpace.CHUNK_SIZE):
             world.space_at(cx * GameSpace.CHUNK_SIZE, cy * GameSpace.CHUNK_SIZE)
     assert len(world.extracts) >= 3
-    assert all(e.terrain.walkable and world.space_at(e.x, e.y) is e for e in world.extracts)
+    assert all(
+        e.terrain.walkable and world.space_at(e.x, e.y) is e for e in world.extracts
+    )
 
     player = Actors.PlayerCharacter(parent_world=world, name="Rider")
     world.add_actor(player)
     extract = world.extracts[0]
-    d = next(d for d in DIRECTION_VECTORS.values() if world.is_coords_valid(extract.x - d[0], extract.y - d[1]))
+    d = next(
+        d
+        for d in DIRECTION_VECTORS.values()
+        if world.is_coords_valid(extract.x - d[0], extract.y - d[1])
+    )
     player.location = world.space_at(extract.x - d[0], extract.y - d[1])
     player.raid_start = (player.currency, player.carried, player.experience)
     player.currency += 50
     told = [r.text for r in player.attempt_move(d)]
     assert player.location is min(world.towns, key=extract.distance)
-    assert "extraction point" in told[0] and "Raid over" in told[-1] and "$50" in told[-1]
+    assert (
+        "extraction point" in told[0] and "Raid over" in told[-1] and "$50" in told[-1]
+    )
 
 
-def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter, monkeypatch):
+def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(
+    adapter, monkeypatch
+):
     world, player = adapter.world, adapter.get_player(1)
     town = world.starting_town
     way = 1 if town.x + 22 < world.width else -1  # out toward whichever edge has room
@@ -1657,7 +1807,9 @@ def test_an_auto_raid_heads_home_by_an_extraction_point_if_one_is_nearer(adapter
     exfil = GameSpace.Extract(town.x + 22 * way, town.y)
     world.extracts, world.npcs = [exfil], []
     targets = []
-    monkeypatch.setattr(player, "step", lambda space, toward=True: targets.append(space) or [])
+    monkeypatch.setattr(
+        player, "step", lambda space, toward=True: targets.append(space) or []
+    )
     monkeypatch.setattr(player, "attempt_move", lambda shift: [])
     player.auto_raid = (0, player.deaths, 1)  # time's up
     world.tick()
@@ -1697,7 +1849,11 @@ def test_an_auto_raid_that_dies_says_so(adapter):
     player.location = adapter.world.wilds[0]
     player.currency = 300
     player.take_damage(player.hit_points_max)
-    [event] = [e for e in adapter.world.tick() if e.target is player and e.text.startswith("Your raid")]
+    [event] = [
+        e
+        for e in adapter.world.tick()
+        if e.target is player and e.text.startswith("Your raid")
+    ]
     assert "didn't make it back" in event.text and "$300" in event.text
     assert player.auto_raid is None
 
@@ -1714,7 +1870,11 @@ def test_the_stash_banks_items_and_money_and_death_leaves_it_alone(adapter):
 
     player.location = adapter.world.wilds[0]
     player.take_damage(player.hit_points_max)
-    assert (list(player.stash), player.stash_currency, player.currency) == ([helmet], 300, 0)
+    assert (list(player.stash), player.stash_currency, player.currency) == (
+        [helmet],
+        300,
+        0,
+    )
 
     assert player.stash_take(money=50) == "$50"
     assert player.stash_take(0) == str(helmet)
@@ -1809,7 +1969,9 @@ def test_ticking_spawns_npcs_and_moves_them_without_the_player(adapter):
         )
     )
     start = npc.location
-    adapter.get_player(1).location = world.space_at(start.x + 1, start.y)  # watching, not playing
+    adapter.get_player(1).location = world.space_at(
+        start.x + 1, start.y
+    )  # watching, not playing
     seen = {start}
     for _ in range(50):
         world.tick()
@@ -1836,10 +1998,11 @@ def test_a_tick_that_kills_says_so_and_sends_you_home(adapter):
     player.hit_points = 1
     world.add_actor(Actors.Raider(world, 50, "Mugger"), player.location)
 
-    [event] = [e for e in world.tick() if e.target is player and e.source is not player]  # not the achievement
+    [event] = [
+        e for e in world.tick() if e.target is player and e.source is not player
+    ]  # not the achievement
     assert "black out" in event.text
     assert player.location == world.starting_town and not player.is_dead
-
 
 
 def test_raider_npcs_neither_hunt_nor_hit_a_raider(adapter, lone_raider):
@@ -1857,6 +2020,7 @@ def test_raider_npcs_neither_hunt_nor_hit_a_raider(adapter, lone_raider):
     assert [e for e in world.tick() if e.target is player and e.source is npc] == []
     assert player.hit_points == health
 
+
 def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
     world = adapter.world
     npc = Actors.Raider(world, 1, "Doomed")
@@ -1867,7 +2031,9 @@ def test_dead_npcs_are_dropped_on_the_next_tick(adapter):
     assert npc not in world.npcs
 
 
-@pytest.mark.parametrize("beyond, moves", [(0, True), (1, False)], ids=["in range", "just out of range"])
+@pytest.mark.parametrize(
+    "beyond, moves", [(0, True), (1, False)], ids=["in range", "just out of range"]
+)
 def test_only_npcs_near_a_player_take_a_turn(beyond, moves):
     """Within a chunk of a player, raiders wander. Further out, the world holds still until somebody comes."""
     world = GameSpace.World("Wakeland", 128, 128, seed=WORLD_SEED)
@@ -1880,7 +2046,10 @@ def test_only_npcs_near_a_player_take_a_turn(beyond, moves):
         world.space_at(x, y)
         for y in range(1, world.height - 1)
         for x in range(1, world.width - reach)
-        if all(world.is_space_valid(n) for n in world.get_adjacent_spaces(world.space_at(x, y)))
+        if all(
+            world.is_space_valid(n)
+            for n in world.get_adjacent_spaces(world.space_at(x, y))
+        )
     )
     npc = Actors.Raider(world, 50, "Lurker")
     world.add_actor(npc, start)
@@ -1901,7 +2070,9 @@ def test_raiders_top_out_at_a_couple_a_chunk():
     for x in range(0, world.width, GameSpace.CHUNK_SIZE):
         for y in range(0, world.height, GameSpace.CHUNK_SIZE):
             world.space_at(x, y)
-    for _ in range(300):  # one spawns a tick until the cap; well past it at the old density
+    for _ in range(
+        300
+    ):  # one spawns a tick until the cap; well past it at the old density
         world.tick()
     chunks = len(world.loaded_chunks())
     assert 0 < len(world.npcs) <= 3 * chunks
@@ -1915,7 +2086,11 @@ def _open_ground(world, width, height=1):
         for x in range(world.width - width)
         if all(
             world.is_space_valid(s) and not isinstance(s, GameSpace.Town)
-            for s in (world.space_at(x + i, y + j) for i in range(width) for j in range(height))
+            for s in (
+                world.space_at(x + i, y + j)
+                for i in range(width)
+                for j in range(height)
+            )
         )
     )
 
@@ -1951,7 +2126,9 @@ def test_a_towns_residents_are_the_same_every_visit_and_leave_the_game_rng_alone
     first = town.residents
     after = random.random()
     random.seed(1)
-    assert GameSpace.Town(3, 4, "Hub").residents == first  # the same people after a restart
+    assert (
+        GameSpace.Town(3, 4, "Hub").residents == first
+    )  # the same people after a restart
     assert random.random() == after
     assert [role for role, _, _ in first] == list(GameSpace.TOWNSFOLK)
     assert GameSpace.Town(5, 4, "Elsewhere").residents != first
@@ -1965,7 +2142,9 @@ def test_look_points_out_of_the_wilds_to_the_nearest_town_or_extraction_point(ad
     nearest = min(world.towns, key=player.location.distance)
     assert f"Nearest way out: {nearest.name}, " in adapter.look_text(player)
     world.extracts = [GameSpace.Extract(town.x + 8, town.y)]
-    assert "Nearest way out: an extraction point, 2 squares east." in adapter.look_text(player)
+    assert "Nearest way out: an extraction point, 2 squares east." in adapter.look_text(
+        player
+    )
     player.location = town
     assert "Nearest way out" not in adapter.look_text(player)  # already out
 
@@ -1982,10 +2161,24 @@ def test_look_names_who_is_in_sight_nearest_first_with_a_bearing(adapter, lone_r
     adapter.register_player(2, "Pal")
     adapter.get_player(2).location = world.space_at(corner.x + 1, corner.y)
     text = adapter.look_text(player)
-    assert f"on {corner.terrain.label}." in text and corner.terrain.label in ("paving", "park", "canal", "rooftops", "ruins", "plaza", "road", "bridge", "wall")
-    danger = corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
+    assert f"on {corner.terrain.label}." in text and corner.terrain.label in (
+        "paving",
+        "park",
+        "canal",
+        "rooftops",
+        "ruins",
+        "plaza",
+        "road",
+        "bridge",
+        "wall",
+    )
+    danger = (
+        corner.level if isinstance(corner, GameSpace.Wilds) else world.depth_at(corner)
+    )
     assert f"danger {danger}." in text.splitlines()[0]
-    assert text.endswith("In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east.")
+    assert text.endswith(
+        "In sight: a rat, right here; Pal (player), 1 square east; Vex (raider), 2 squares east."
+    )
 
 
 def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
@@ -1993,7 +2186,10 @@ def test_an_animal_never_hits_you_and_keeps_its_distance(adapter, lone_raider):
     corner = _open_ground(world, GameSpace.NPC_SIGHT + 1)
     player.location = corner
     animal = Actors.Animal.generate(1)
-    assert isinstance(animal.body_type, (Actors.SmallAnimal, Actors.LargeAnimal)) and animal.currency == 0
+    assert (
+        isinstance(animal.body_type, (Actors.SmallAnimal, Actors.LargeAnimal))
+        and animal.currency == 0
+    )
     world.add_actor(animal, corner)
     health = player.hit_points
     for _ in range(3):
@@ -2012,12 +2208,20 @@ def test_a_small_animal_and_a_large_one_look_different():
 
 
 def test_npcs_and_raiders_are_people():
-    assert all(isinstance(Actors.Raider.generate(1).body_type, Actors.Humanoid) for _ in range(20))
+    assert all(
+        isinstance(Actors.Raider.generate(1).body_type, Actors.Humanoid)
+        for _ in range(20)
+    )
 
 
 def _layout(world):
-    return [(type(s).__name__, s.x, s.y) for c in world.loaded_chunks() for row in world.loaded_chunk(*c) or []
-            for s in row if type(s) is not GameSpace.Space]
+    return [
+        (type(s).__name__, s.x, s.y)
+        for c in world.loaded_chunks()
+        for row in world.loaded_chunk(*c) or []
+        for s in row
+        if type(s) is not GameSpace.Space
+    ]
 
 
 def test_ruins_and_plazas_are_paving_that_moved_nothing_on_the_map(monkeypatch):
@@ -2029,15 +2233,26 @@ def test_ruins_and_plazas_are_paving_that_moved_nothing_on_the_map(monkeypatch):
         return w
 
     with_districts = world()
-    kinds = {type(s.terrain) for c in with_districts.loaded_chunks() for row in with_districts.loaded_chunk(*c) or [] for s in row}
+    kinds = {
+        type(s.terrain)
+        for c in with_districts.loaded_chunks()
+        for row in with_districts.loaded_chunk(*c) or []
+        for s in row
+    }
     assert {GameSpace.RuinsTerrain, GameSpace.PlazaTerrain} <= kinds
     assert GameSpace.RuinsTerrain().buildable and GameSpace.PlazaTerrain().walkable
-    monkeypatch.setattr(GameSpace, "DISTRICT_LEVEL", 2.0)  # noise never gets there: the map as it was before them
-    assert _layout(world()) == _layout(with_districts)  # same towns, wilds, caches and exits, square for square
+    monkeypatch.setattr(
+        GameSpace, "DISTRICT_LEVEL", 2.0
+    )  # noise never gets there: the map as it was before them
+    assert _layout(world()) == _layout(
+        with_districts
+    )  # same towns, wilds, caches and exits, square for square
 
 
 def test_roads_cross_the_map_and_moved_nothing_on_it(monkeypatch):
-    monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 0)  # a compound is built across any road in its way
+    monkeypatch.setattr(
+        GameSpace, "COMPOUND_CHANCE", 0
+    )  # a compound is built across any road in its way
 
     def world():
         w = GameSpace.World("Roads", 192, 192, seed=4)
@@ -2047,27 +2262,52 @@ def test_roads_cross_the_map_and_moved_nothing_on_it(monkeypatch):
         return w
 
     with_roads = world()
-    terrain = {(s.x, s.y): s.terrain for c in with_roads.loaded_chunks() for row in with_roads.loaded_chunk(*c) or [] for s in row}
+    terrain = {
+        (s.x, s.y): s.terrain
+        for c in with_roads.loaded_chunks()
+        for row in with_roads.loaded_chunk(*c) or []
+        for s in row
+    }
     roads = [at for at, t in terrain.items() if isinstance(t, GameSpace.RoadTerrain)]
-    assert any(type(terrain[at]) is GameSpace.BridgeTerrain for at in roads)  # over a canal
+    assert any(
+        type(terrain[at]) is GameSpace.BridgeTerrain for at in roads
+    )  # over a canal
     assert GameSpace.RoadTerrain().buildable and not GameSpace.BridgeTerrain().buildable
     # A road never dead-ends, chunk seams included: only rooftops and the map's edge stop one.
     for x, y in roads:
         around = [terrain.get((x + dx, y + dy)) for dx, dy in GameSpace.NEIGHBOURS]
-        if None not in around and not any(isinstance(t, GameSpace.MountainTerrain) for t in around):
-            assert sum(isinstance(t, GameSpace.RoadTerrain) for t in around) >= 2, (x, y)
-    monkeypatch.setattr(GameSpace, "ROAD_SCALE", float("inf"))  # one noise value everywhere: the map before roads
+        if None not in around and not any(
+            isinstance(t, GameSpace.MountainTerrain) for t in around
+        ):
+            assert sum(isinstance(t, GameSpace.RoadTerrain) for t in around) >= 2, (
+                x,
+                y,
+            )
+    monkeypatch.setattr(
+        GameSpace, "ROAD_SCALE", float("inf")
+    )  # one noise value everywhere: the map before roads
     without = world()
-    assert not any(isinstance(without.space_at(*at).terrain, GameSpace.RoadTerrain) for at in roads)
-    assert _layout(without) == _layout(with_roads)  # same towns, wilds, caches and exits, square for square
+    assert not any(
+        isinstance(without.space_at(*at).terrain, GameSpace.RoadTerrain) for at in roads
+    )
+    assert _layout(without) == _layout(
+        with_roads
+    )  # same towns, wilds, caches and exits, square for square
 
 
 def _walls(world):
-    return [s for c in world.loaded_chunks() for row in world.loaded_chunk(*c) or [] for s in row
-            if isinstance(s.terrain, GameSpace.WallTerrain)]
+    return [
+        s
+        for c in world.loaded_chunks()
+        for row in world.loaded_chunk(*c) or []
+        for s in row
+        if isinstance(s.terrain, GameSpace.WallTerrain)
+    ]
 
 
-def test_structures_wall_in_a_yard_and_moved_nothing_but_the_wilds_under_them(monkeypatch):
+def test_structures_wall_in_a_yard_and_moved_nothing_but_the_wilds_under_them(
+    monkeypatch,
+):
     size = GameSpace.CHUNK_SIZE
 
     def world():
@@ -2079,26 +2319,44 @@ def test_structures_wall_in_a_yard_and_moved_nothing_but_the_wilds_under_them(mo
 
     built = world()
     walls = _walls(built)
-    assert walls and all(type(wall) is GameSpace.Space for wall in walls)  # nothing is ever walled in
-    assert all(0 < wall.x % size < size - 1 and 0 < wall.y % size < size - 1 for wall in walls)  # whole in a chunk
+    assert walls and all(
+        type(wall) is GameSpace.Space for wall in walls
+    )  # nothing is ever walled in
+    assert all(
+        0 < wall.x % size < size - 1 and 0 < wall.y % size < size - 1 for wall in walls
+    )  # whole in a chunk
     wall = walls[0]
     assert not built.is_coords_valid(wall.x, wall.y) and "wall" == wall.terrain.label
     raider = Actors.Raider(built, 50, "Climber")
-    built.add_actor(raider, next(s for s in built.get_adjacent_spaces(wall) if built.is_space_valid(s)))
+    built.add_actor(
+        raider,
+        next(s for s in built.get_adjacent_spaces(wall) if built.is_space_valid(s)),
+    )
     start = raider.location
-    assert raider.attempt_move((wall.x - start.x, wall.y - start.y))[0].failed and raider.location is start
-    yards = [s for wall in walls for s in built.get_adjacent_spaces(wall) if isinstance(s.terrain, GameSpace.RuinsTerrain)]
+    assert (
+        raider.attempt_move((wall.x - start.x, wall.y - start.y))[0].failed
+        and raider.location is start
+    )
+    yards = [
+        s
+        for wall in walls
+        for s in built.get_adjacent_spaces(wall)
+        if isinstance(s.terrain, GameSpace.RuinsTerrain)
+    ]
     assert yards  # cover, behind the walls
 
     monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 0)
     bare = world()
     assert not _walls(bare)
-    assert _layout(built) == [(kind, x, y) for kind, x, y in _layout(bare) if built.is_coords_valid(x, y)]
+    assert _layout(built) == [
+        (kind, x, y) for kind, x, y in _layout(bare) if built.is_coords_valid(x, y)
+    ]
 
 
 def test_a_greedy_walker_gets_through_every_structure(monkeypatch):
     """Nothing that walks plans a route (Actor.step), so a structure must leave a closer step open whichever way a
-    walker comes at it and wherever it is going: or raiders pile up on a wall and a /raid never comes home."""
+    walker comes at it and wherever it is going: or raiders pile up on a wall and a /raid never comes home.
+    """
     monkeypatch.setattr(GameSpace, "COMPOUND_CHANCE", 1)
     size = GameSpace.CHUNK_SIZE
     for plan in GameSpace.STRUCTURES:
@@ -2106,15 +2364,27 @@ def test_a_greedy_walker_gets_through_every_structure(monkeypatch):
         world = GameSpace.World("Walls", 5 * size, 5 * size, seed=3)
         for cx, cy in product(range(5), repeat=2):
             world.space_at(cx * size, cy * size)
-        chunk = next(rows for cx, cy in product(range(1, 4), repeat=2) if _walls_in(rows := world.loaded_chunk(cx, cy)))
+        chunk = next(
+            rows
+            for cx, cy in product(range(1, 4), repeat=2)
+            if _walls_in(rows := world.loaded_chunk(cx, cy))
+        )
         walls = _walls_in(chunk)
         x0, y0 = min(w.x for w in walls), min(w.y for w in walls)
         x1, y1 = x0 + len(plan[0]), y0 + len(plan)
         walker = Actors.Raider(world, 50, "Walker")
         world.add_actor(walker, world.space_at(x0 - 1, y0 - 1))
-        box = [world.space_at(x, y) for x in range(x0 - 2, x1 + 2) for y in range(y0 - 2, y1 + 2)]
-        far = [world.space_at(x, y) for x in range(x0 - 10, x1 + 10) for y in range(y0 - 10, y1 + 10)
-               if x in (x0 - 10, x1 + 9) or y in (y0 - 10, y1 + 9)]
+        box = [
+            world.space_at(x, y)
+            for x in range(x0 - 2, x1 + 2)
+            for y in range(y0 - 2, y1 + 2)
+        ]
+        far = [
+            world.space_at(x, y)
+            for x in range(x0 - 10, x1 + 10)
+            for y in range(y0 - 10, y1 + 10)
+            if x in (x0 - 10, x1 + 9) or y in (y0 - 10, y1 + 9)
+        ]
         for start in box:
             for goal in box + far:
                 if not (world.is_space_valid(start) and world.is_space_valid(goal)):
@@ -2127,7 +2397,12 @@ def test_a_greedy_walker_gets_through_every_structure(monkeypatch):
 
 
 def _walls_in(rows):
-    return [s for row in rows or [] for s in row if isinstance(s.terrain, GameSpace.WallTerrain)]
+    return [
+        s
+        for row in rows or []
+        for s in row
+        if isinstance(s.terrain, GameSpace.WallTerrain)
+    ]
 
 
 def test_ruins_hide_you_from_raiders_and_a_plaza_shows_you_from_twice_as_far(adapter):
@@ -2135,9 +2410,13 @@ def test_ruins_hide_you_from_raiders_and_a_plaza_shows_you_from_twice_as_far(ada
     sight = GameSpace.NPC_SIGHT
     corner = _open_ground(world, 2 * sight + 1)
     player.location = corner
-    near, far = world.space_at(corner.x + sight, corner.y), world.space_at(corner.x + 2 * sight, corner.y)
+    near, far = world.space_at(corner.x + sight, corner.y), world.space_at(
+        corner.x + 2 * sight, corner.y
+    )
     corner.terrain = GameSpace.RuinsTerrain()
-    assert world.prey_in_sight(world.space_at(corner.x + 1, corner.y)) is None  # not even from next door
+    assert (
+        world.prey_in_sight(world.space_at(corner.x + 1, corner.y)) is None
+    )  # not even from next door
     corner.terrain = GameSpace.PlazaTerrain()
     assert world.prey_in_sight(far) is player
     corner.terrain = GameSpace.SandTerrain()
@@ -2177,7 +2456,9 @@ def test_a_wounded_raider_runs_from_you(adapter, lone_raider):
     world = adapter.world
     player = adapter.get_player(1)
     corner = _open_ground(world, 5, 5)
-    player.location = world.space_at(corner.x + 2, corner.y + 2)  # open ground two squares every way
+    player.location = world.space_at(
+        corner.x + 2, corner.y + 2
+    )  # open ground two squares every way
     npc = Actors.Raider(world, 50, "Coward")
     world.add_actor(npc, player.location)  # face to face
     npc.brain.change_state(Behavior.Fleeing())
@@ -2185,7 +2466,9 @@ def test_a_wounded_raider_runs_from_you(adapter, lone_raider):
 
     gaps = []
     for _ in range(2):
-        assert [e for e in world.tick() if e.target is player] == []  # no hits, no warnings
+        assert [
+            e for e in world.tick() if e.target is player
+        ] == []  # no hits, no warnings
         gaps.append(npc.location.distance(player.location))
     assert 0 < gaps[0] < gaps[1]
     assert player.hit_points == hit_points
@@ -2202,7 +2485,10 @@ def test_npcs_never_walk_into_unmade_ground():
     )
     edge = next(
         space
-        for space in (world.space_at((cx + 1) * size - 1, y) for y in range(cy * size, (cy + 1) * size))
+        for space in (
+            world.space_at((cx + 1) * size - 1, y)
+            for y in range(cy * size, (cy + 1) * size)
+        )
         if space.terrain.walkable
     )
     npc = Actors.Raider(world, 50, "Scout")
@@ -2448,7 +2734,9 @@ def test_odd_jobs_pay_a_shift_in_hand_and_end_when_you_walk(adapter):
     text = adapter.work(player)
     shift = Actors.WORK_WAGE * Actors.WORK_SHIFT_TICKS // Actors.WORK_PAY_TICKS
     assert f"${shift} over the next 60 minutes" in text
-    world.advance(Actors.WORK_SHIFT_TICKS * 3)  # a restart's catch-up pays the shift, not the downtime
+    world.advance(
+        Actors.WORK_SHIFT_TICKS * 3
+    )  # a restart's catch-up pays the shift, not the downtime
     assert player.currency == shift and player.work_until is None
 
     adapter.work(player)
@@ -2469,11 +2757,17 @@ def test_gathering_turns_up_firewood_on_quiet_ground_to_sell_in_town(adapter):
     adapter.gather(player)
     world.advance(Actors.WORK_SHIFT_TICKS * 2)
     wood = [item for item in player.inventory if isinstance(item, Items.Firewood)]
-    assert len(wood) == Actors.WORK_SHIFT_TICKS // Actors.GATHER_TICKS and player.work_until is None
+    assert (
+        len(wood) == Actors.WORK_SHIFT_TICKS // Actors.GATHER_TICKS
+        and player.work_until is None
+    )
 
     adapter.move_player(player, (-d[0], -d[1]))
     money = player.currency
-    assert world.starting_town.store.buy_item(wood[0], player) == 10 and player.currency == money + 10
+    assert (
+        world.starting_town.store.buy_item(wood[0], player) == 10
+        and player.currency == money + 10
+    )
 
     player.location = rough = GameSpace.Wilds(0, 0, "Rough")
     rough.level = Actors.GATHER_MAX_DANGER + 1
@@ -2485,13 +2779,19 @@ def test_a_sold_out_store_restocks_on_the_hour(adapter):
     world, player = adapter.world, adapter.get_player(1)
     store, player.currency = world.starting_town.store, 10**6
     hammers = lambda: [i for i in store.inventory if isinstance(i, Weapons.Hammer)]
-    store.inventory.append(Weapons.Hammer())  # whatever the roll stocked, there's one to sell out
+    store.inventory.append(
+        Weapons.Hammer()
+    )  # whatever the roll stocked, there's one to sell out
     while hammers():
         assert store.sell_item(store.inventory.index(hammers()[0]), player)
-    world.advance(GameSpace.STORE_RESTOCK_TICKS - world.ticks % GameSpace.STORE_RESTOCK_TICKS - 1)
+    world.advance(
+        GameSpace.STORE_RESTOCK_TICKS - world.ticks % GameSpace.STORE_RESTOCK_TICKS - 1
+    )
     assert not hammers(), "not before the hour"
     world.advance(1)
-    assert len(hammers()) == 1 and {type(i) for i in store.inventory} >= set(Data.stocked())
+    assert len(hammers()) == 1 and {type(i) for i in store.inventory} >= set(
+        Data.stocked()
+    )
 
 
 def test_a_fed_goat_milks_into_the_stash_until_it_goes_hungry(adapter):
@@ -2499,17 +2799,27 @@ def test_a_fed_goat_milks_into_the_stash_until_it_goes_hungry(adapter):
     world.ticks = 0  # on a milking boundary, so the count comes out even
     money = player.currency
     player.adopt_pet("Bibi", world.ticks)
-    assert player.currency == money - Actors.PET_PRICE and "Bibi is fed" in adapter.pet_text(player)
+    assert (
+        player.currency == money - Actors.PET_PRICE
+        and "Bibi is fed" in adapter.pet_text(player)
+    )
 
-    world.advance(Actors.PET_FEED_TICKS * 2)  # half of it hungry: downtime runs through advance the same way
+    world.advance(
+        Actors.PET_FEED_TICKS * 2
+    )  # half of it hungry: downtime runs through advance the same way
     milk = [item for item in player.stash if isinstance(item, Items.GoatMilk)]
     assert len(milk) == Actors.PET_FEED_TICKS // Actors.PET_MILK_TICKS
     assert "hungry" in adapter.pet_text(player)
 
     player.feed_pet(world.ticks)
     world.advance(Actors.PET_MILK_TICKS)
-    assert len([item for item in player.stash if isinstance(item, Items.GoatMilk)]) == len(milk) + 1
-    assert world.starting_town.store.buy_item(milk[0], player) == 15  # sold in town, like firewood
+    assert (
+        len([item for item in player.stash if isinstance(item, Items.GoatMilk)])
+        == len(milk) + 1
+    )
+    assert (
+        world.starting_town.store.buy_item(milk[0], player) == 15
+    )  # sold in town, like firewood
 
 
 def test_a_goat_says_once_when_it_goes_hungry(adapter):
@@ -2518,41 +2828,66 @@ def test_a_goat_says_once_when_it_goes_hungry(adapter):
     world.advance(Actors.PET_FEED_TICKS - 1)
 
     def beeps():
-        return [e for e in world.tick() if e.target is player and "Bibi is hungry" in e.text]
+        return [
+            e for e in world.tick() if e.target is player and "Bibi is hungry" in e.text
+        ]
 
-    assert len(beeps()) == 1 and not beeps(), "on the tick it goes hungry, and not again"
+    assert (
+        len(beeps()) == 1 and not beeps()
+    ), "on the tick it goes hungry, and not again"
     player.feed_pet(world.ticks)
     world.advance(Actors.PET_FEED_TICKS - 1)
     assert len(beeps()) == 1, "every time it goes hungry"
 
 
-def test_a_fed_dog_fetches_salvage_on_a_quiet_step_and_a_hungry_one_stays_home(adapter, monkeypatch):
+def test_a_fed_dog_fetches_salvage_on_a_quiet_step_and_a_hungry_one_stays_home(
+    adapter, monkeypatch
+):
     world, player = adapter.world, adapter.get_player(1)
     monkeypatch.setattr(Actors, "PET_FETCH_CHANCE", 1)
     player.adopt_pet("Rex", world.ticks, "dog")
-    here = next(w for w in world.wilds if isinstance(world.space_at(w.x + 1, w.y), GameSpace.Wilds))
+    here = next(
+        w
+        for w in world.wilds
+        if isinstance(world.space_at(w.x + 1, w.y), GameSpace.Wilds)
+    )
     there = world.space_at(here.x + 1, here.y)
-    here.quiet_until = there.quiet_until = world.ticks + 10**6  # nothing happens on either: quiet steps
+    here.quiet_until = there.quiet_until = (
+        world.ticks + 10**6
+    )  # nothing happens on either: quiet steps
 
     def step(shift):
         before = len([i for i in player.inventory if isinstance(i, Items.Salvage)])
         text = move_text(player.attempt_move(shift), "east")
-        return len([i for i in player.inventory if isinstance(i, Items.Salvage)]) - before, text
+        return (
+            len([i for i in player.inventory if isinstance(i, Items.Salvage)]) - before,
+            text,
+        )
 
     player.location = here
     assert step((1, 0)) == (1, "Rex trots back with a piece of salvage.")
     world.advance(Actors.PET_FEED_TICKS)
-    assert step((-1, 0)) == (0, "You move east.") and "stays home" in adapter.pet_text(player)
-    assert not any(isinstance(item, Items.GoatMilk) for item in player.stash), "a dog gives no milk"
+    assert step((-1, 0)) == (0, "You move east.") and "stays home" in adapter.pet_text(
+        player
+    )
+    assert not any(
+        isinstance(item, Items.GoatMilk) for item in player.stash
+    ), "a dog gives no milk"
 
 
 def test_one_goat_each_and_it_has_to_be_paid_for():
     character = Actors.PlayerCharacter(parent_world=None, name="Tester")
     with pytest.raises(ValueError, match="pet adopt"):
         character.feed_pet(0)
-    character.currency, character.stash_currency = Actors.PET_PRICE - 1, 1  # short in the pocket, the stash covers it
+    character.currency, character.stash_currency = (
+        Actors.PET_PRICE - 1,
+        1,
+    )  # short in the pocket, the stash covers it
     character.adopt_pet(None, 0)
-    assert character.pet_name and (character.currency, character.stash_currency) == (0, 0)
+    assert character.pet_name and (character.currency, character.stash_currency) == (
+        0,
+        0,
+    )
     with pytest.raises(ValueError, match="already"):
         character.adopt_pet("Another", 0)
     with pytest.raises(ValueError, match="carried and stashed"):
@@ -2571,7 +2906,9 @@ def test_a_goat_fed_on_time_gives_twice_the_milk_until_it_goes_hungry(adapter):
     world.advance(Actors.PET_MILK_TICKS)
     assert len(player.stash) - before == 2
 
-    world.advance(Actors.PET_FEED_TICKS)  # hungry now: the next meal starts the count over
+    world.advance(
+        Actors.PET_FEED_TICKS
+    )  # hungry now: the next meal starts the count over
     player.feed_pet(world.ticks)
     assert player.pet_care == 0 and player.pet_yield == 1
 
@@ -2580,7 +2917,9 @@ def test_a_goat_left_hungry_for_days_wanders_off(adapter):
     world, player = adapter.world, adapter.get_player(1)
     player.adopt_pet("Bibi", world.ticks)
     world.advance(Actors.PET_FEED_TICKS + Actors.PET_RUNAWAY_TICKS - 1)
-    assert not player.pet_gone(world.ticks) and "wanders off within 1 day" in adapter.pet_text(player)
+    assert not player.pet_gone(
+        world.ticks
+    ) and "wanders off within 1 day" in adapter.pet_text(player)
     world.advance(1)
     assert player.pet_gone(world.ticks) and "wandered off" in adapter.pet_text(player)
     with pytest.raises(ValueError, match="wandered off"):
@@ -2602,7 +2941,9 @@ def test_boss_loot_comes_from_nowhere_else_and_its_ammo_is_on_the_shelves():
     assert Armor.Chest6B4()._armor_count > Armor.Chest6B45()._armor_count
 
 
-def test_a_warlord_holds_the_deepest_cache_until_killed_and_returns_with_its_refill(adapter, lone_raider):
+def test_a_warlord_holds_the_deepest_cache_until_killed_and_returns_with_its_refill(
+    adapter, lone_raider
+):
     world, player = adapter.world, adapter.get_player(1)
     spot = _open_ground(world, 1)
     cache = GameSpace.Cache(spot.x, spot.y, spot.terrain)

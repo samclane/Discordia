@@ -35,7 +35,9 @@ class State(ABC):
         """
         return None
 
-    def see(self, state_machine: "FiniteStateMachine", player: "Actors.PlayerCharacter") -> Optional[str]:
+    def see(
+        self, state_machine: "FiniteStateMachine", player: "Actors.PlayerCharacter"
+    ) -> Optional[str]:
         """
         A player is in sight: move in response. Returns a warning to send them, if any.
         """
@@ -82,14 +84,19 @@ class Aggressive(State):
         target.take_damage(npc.base_attack)
         return npc.base_attack
 
-    def see(self, state_machine: FiniteStateMachine, player: "Actors.PlayerCharacter") -> Optional[str]:
+    def see(
+        self, state_machine: FiniteStateMachine, player: "Actors.PlayerCharacter"
+    ) -> Optional[str]:
         """Close in. The first time it picks you, you hear about it: a raider walks no faster than you,
         so the warning is your chance to run."""
         npc = state_machine.owner
         warning = None
         if npc.quarry is not player:
             npc.quarry = player
-            squares = max(abs(npc.location.x - player.location.x), abs(npc.location.y - player.location.y))
+            squares = max(
+                abs(npc.location.x - player.location.x),
+                abs(npc.location.y - player.location.y),
+            )
             where = GameSpace.bearing(player.location, npc.location)
             warning = f"{npc.name} has spotted you, {squares} square{'s' * (squares != 1)} to the {where}."
         npc.step(player.location)
@@ -102,6 +109,8 @@ class Fleeing(State):
     def update(self, state_machine: FiniteStateMachine, target: "Actors.Actor") -> None:
         return None
 
-    def see(self, state_machine: FiniteStateMachine, player: "Actors.PlayerCharacter") -> None:
+    def see(
+        self, state_machine: FiniteStateMachine, player: "Actors.PlayerCharacter"
+    ) -> None:
         """Keep away, so a wounded raider is one you have to run down for its kit."""
         state_machine.owner.step(player.location, toward=False)

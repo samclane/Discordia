@@ -22,24 +22,46 @@ TICK_SECONDS = 5
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run an instance of a Discordia server",
-                                     prog="Discordia")
-    parser.add_argument('-W', '--web-port', dest='web_port', type=int, default=None, metavar='PORT',
-                        help="Serve a live view of the entire world at http://localhost:PORT")
-    parser.add_argument('--database', default=DEFAULT_PATH, help="Path to the server's SQLite save file.")
+    parser = argparse.ArgumentParser(
+        description="Run an instance of a Discordia server", prog="Discordia"
+    )
+    parser.add_argument(
+        "-W",
+        "--web-port",
+        dest="web_port",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help="Serve a live view of the entire world at http://localhost:PORT",
+    )
+    parser.add_argument(
+        "--database",
+        default=DEFAULT_PATH,
+        help="Path to the server's SQLite save file.",
+    )
     args = parser.parse_args()
 
     if not ConfigParser.DISCORD_TOKEN:
-        raise SystemExit("No Discord token: set DISCORD_TOKEN or fill in Token under [Discord] in config.ini")
-    alerts = Alerts.install(ConfigParser.ALERT_WEBHOOK_URL) if ConfigParser.ALERT_WEBHOOK_URL else None
+        raise SystemExit(
+            "No Discord token: set DISCORD_TOKEN or fill in Token under [Discord] in config.ini"
+        )
+    alerts = (
+        Alerts.install(ConfigParser.ALERT_WEBHOOK_URL)
+        if ConfigParser.ALERT_WEBHOOK_URL
+        else None
+    )
 
     database = Database(args.database)
     adapter = database.load(TICK_SECONDS)
     if adapter is None:
         LOG.info("No save found, generating a new world")
-        adapter = WorldAdapter(GameSpace.World(ConfigParser.WORLD_NAME,
-                                               ConfigParser.WORLD_WIDTH,
-                                               ConfigParser.WORLD_HEIGHT))
+        adapter = WorldAdapter(
+            GameSpace.World(
+                ConfigParser.WORLD_NAME,
+                ConfigParser.WORLD_WIDTH,
+                ConfigParser.WORLD_HEIGHT,
+            )
+        )
         database.save(adapter)
 
     display = Renderer(adapter)
@@ -57,15 +79,23 @@ def main():
     async def send_digest():
         text = Alerts.digest(adapter.world)
         if text:
-            await discord_interface.post_digest(text)  # to each server that picked a channel; best effort
+            await discord_interface.post_digest(
+                text
+            )  # to each server that picked a channel; best effort
             if webhook:  # posted off the loop, so a slow Discord can't stall a tick
                 await asyncio.to_thread(Alerts.post, webhook, text)
 
     # ponytail: Stats aren't saved, so the day after a deploy only counts from the restart. Servers' channels
     # lose that part; the webhook gets it from the shutdown digest below. Save Stats if the undercount matters.
-    jobs.append((Alerts.DIGEST_TIME, cast(Callable[[], None], send_digest), "Daily digest"))
-    discord_interface = DiscordInterface(adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url)
-    if args.web_port:  # the site runs on the bot's loop, between ticks, so it never reads a world mid-change
+    jobs.append(
+        (Alerts.DIGEST_TIME, cast(Callable[[], None], send_digest), "Daily digest")
+    )
+    discord_interface = DiscordInterface(
+        adapter, jobs=jobs, tick_seconds=TICK_SECONDS, web_url=web_url
+    )
+    if (
+        args.web_port
+    ):  # the site runs on the bot's loop, between ticks, so it never reads a world mid-change
         setup_bot = discord_interface.bot.setup_hook
 
         async def setup_with_site():
@@ -77,13 +107,17 @@ def main():
     try:
         discord_interface.bot.run(ConfigParser.DISCORD_TOKEN)
     except Exception:
-        LOG.exception("Discordia crashed")  # through logging, so the crash that takes the bot down is alerted
+        LOG.exception(
+            "Discordia crashed"
+        )  # through logging, so the crash that takes the bot down is alerted
         raise
     finally:
         database.save(adapter)
         database.close()
         LOG.info("World saved.")
-        if webhook:  # only: the bot is gone by now, and servers would get a partial day on every deploy
+        if (
+            webhook
+        ):  # only: the bot is gone by now, and servers would get a partial day on every deploy
             try:
                 text = Alerts.digest(adapter.world)
                 if text:
@@ -94,5 +128,5 @@ def main():
             alerts.stop()  # flush anything still queued before the process goes
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

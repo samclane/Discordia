@@ -136,12 +136,18 @@ def test_a_refusing_check_reaches_the_error_handler():
     with "The application did not respond" instead of being told to /register."""
     _, command, interaction = build(None)
     interaction.guild_id = None  # a DM: no server's channel settings to pass first
-    with pytest.raises(GameCheckFailure) as caught:  # an AppCommandError, so the tree handles it
-        asyncio.run(command._invoke_with_namespace(cast(Any, interaction), cast(Any, None)))
+    with pytest.raises(
+        GameCheckFailure
+    ) as caught:  # an AppCommandError, so the tree handles it
+        asyncio.run(
+            command._invoke_with_namespace(cast(Any, interaction), cast(Any, None))
+        )
     assert isinstance(caught.value.original, NotRegisteredException)
 
 
-def channel_check(channels, channel_id, parent_id=None, command="look", guild_id: int | None = 5):
+def channel_check(
+    channels, channel_id, parent_id=None, command="look", guild_id: int | None = 5
+):
     """Run the cog's channel gate for a command typed in `channel_id` of a server that allows `channels`."""
     adapter = SimpleNamespace(guild_settings={5: GuildSettings(channels=channels)})
     interface = loaded_cog(adapter)
@@ -161,7 +167,9 @@ def test_commands_only_work_in_the_channels_a_server_picked():
     assert channel_check([1, 2], 99, parent_id=1), "a thread counts as its channel"
     assert channel_check([1], 99, guild_id=6), "another server's settings don't apply"
     assert channel_check([1], 99, guild_id=None), "nor in DMs"
-    assert channel_check([1], 99, command="settings"), "admins can always get back to the settings"
+    assert channel_check(
+        [1], 99, command="settings"
+    ), "admins can always get back to the settings"
     with pytest.raises(WrongChannel, match="<#1>, <#2>"):
         channel_check([1, 2], 99)
 
@@ -192,10 +200,23 @@ def test_space_check_rejects_character_outside_a_town():
         run_checks(command, interaction)
 
 
-@pytest.mark.parametrize("name", ["stash list", "stash put", "stash take", "hideout build", "hideout prestige", "raid", "town work"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "stash list",
+        "stash put",
+        "stash take",
+        "hideout build",
+        "hideout prestige",
+        "raid",
+        "town work",
+    ],
+)
 def test_the_stash_is_only_reachable_from_a_town(name):
     wilds = GameSpace.Wilds(0, 0, "Nowhere")
-    _, command, interaction = build(SimpleNamespace(registered=True, location=wilds), name)
+    _, command, interaction = build(
+        SimpleNamespace(registered=True, location=wilds), name
+    )
     with pytest.raises(InvalidSpaceException, match="town"):
         run_checks(command, interaction)
 
@@ -204,7 +225,15 @@ def _little_store():
     from Discordia.GameLogic import Armor, Items
 
     # Out of order on purpose: the listing sorts, but the #s stay the store's own.
-    return GameSpace.Store([Weapons.MosinNagant(), Weapons.Ammo9mm(), Weapons.Hammer(), Items.Salvage(), Armor.SSh68()])
+    return GameSpace.Store(
+        [
+            Weapons.MosinNagant(),
+            Weapons.Ammo9mm(),
+            Weapons.Hammer(),
+            Items.Salvage(),
+            Armor.SSh68(),
+        ]
+    )
 
 
 def test_the_stock_listing_groups_sorts_and_marks_what_you_cannot_afford():
@@ -212,10 +241,21 @@ def test_the_stock_listing_groups_sorts_and_marks_what_you_cannot_afford():
     character.currency = 150
     text = _stock_listing(_little_store(), character)
     rows = [line for line in text.splitlines() if line.startswith("#")]
-    assert [row.split()[0] for row in rows] == ["#2", "#0", "#4", "#1", "#3"]  # weapons cheapest first, then armor...
+    assert [row.split()[0] for row in rows] == [
+        "#2",
+        "#0",
+        "#4",
+        "#1",
+        "#3",
+    ]  # weapons cheapest first, then armor...
     assert rows[1].endswith("$370 ✗") and not rows[0].endswith("✗")
     assert text.startswith("You have $150.") and "```" in text
-    assert [line.split()[0] for line in _stock_listing(_little_store(), character, "ammo").splitlines()[2:-1]] == [
+    assert [
+        line.split()[0]
+        for line in _stock_listing(_little_store(), character, "ammo").splitlines()[
+            2:-1
+        ]
+    ] == [
         "AMMO",
         "#1",
     ]
@@ -228,26 +268,40 @@ def test_a_soldiers_stock_listing_says_whose_base_it_is():
     store.side = "East"
     rifle = store.inventory[0]
     text = _stock_listing(store, character)
-    assert "Your side's base: 20% off." in text and f"${int(rifle.base_value * 0.8)}" in text
+    assert (
+        "Your side's base: 20% off." in text
+        and f"${int(rifle.base_value * 0.8)}" in text
+    )
     store.side = "West"
     assert "The other side's base: 20% on top." in _stock_listing(store, character)
-    assert "base" not in _stock_listing(_little_store(), character)  # a store with no side says nothing
+    assert "base" not in _stock_listing(
+        _little_store(), character
+    )  # a store with no side says nothing
 
 
 def test_buying_autocompletes_by_name_cheapest_first():
     store = _little_store()
-    prices = [store.get_price(store.inventory[c.value]) for c in _stock_choices(store, "")]
+    prices = [
+        store.get_price(store.inventory[c.value]) for c in _stock_choices(store, "")
+    ]
     assert len(prices) == len(store.inventory) and prices == sorted(prices)
     hammer = _stock_choices(store, "ham")
     assert [(c.name, c.value) for c in hammer] == [("Hammer · $100", 2)]
-    assert [c.value for c in _stock_choices(store, "#0")] == [0]  # typing the old index still finds it
+    assert [c.value for c in _stock_choices(store, "#0")] == [
+        0
+    ]  # typing the old index still finds it
 
 
 def test_buy_autocomplete_only_suggests_in_a_town():
     town = GameSpace.Town(0, 0, "Testville", store=_little_store())
     for location, expected in [(town, 1), (GameSpace.Wilds(0, 0, "Nowhere"), 0)]:
-        interface, _, interaction = build(SimpleNamespace(location=location), "town store buy")
-        assert len(asyncio.run(cast(Any, interface)._buy_choices(interaction, "ham"))) == expected
+        interface, _, interaction = build(
+            SimpleNamespace(location=location), "town store buy"
+        )
+        assert (
+            len(asyncio.run(cast(Any, interface)._buy_choices(interaction, "ham")))
+            == expected
+        )
     interface, _, interaction = build(None, "town store buy")  # not registered
     assert asyncio.run(cast(Any, interface)._buy_choices(interaction, "ham")) == []
 
@@ -267,7 +321,9 @@ def ticking_interface(on_world_tick=lambda: []) -> DiscordInterface:
     """A cog whose world does nothing but record that it ticked and report its events."""
     recorded: list = []  # what each tick hands the dashboard
     adapter = SimpleNamespace(
-        world=SimpleNamespace(tick=on_world_tick, stats=GameSpace.Stats(), announcements=[]),
+        world=SimpleNamespace(
+            tick=on_world_tick, stats=GameSpace.Stats(), announcements=[]
+        ),
         get_member_id=lambda character: 7,
         recorded=recorded,
         record_tick=lambda **measures: recorded.append(measures),
@@ -284,7 +340,9 @@ def test_each_tick_records_what_it_did_for_the_dashboard():
 
     interface = ticking_interface(on_world_tick=world_tick)
     stub_user(interface, sent)
-    interface.world_adapter.world.stats.kills = 5  # earlier ticks' kills aren't this tick's
+    interface.world_adapter.world.stats.kills = (
+        5  # earlier ticks' kills aren't this tick's
+    )
     asyncio.run(interface.tick())
     (row,) = cast(Any, interface.world_adapter).recorded
     assert row["kills"] == 2 and row["deaths"] == 0 and row["orders"] == 0
@@ -386,13 +444,23 @@ class Body:
 def test_a_fight_dms_its_first_hit_and_its_death_not_every_blow():
     sent = []
     raider, player = cast(Any, Body()), cast(Any, Body())  # stand-ins for Actors
-    script = iter(["first", "second", "third", None, "again", "fourth", "you black out"])
+    script = iter(
+        ["first", "second", "third", None, "again", "fourth", "you black out"]
+    )
 
     def world_tick():
         text = next(script)
         if text == "you black out":
             player.deaths += 1  # handle_player_death runs inside the world tick
-        return [GameSpace.PlayerActionResponse(damage=2, source=raider, target=player, text=text)] if text else []
+        return (
+            [
+                GameSpace.PlayerActionResponse(
+                    damage=2, source=raider, target=player, text=text
+                )
+            ]
+            if text
+            else []
+        )
 
     interface = ticking_interface(on_world_tick=world_tick)
     stub_user(interface, sent)
@@ -463,10 +531,14 @@ def test_the_digest_goes_to_each_server_that_picked_a_channel():
             raise discord.HTTPException(SimpleNamespace(status=403, reason="Forbidden"), "Missing Access")  # type: ignore[arg-type]
         sent.append((channel_id, text))
 
-    channels = {c: SimpleNamespace(send=lambda text, c=c: send(c, text)) for c in (10, 30)}
+    channels = {
+        c: SimpleNamespace(send=lambda text, c=c: send(c, text)) for c in (10, 30)
+    }
     interface.bot.get_channel = channels.get  # type: ignore[method-assign]
 
-    asyncio.run(interface.post_digest("A quiet day."))  # one server's trouble stays its own
+    asyncio.run(
+        interface.post_digest("A quiet day.")
+    )  # one server's trouble stays its own
     assert sent == [(10, "A quiet day.")]
 
 
@@ -476,18 +548,36 @@ def test_deaths_and_hauls_go_to_the_servers_the_player_plays_in():
     adapter = SimpleNamespace(
         world=world,
         record_tick=lambda **measures: None,
-        guild_settings={1: GuildSettings(announce_channel=10), 2: GuildSettings(announce_channel=20), 3: GuildSettings()},
+        guild_settings={
+            1: GuildSettings(announce_channel=10),
+            2: GuildSettings(announce_channel=20),
+            3: GuildSettings(),
+        },
         get_member_id=lambda character: 7 if character is player else None,
     )
     interface = DiscordInterface(world_adapter=cast(WorldAdapter, adapter))
     sent = []
-    channels = {c: SimpleNamespace(send=lambda text, c=c: _record(sent, c, text)) for c in (10, 20)}
+    channels = {
+        c: SimpleNamespace(send=lambda text, c=c: _record(sent, c, text))
+        for c in (10, 20)
+    }
     interface.bot.get_channel = channels.get  # type: ignore[method-assign]
-    for guild_id in (1, 3):  # plays in 1 and 3; 3 picked no channel, and 2 has never seen them
-        asyncio.run(interface.interaction_check(cast(Any, SimpleNamespace(guild_id=guild_id, user=SimpleNamespace(id=7)))))
+    for guild_id in (
+        1,
+        3,
+    ):  # plays in 1 and 3; 3 picked no channel, and 2 has never seen them
+        asyncio.run(
+            interface.interaction_check(
+                cast(
+                    Any, SimpleNamespace(guild_id=guild_id, user=SimpleNamespace(id=7))
+                )
+            )
+        )
     world.announcements += [(player, "Vex died."), (player, "Vex made it back.")]
     asyncio.run(interface.tick())
-    assert sent == [(10, "Vex died.\nVex made it back.")]  # one message, in the one server that wants it
+    assert sent == [
+        (10, "Vex died.\nVex made it back.")
+    ]  # one message, in the one server that wants it
     assert world.announcements == []
 
 
@@ -581,14 +671,20 @@ class Replies:
     def __init__(self):
         self.deferred = False
         self.sent = []
-        self.ephemeral = []  # as asked for: on Discord, the first followup after a public defer is public anyway
+        self.ephemeral = (
+            []
+        )  # as asked for: on Discord, the first followup after a public defer is public anyway
 
     def is_done(self):
         return self.deferred
 
     @property
     def type(self):
-        return discord.InteractionResponseType.deferred_channel_message if self.deferred else None
+        return (
+            discord.InteractionResponseType.deferred_channel_message
+            if self.deferred
+            else None
+        )
 
     async def defer(self):
         self.deferred = True
@@ -597,7 +693,9 @@ class Replies:
         self.sent.append(content)
         self.ephemeral.append(ephemeral)
 
-    async def send(self, content, ephemeral=False, **kwargs):  # the followup, once deferred
+    async def send(
+        self, content, ephemeral=False, **kwargs
+    ):  # the followup, once deferred
         self.sent.append(content)
         self.ephemeral.append(ephemeral)
 
@@ -615,14 +713,23 @@ def test_a_refusal_known_before_the_tick_is_private_and_never_deferred():
     def run(name, choice):
         replies = Replies()
         user = SimpleNamespace(id=1, display_name="Walker")
-        interaction = SimpleNamespace(command=command_named(interface, name), user=user, response=replies)
+        interaction = SimpleNamespace(
+            command=command_named(interface, name), user=user, response=replies
+        )
         try:
             asyncio.run(command_named(interface, name).callback(interface, interaction, choice))  # type: ignore[arg-type]
         except Exception as exc:  # what the tree hands cog_app_command_error
-            asyncio.run(interface.cog_app_command_error(cast(Any, interaction), cast(Any, SimpleNamespace(original=exc))))
+            asyncio.run(
+                interface.cog_app_command_error(
+                    cast(Any, interaction), cast(Any, SimpleNamespace(original=exc))
+                )
+            )
         return replies
 
-    for name, choice in [("move", app_commands.Choice(name="north", value="n")), ("choose", app_commands.Choice(name="talk", value="talk"))]:
+    for name, choice in [
+        ("move", app_commands.Choice(name="north", value="n")),
+        ("choose", app_commands.Choice(name="talk", value="talk")),
+    ]:
         replies = run(name, choice)
         assert not replies.deferred, f"/{name} deferred before refusing"
         assert replies.ephemeral == [True], f"/{name} refused in public"
@@ -635,12 +742,20 @@ def test_a_refusal_after_a_public_defer_drops_the_placeholder_first():
     replies = Replies()
     asyncio.run(replies.defer())
     interaction = SimpleNamespace(
-        command="attack", user=SimpleNamespace(display_name="Walker"), response=replies, followup=replies,
+        command="attack",
+        user=SimpleNamespace(display_name="Walker"),
+        response=replies,
+        followup=replies,
         delete_original_response=replies.delete_original_response,
     )
     error = SimpleNamespace(original=InvalidSpaceException())
-    asyncio.run(interface.cog_app_command_error(cast(Any, interaction), cast(Any, error)))
-    assert replies.sent == ["<deleted the deferred reply>", error_text(InvalidSpaceException())]
+    asyncio.run(
+        interface.cog_app_command_error(cast(Any, interaction), cast(Any, error))
+    )
+    assert replies.sent == [
+        "<deleted the deferred reply>",
+        error_text(InvalidSpaceException()),
+    ]
     assert replies.ephemeral == [True]
 
 
@@ -661,7 +776,9 @@ def test_a_wilds_trader_buys_for_less_than_a_town():
     asyncio.run(command_named(interface, "trade sell").callback(interface, interaction, 0))  # type: ignore[arg-type]
     paid = character.currency - purse
     assert rifle in trader.inventory and rifle not in character.inventory
-    assert 0 < paid < GameSpace.Store().get_price(rifle)  # a town would give the full price
+    assert (
+        0 < paid < GameSpace.Store().get_price(rifle)
+    )  # a town would give the full price
     assert replies.sent == [f"Sold {rifle.name} for ${paid}."]
 
 
@@ -679,7 +796,8 @@ def test_adopting_a_goat_in_town_names_it_and_says_how_it_is():
 
 def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():
     """/attack always takes a direction, and every melee /attack used to be refused: 'You need a ranged
-    weapon to attack at a distance.' A raider beside you was one you could see and never hit."""
+    weapon to attack at a distance.' A raider beside you was one you could see and never hit.
+    """
     adapter = WorldAdapter(GameSpace.World("Arena", 40, 40, seed=0))
     world = adapter.world
     adapter.register_player(1, "Fighter")
@@ -698,7 +816,9 @@ def test_attack_with_a_melee_weapon_hits_the_raider_beside_you():
     interface = loaded_cog(adapter)
     stub_user(interface, [])
     replies = Replies()
-    interaction = SimpleNamespace(command="attack", user=SimpleNamespace(id=1), response=replies, followup=replies)
+    interaction = SimpleNamespace(
+        command="attack", user=SimpleNamespace(id=1), response=replies, followup=replies
+    )
 
     async def scenario():
         swing = asyncio.create_task(
@@ -726,7 +846,9 @@ def weblogin(web_url):
         sent.append((content, kwargs))
 
     response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
-    interaction = SimpleNamespace(command="weblogin", user=SimpleNamespace(id=1), response=response)
+    interaction = SimpleNamespace(
+        command="weblogin", user=SimpleNamespace(id=1), response=response
+    )
     asyncio.run(command_named(interface, "weblogin").callback(interface, interaction))  # type: ignore[arg-type]
     return adapter, sent
 
@@ -735,7 +857,9 @@ def test_weblogin_privately_sends_a_link_that_logs_you_in():
     adapter, [(content, kwargs)] = weblogin("https://map.example/")
     assert kwargs["ephemeral"]
     link = content.splitlines()[-1]
-    assert link.startswith("<https://map.example/login?t=") and link.endswith(">")  # <>: no preview fetch
+    assert link.startswith("<https://map.example/login?t=") and link.endswith(
+        ">"
+    )  # <>: no preview fetch
     session = adapter.web_logins.redeem(link[len("<https://map.example/login?t=") : -1])
     assert session is not None and adapter.web_logins.member_id(session) == 1
 
@@ -767,12 +891,19 @@ def test_joining_a_server_says_where_to_start():
         sent.append(text)
 
     async def refuse(text):
-        raise discord.Forbidden(cast(Any, SimpleNamespace(status=403, reason="Forbidden")), "Missing Access")
+        raise discord.Forbidden(
+            cast(Any, SimpleNamespace(status=403, reason="Forbidden")), "Missing Access"
+        )
 
     def channel(sender, can_post=True):
-        return SimpleNamespace(send=sender, permissions_for=lambda me: SimpleNamespace(send_messages=can_post))
+        return SimpleNamespace(
+            send=sender,
+            permissions_for=lambda me: SimpleNamespace(send_messages=can_post),
+        )
 
-    guild = SimpleNamespace(name="S", id=1, me=None, system_channel=channel(send), text_channels=[])
+    guild = SimpleNamespace(
+        name="S", id=1, me=None, system_channel=channel(send), text_channels=[]
+    )
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
     assert "`/register`" in sent[0] and "`/settings`" in sent[0]
     # No system channel, or one the bot may not post in: the first channel it may post in.
@@ -780,10 +911,14 @@ def test_joining_a_server_says_where_to_start():
     guild.text_channels = [channel(refuse, can_post=False), channel(send)]
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
     assert len(sent) == 2
-    guild.system_channel, guild.text_channels = None, [channel(refuse, can_post=False)]  # nowhere to say it
+    guild.system_channel, guild.text_channels = None, [
+        channel(refuse, can_post=False)
+    ]  # nowhere to say it
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
     assert len(sent) == 2
-    interface._mentions = {"register": "</register:9>"}  # synced: commands you can click
+    interface._mentions = {
+        "register": "</register:9>"
+    }  # synced: commands you can click
     guild.system_channel = channel(send)
     asyncio.run(interface.on_guild_join(cast(Any, guild)))
     assert "</register:9>" in sent[-1] and "`/settings`" in sent[-1]
@@ -791,13 +926,19 @@ def test_joining_a_server_says_where_to_start():
 
 def test_town_status_introduces_the_residents():
     character = Actors.PlayerCharacter(parent_world=None, name="Visitor")
-    character.location = GameSpace.Town(0, 0, "Hub", population=40, industry=GameSpace.MiningIndustry())
+    character.location = GameSpace.Town(
+        0, 0, "Hub", population=40, industry=GameSpace.MiningIndustry()
+    )
     interface = loaded_cog(StubAdapter(character))
     replies = Replies()
-    interaction = SimpleNamespace(command="town status", user=SimpleNamespace(id=1), response=replies)
+    interaction = SimpleNamespace(
+        command="town status", user=SimpleNamespace(id=1), response=replies
+    )
     asyncio.run(command_named(interface, "town status").callback(interface, interaction))  # type: ignore[arg-type]
     [text] = replies.sent
-    assert text.startswith("You're in Hub, population 40. It trains Scavengers: Every cache gives you one more")
+    assert text.startswith(
+        "You're in Hub, population 40. It trains Scavengers: Every cache gives you one more"
+    )
     assert "the shopkeeper" in text and "the guard" in text
 
 
@@ -806,7 +947,9 @@ def test_achievements_lists_earned_and_locked():
     character.achievements = {"a_roof"}
     interface = loaded_cog(StubAdapter(character))
     replies = Replies()
-    interaction = SimpleNamespace(command="achievements", user=SimpleNamespace(id=1), response=replies)
+    interaction = SimpleNamespace(
+        command="achievements", user=SimpleNamespace(id=1), response=replies
+    )
     asyncio.run(command_named(interface, "achievements").callback(interface, interaction))  # type: ignore[arg-type]
     [text] = replies.sent
     assert text.startswith(f"Achievements, 1 of {len(Actors.ACHIEVEMENTS)}:\n")
@@ -821,7 +964,9 @@ def test_help_lists_every_command_privately_starting_with_register():
         sent.append(kwargs)
 
     response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
-    interaction = SimpleNamespace(command="help", user=SimpleNamespace(id=1), response=response)
+    interaction = SimpleNamespace(
+        command="help", user=SimpleNamespace(id=1), response=response
+    )
     asyncio.run(command_named(interface, "help").callback(interface, interaction))  # type: ignore[arg-type]
     [kwargs] = sent
     lines = kwargs["embed"].description.splitlines()
@@ -840,7 +985,9 @@ def test_a_refused_purchase_is_only_shown_to_the_buyer():
         sent.append((content, kwargs.get("ephemeral", False)))
 
     response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
-    interaction = SimpleNamespace(command="town store buy", user=SimpleNamespace(id=1), response=response)
+    interaction = SimpleNamespace(
+        command="town store buy", user=SimpleNamespace(id=1), response=response
+    )
     asyncio.run(command_named(interface, "town store buy").callback(interface, interaction, 0))  # type: ignore[arg-type]
     assert sent == [("You can't afford that, or there's nothing at that index.", True)]
 
@@ -872,12 +1019,16 @@ def test_hideout_view_shows_the_room_once_built():
 
     def view():
         response = SimpleNamespace(is_done=lambda: False, send_message=send_message)
-        interaction = SimpleNamespace(command="hideout view", user=SimpleNamespace(id=1), response=response)
+        interaction = SimpleNamespace(
+            command="hideout view", user=SimpleNamespace(id=1), response=response
+        )
         asyncio.run(command_named(interface, "hideout view").callback(interface, interaction))  # type: ignore[arg-type]
         return sent[-1]
 
     text, files = view()
-    assert text.startswith("No hideout yet") and files == [], "nothing to draw before the first level"
+    assert (
+        text.startswith("No hideout yet") and files == []
+    ), "nothing to draw before the first level"
     character.hideout_level = 3
     text, [picture] = view()
     assert text.startswith("Hideout level 3") and picture.filename == "hideout.png"

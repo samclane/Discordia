@@ -32,7 +32,17 @@ from aiohttp import web
 
 from Discordia import SPRITE_FOLDER, VERSION
 from Discordia.GameLogic import Events, GameSpace
-from Discordia.GameLogic.Actors import ACHIEVEMENTS, EXPERIENCE_PER_LEVEL, Fixer, Medic, PlayerCharacter, Scavenger, Scout, Soldier, WandererClass
+from Discordia.GameLogic.Actors import (
+    ACHIEVEMENTS,
+    EXPERIENCE_PER_LEVEL,
+    Fixer,
+    Medic,
+    PlayerCharacter,
+    Scavenger,
+    Scout,
+    Soldier,
+    WandererClass,
+)
 from Discordia.GameLogic.Items import ArmorAbstract, EquipmentSet
 from Discordia.GameLogic.Weapons import Weapon
 from Discordia.Interface.Rendering.Renderer import Renderer
@@ -53,10 +63,14 @@ LOG = logging.getLogger("Discordia.Interface.WebApp")
 
 CLIENT_JS = Path(__file__).with_name("client.js")
 # Leaflet 1.9.4, vendored (BSD-2, leaflet.LICENSE): the map's pan, zoom and tiles. Bump the tag with the files.
-LEAFLET = {name: Path(__file__).with_name(name) for name in ("leaflet.js", "leaflet.css")}
+LEAFLET = {
+    name: Path(__file__).with_name(name) for name in ("leaflet.js", "leaflet.css")
+}
 LEAFLET_ETAG = '"leaflet-1.9.4"'
 INDEX_HTML = Path(__file__).with_name("index.html")
-SITE_HTML = Path(__file__).with_name("site.html")  # header and footer around every page but the map
+SITE_HTML = Path(__file__).with_name(
+    "site.html"
+)  # header and footer around every page but the map
 HOME_HTML = Path(__file__).with_name("home.html")
 ME_HTML = Path(__file__).with_name("me.html")
 ADMIN_HTML = Path(__file__).with_name("admin.html")  # the bot owner's dashboard
@@ -144,13 +158,19 @@ class Markup(str):
 
 def _sprite_url(sprite_path: str) -> str:
     """Map an on-disk sprite path to the URL the client fetches it from."""
-    return "/sprites/" + Path(sprite_path).resolve().relative_to(SPRITES_ROOT).as_posix()
+    return (
+        "/sprites/" + Path(sprite_path).resolve().relative_to(SPRITES_ROOT).as_posix()
+    )
 
 
 def _read_sprite(rel: str) -> bytes | None:
     """Sprite bytes for a client-supplied path, or None if it escapes the sprite folder."""
     path = (SPRITES_ROOT / unquote(rel)).resolve()
-    if not path.is_relative_to(SPRITES_ROOT) or path.suffix.lower() != ".png" or not path.is_file():
+    if (
+        not path.is_relative_to(SPRITES_ROOT)
+        or path.suffix.lower() != ".png"
+        or not path.is_file()
+    ):
         return None
     return path.read_bytes()
 
@@ -188,7 +208,9 @@ def _explored_json(renderer: Renderer) -> bytes:
     return json.dumps(
         {
             "chunks": world.loaded_chunks(),
-            "towns": [_town_json(t) for t in list(world.towns)],  # list(): the game loop appends
+            "towns": [
+                _town_json(t) for t in list(world.towns)
+            ],  # list(): the game loop appends
         }
     ).encode()
 
@@ -198,7 +220,9 @@ def _chunk_json(rows: list) -> bytes:
     extraction points or caches, and who lives in its towns."""
     return json.dumps(
         {
-            "terrain": [[space.terrain.label for space in row] for row in rows],  # read on hover
+            "terrain": [
+                [space.terrain.label for space in row] for row in rows
+            ],  # read on hover
             "wilds": [
                 {"x": space.x, "y": space.y, "name": space.name}
                 for row in rows
@@ -206,7 +230,12 @@ def _chunk_json(rows: list) -> bytes:
                 if isinstance(space, GameSpace.Wilds)
             ],
             "places": [
-                {"x": space.x, "y": space.y, "name": space.name, "kind": type(space).__name__}
+                {
+                    "x": space.x,
+                    "y": space.y,
+                    "name": space.name,
+                    "kind": type(space).__name__,
+                }
                 for row in rows
                 for space in row
                 if isinstance(space, (GameSpace.Extract, GameSpace.Cache))
@@ -223,7 +252,9 @@ def _chunk_json(rows: list) -> bytes:
 
 def _actors_json(renderer: Renderer) -> bytes:
     adapter = renderer.world_adapter
-    tagged = [("npc", n) for n in list(adapter.world.npcs)] + [("player", p) for p in list(adapter.iter_players())]
+    tagged = [("npc", n) for n in list(adapter.world.npcs)] + [
+        ("player", p) for p in list(adapter.iter_players())
+    ]
     actors = []
     for kind, actor in tagged:
         loc = actor.location
@@ -241,10 +272,18 @@ def _actors_json(renderer: Renderer) -> bytes:
                 "sprite": _sprite_url(actor.sprite_path_string),
                 "hp": actor.hit_points,
                 "hp_max": actor.hit_points_max,
-                **({"level": actor.level, "class": actor.player_class.name} if isinstance(actor, PlayerCharacter) else {}),
+                **(
+                    {"level": actor.level, "class": actor.player_class.name}
+                    if isinstance(actor, PlayerCharacter)
+                    else {}
+                ),
             }
         )
-    for space in adapter.world.live_piles():  # a corpse run's pile: drawn like an actor that never moves
+    for (
+        space
+    ) in (
+        adapter.world.live_piles()
+    ):  # a corpse run's pile: drawn like an actor that never moves
         pile = space.remains
         if pile is None:  # picked up since live_piles looked
             continue
@@ -265,7 +304,12 @@ def _actors_json(renderer: Renderer) -> bytes:
 
 
 # The trades' classes, for the home page: (class, the kind of town that trains it).
-TOWN_CLASSES = [(Scavenger, "mining"), (Medic, "farming"), (Scout, "woodworking"), (Fixer, "smithing")]
+TOWN_CLASSES = [
+    (Scavenger, "mining"),
+    (Medic, "farming"),
+    (Scout, "woodworking"),
+    (Fixer, "smithing"),
+]
 
 
 def _class_card(player_class, town: str) -> str:
@@ -276,8 +320,14 @@ def _class_card(player_class, town: str) -> str:
     )
 
 
-SLOT_LABELS = {"head": "Head", "chest": "Chest", "legs": "Legs", "feet": "Feet", "main_hand": "Main hand",
-               "off_hand": "Off hand"}
+SLOT_LABELS = {
+    "head": "Head",
+    "chest": "Chest",
+    "legs": "Legs",
+    "feet": "Feet",
+    "main_hand": "Main hand",
+    "off_hand": "Off hand",
+}
 
 
 def _item_row(label: str, item) -> str:
@@ -299,7 +349,11 @@ def _ago(seconds: float) -> str:
         return "just now"
     if minutes < 60:
         return f"{minutes} min ago"
-    return f"{minutes // 60} h ago" if minutes < 24 * 60 else f"{minutes // (24 * 60)} d ago"
+    return (
+        f"{minutes // 60} h ago"
+        if minutes < 24 * 60
+        else f"{minutes // (24 * 60)} d ago"
+    )
 
 
 def _code(text: str) -> str:
@@ -313,7 +367,10 @@ def _news_rows(news: list) -> str:
         f'<li><span class="slot">{_ago(now - t)}</span><span class="name">{_code(text)}</span></li>'
         for t, text in reversed(news)
     )
-    return rows or '<li class="empty-slot"><span class="name">Quiet so far. Nothing has found you yet.</span></li>'
+    return (
+        rows
+        or '<li class="empty-slot"><span class="name">Quiet so far. Nothing has found you yet.</span></li>'
+    )
 
 
 def _sheet(character: PlayerCharacter, adapter) -> dict:
@@ -328,18 +385,25 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
     else:
         where = f"on the road at {adapter.world.grid(loc.x, loc.y)}"
     equipment = "".join(
-        _item_row(SLOT_LABELS[slot], item)
-        if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
-        else f'<li class="empty-slot"><span class="slot">{SLOT_LABELS[slot]}</span><span class="name">nothing</span></li>'
+        (
+            _item_row(SLOT_LABELS[slot], item)
+            if type(item)
+            not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+            else f'<li class="empty-slot"><span class="slot">{SLOT_LABELS[slot]}</span><span class="name">nothing</span></li>'
+        )
         for slot in EquipmentSet.SLOTS
         for item in [getattr(character.equipment_set, slot)]
     )
-    inventory = "".join(_item_row(f"#{i}", item) for i, item in enumerate(list(character.inventory)))
+    inventory = "".join(
+        _item_row(f"#{i}", item) for i, item in enumerate(list(character.inventory))
+    )
     if character.pouch is not None:
         inventory += _item_row("pouch", character.pouch)
     pending = character.pending_event
     alert = (
-        f'<p class="alert"><b>Someone is waiting on you.</b> {html.escape(pending.flavor_text)}</p>' if pending else ""
+        f'<p class="alert"><b>Someone is waiting on you.</b> {html.escape(pending.flavor_text)}</p>'
+        if pending
+        else ""
     )
     if not character.deaths:
         death_note = "None yet. Keep it that way."
@@ -354,7 +418,11 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         for key, (icon, title, how, _) in ACHIEVEMENTS.items()
         if key in character.achievements
     )
-    hp_pct = round(100 * character.hit_points / character.hit_points_max) if character.hit_points_max else 0
+    hp_pct = (
+        round(100 * character.hit_points / character.hit_points_max)
+        if character.hit_points_max
+        else 0
+    )
     return {
         "SPRITE": _sprite_url(character.sprite_path_string),
         "NAME": character.name,
@@ -367,7 +435,9 @@ def _sheet(character: PlayerCharacter, adapter) -> dict:
         "HP_MAX": character.hit_points_max,
         "HP_PCT": hp_pct,
         "HP_LOW": " low" if hp_pct <= 30 else "",
-        "XP_PCT": 100 * (character.experience % EXPERIENCE_PER_LEVEL) // EXPERIENCE_PER_LEVEL,
+        "XP_PCT": 100
+        * (character.experience % EXPERIENCE_PER_LEVEL)
+        // EXPERIENCE_PER_LEVEL,
         "XP_TO_NEXT": character.experience_to_next_level,
         "CURRENCY": f"{character.currency:,}",
         "DEATHS": character.deaths,
@@ -413,11 +483,18 @@ def _me_json(character: PlayerCharacter, news: list) -> bytes:
             "equipment": [
                 item.name
                 for item in character.equipment_set
-                if type(item) not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
+                if type(item)
+                not in EquipmentSet.SLOTS.values()  # the bare base classes are empty slots
             ],
             "inventory": [item.name for item in list(character.inventory)],
-            "encounter": encounter.flavor_text if isinstance(encounter, Events.EncounterEvent) else None,
-            "news": [{"t": t, "text": text} for t, text in reversed(news[-10:])],  # newest first
+            "encounter": (
+                encounter.flavor_text
+                if isinstance(encounter, Events.EncounterEvent)
+                else None
+            ),
+            "news": [
+                {"t": t, "text": text} for t, text in reversed(news[-10:])
+            ],  # newest first
         }
     ).encode()
 
@@ -470,7 +547,8 @@ def _dashboard_json(adapter, since: int) -> bytes:
 
 class _Site:
     """The site's routes. They run on the bot's event loop, between ticks, so they read the world as the game
-    left it; only the Pillow renders go to a thread, where they'd otherwise hold up the tick."""
+    left it; only the Pillow renders go to a thread, where they'd otherwise hold up the tick.
+    """
 
     def __init__(self, renderer: Renderer):
         self.renderer = renderer
@@ -479,7 +557,8 @@ class _Site:
     @web.middleware
     async def gate(self, request: web.Request, handler):
         """The site is public; the map and everything it fetches are for players. Sprites are the game's public
-        art, and the site wears some. Posts check for themselves: /act answers in JSON."""
+        art, and the site wears some. Posts check for themselves: /act answers in JSON.
+        """
         path = request.path
         if (
             request.method != "POST"
@@ -487,14 +566,18 @@ class _Site:
             and not path.startswith("/sprites/")
             and self._member_id(request) is None
         ):
-            if path in ("/map", "/me", "/admin") or ADMIN_ROUTE.fullmatch(path):  # pages send you to how to get in; data just refuses
+            if path in ("/map", "/me", "/admin") or ADMIN_ROUTE.fullmatch(
+                path
+            ):  # pages send you to how to get in; data just refuses
                 return _redirect("/#join")
             raise web.HTTPUnauthorized()
         return await handler(request)
 
     def routes(self) -> list:
         return [
-            web.get(r"/chunk/{cx:\d+}/{cy:\d+}.{ext:png|mini\.png|json}", self.chunk),  # mini: the zoomed-out overview
+            web.get(
+                r"/chunk/{cx:\d+}/{cy:\d+}.{ext:png|mini\.png|json}", self.chunk
+            ),  # mini: the zoomed-out overview
             web.get("/world.json", self.world_json),
             web.get("/explored.json", self.explored_json),
             web.get("/actors.json", self.actors_json),
@@ -523,23 +606,36 @@ class _Site:
         return f'"{self.adapter.world.seed}-{ART_VERSION}"'
 
     async def chunk(self, request: web.Request) -> web.Response:
-        cx, cy, ext = int(request.match_info["cx"]), int(request.match_info["cy"]), request.match_info["ext"]
+        cx, cy, ext = (
+            int(request.match_info["cx"]),
+            int(request.match_info["cy"]),
+            request.match_info["ext"],
+        )
         rows = self.adapter.world.loaded_chunk(cx, cy)
         if rows is None:
             raise web.HTTPNotFound()  # unexplored
         if ext.endswith("png"):
-            png = await asyncio.to_thread(self.renderer.chunk_png, cx, cy, mini=ext == "mini.png")
+            png = await asyncio.to_thread(
+                self.renderer.chunk_png, cx, cy, mini=ext == "mini.png"
+            )
             return _send(request, png or b"", "image/png", etag=self._etag())
         return _send(request, _chunk_json(rows), "application/json", etag=self._etag())
 
     async def world_json(self, request: web.Request) -> web.Response:
-        return _send(request, _world_json(self.renderer), "application/json", etag=self._etag())
+        return _send(
+            request, _world_json(self.renderer), "application/json", etag=self._etag()
+        )
 
     async def explored_json(self, request: web.Request) -> web.Response:
         # Towns live in chunks, so the chunk count says whether anything changed since the last poll.
         world = self.adapter.world
         explored_etag = f'"{world.seed}-{len(world.loaded_chunks())}"'
-        return _send(request, _explored_json(self.renderer), "application/json", etag=explored_etag)
+        return _send(
+            request,
+            _explored_json(self.renderer),
+            "application/json",
+            etag=explored_etag,
+        )
 
     async def actors_json(self, request: web.Request) -> web.Response:
         # Actors only move on a tick, and the client polls faster than that: most polls can be a 304.
@@ -550,12 +646,22 @@ class _Site:
         try:
             character = self.adapter.get_player(self._member_id(request))
         except NotRegisteredException:  # logged in, but no character (yet, or anymore)
-            return _send(request, b'{"error": "no character"}', "application/json", status=404)
-        return _send(request, _me_json(character, self.adapter.news(character)), "application/json")
+            return _send(
+                request, b'{"error": "no character"}', "application/json", status=404
+            )
+        return _send(
+            request,
+            _me_json(character, self.adapter.news(character)),
+            "application/json",
+        )
 
     async def hideout(self, request: web.Request) -> web.Response:
         character = self._character(request)
-        png = await asyncio.to_thread(self.renderer.hideout_png, character) if character else None
+        png = (
+            await asyncio.to_thread(self.renderer.hideout_png, character)
+            if character
+            else None
+        )
         if png is None:
             raise web.HTTPNotFound()  # no character, or no hideout yet
         return _send(request, png, "image/png")
@@ -568,7 +674,15 @@ class _Site:
             goal, button = "this server's settings", "Open server settings"
         else:  # already logged in: no need to spend the link, the settings page asks Discord itself
             return _redirect(after)
-        page = self._page(request, "Log in · Discordia", LOGIN_BODY, TOKEN=token, NEXT=after, GOAL=goal, BUTTON=button)
+        page = self._page(
+            request,
+            "Log in · Discordia",
+            LOGIN_BODY,
+            TOKEN=token,
+            NEXT=after,
+            GOAL=goal,
+            BUTTON=button,
+        )
         return _send(request, page, "text/html; charset=utf-8")
 
     async def login(self, request: web.Request) -> web.Response:
@@ -577,25 +691,36 @@ class _Site:
         after = form.get("next", [""])[0]
         if session is None:
             command = "/settings" if ADMIN_ROUTE.fullmatch(after) else "/weblogin"
-            page = self._page(request, "Link expired · Discordia", SPENT_BODY, COMMAND=command)
+            page = self._page(
+                request, "Link expired · Discordia", SPENT_BODY, COMMAND=command
+            )
             return _send(request, page, "text/html; charset=utf-8", status=403)
         # Only to a page of ours that's known: anything else would make the login link an open redirect.
         # Secure: browsers still let localhost set it over plain HTTP, so a local run logs in too.
         return _redirect(
             after if ADMIN_ROUTE.fullmatch(after) else "/map",
-            **{"Set-Cookie": f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"},
+            **{
+                "Set-Cookie": f"session={session}; Path=/; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+            },
         )
 
     async def logout(self, request: web.Request) -> web.Response:
         session = _session(request)
         if session:
             self.adapter.web_logins.end(session)
-        return _redirect("/", **{"Set-Cookie": "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"})
+        return _redirect(
+            "/",
+            **{
+                "Set-Cookie": "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+            },
+        )
 
     async def invite(self, request: web.Request) -> web.Response:
         if self.adapter.invite_url is None:
             raise web.HTTPServiceUnavailable(text="The bot isn't running right now.")
-        return _redirect(self.adapter.invite_url)  # Discord's own page takes it from here: pick a server, approve
+        return _redirect(
+            self.adapter.invite_url
+        )  # Discord's own page takes it from here: pick a server, approve
 
     async def client_js(self, request: web.Request) -> web.Response:
         return _send(request, CLIENT_JS.read_bytes(), "text/javascript; charset=utf-8")
@@ -603,7 +728,9 @@ class _Site:
     async def leaflet(self, request: web.Request) -> web.Response:
         path = LEAFLET[request.path.removeprefix("/")]
         ctype = "text/css" if path.suffix == ".css" else "text/javascript"
-        return _send(request, path.read_bytes(), f"{ctype}; charset=utf-8", etag=LEAFLET_ETAG)
+        return _send(
+            request, path.read_bytes(), f"{ctype}; charset=utf-8", etag=LEAFLET_ETAG
+        )
 
     async def sprite(self, request: web.Request) -> web.Response:
         body = _read_sprite(request.match_info["rel"])
@@ -616,20 +743,31 @@ class _Site:
 
     async def me(self, request: web.Request) -> web.Response:
         character = self._character(request)
-        if character is None:  # logged in, but nothing to show: the home page says how to make one
+        if (
+            character is None
+        ):  # logged in, but nothing to show: the home page says how to make one
             return _redirect("/#join")
-        page = self._page(request, f"{character.name} · Discordia", ME_HTML.read_text(encoding="utf-8"), **_sheet(character, self.adapter))
+        page = self._page(
+            request,
+            f"{character.name} · Discordia",
+            ME_HTML.read_text(encoding="utf-8"),
+            **_sheet(character, self.adapter),
+        )
         return _send(request, page, "text/html; charset=utf-8")
 
     async def dashboard(self, request: web.Request) -> web.Response:
         await self._owner(request)
-        page = self._page(request, "Dashboard · Discordia", ADMIN_HTML.read_text(encoding="utf-8"))
+        page = self._page(
+            request, "Dashboard · Discordia", ADMIN_HTML.read_text(encoding="utf-8")
+        )
         return _send(request, page, "text/html; charset=utf-8")
 
     async def dashboard_json(self, request: web.Request) -> web.Response:
         await self._owner(request)
         since = request.query.get("since", "")
-        body = _dashboard_json(self.adapter, int(since) if since.lstrip("-").isdigit() else -1)
+        body = _dashboard_json(
+            self.adapter, int(since) if since.lstrip("-").isdigit() else -1
+        )
         return _send(request, body, "application/json")
 
     async def admin(self, request: web.Request) -> web.Response:
@@ -642,7 +780,12 @@ class _Site:
         """Play from the browser: one order, queued like a slash command's, answered after its tick."""
 
         def reply(status: int, text: str) -> web.Response:
-            return _send(request, json.dumps({"text": text}).encode(), "application/json", status=status)
+            return _send(
+                request,
+                json.dumps({"text": text}).encode(),
+                "application/json",
+                status=status,
+            )
 
         character = self._character(request)
         # JSON only: a form on another site can post here, but it can't send JSON without asking first.
@@ -665,9 +808,13 @@ class _Site:
                     lambda r: move_text(r, DIRECTION_NAMES[direction])
                 )
             else:
-                action, say = (lambda: adapter.attack(character, vector)), (lambda r: attack_text(character, r))
+                action, say = (lambda: adapter.attack(character, vector)), (
+                    lambda r: attack_text(character, r)
+                )
         elif what == "choose" and choice in Events.EncounterEvent.CHOICES:
-            action, say = (lambda: adapter.resolve_encounter(character, choice)), choose_text
+            action, say = (
+                lambda: adapter.resolve_encounter(character, choice)
+            ), choose_text
         else:
             return reply(400, "That isn't an order.")
         if character.location is None:
@@ -679,10 +826,16 @@ class _Site:
             return reply(503, "The game isn't running right now.")
         try:
             # Waits for the tick. A timeout cancels the order too, so it can't still happen after the 504.
-            result = await asyncio.wait_for(adapter.place_order(character, action), ORDER_SECONDS)
+            result = await asyncio.wait_for(
+                adapter.place_order(character, action), ORDER_SECONDS
+            )
             # Inside the try: an answer that fails to format must still be an answer. A dropped
             # connection makes the browser send the order again.
-            text = "You change your mind: a newer order took this one's place." if result is SUPERSEDED else say(result)
+            text = (
+                "You change your mind: a newer order took this one's place."
+                if result is SUPERSEDED
+                else say(result)
+            )
         except TimeoutError:
             return reply(504, "No tick came. Try again in a moment.")
         except Exception as exc:
@@ -704,9 +857,13 @@ class _Site:
         try:
             guild = await asyncio.wait_for(lookup(member_id, guild_id), DISCORD_SECONDS)
         except TimeoutError:
-            raise web.HTTPGatewayTimeout(text="Discord didn't answer. Try again in a moment.")
+            raise web.HTTPGatewayTimeout(
+                text="Discord didn't answer. Try again in a moment."
+            )
         if guild is None:
-            raise web.HTTPForbidden(text="You need Manage Server in that Discord server, and the bot has to be in it.")
+            raise web.HTTPForbidden(
+                text="You need Manage Server in that Discord server, and the bot has to be in it."
+            )
         return guild
 
     async def _owner(self, request: web.Request):
@@ -720,11 +877,15 @@ class _Site:
         try:
             owner = await asyncio.wait_for(lookup(member_id), DISCORD_SECONDS)
         except TimeoutError:
-            raise web.HTTPGatewayTimeout(text="Discord didn't answer. Try again in a moment.")
+            raise web.HTTPGatewayTimeout(
+                text="Discord didn't answer. Try again in a moment."
+            )
         if not owner:
             raise web.HTTPForbidden(text="This page is for the bot's owner.")
 
-    def _admin_page(self, request: web.Request, guild_id: int, guild, saved: bool) -> bytes:
+    def _admin_page(
+        self, request: web.Request, guild_id: int, guild, saved: bool
+    ) -> bytes:
         name, channels = guild
         settings = self.adapter.guild_settings.get(guild_id, GuildSettings())
         picked = set(settings.channels)
@@ -759,7 +920,9 @@ class _Site:
         # site whatever the cookie does. Browsers that don't send the header still don't send a Lax cookie.
         if request.headers.get("Sec-Fetch-Site", "same-origin") != "same-origin":
             raise web.HTTPForbidden()
-        body = await _body(request, max_bytes=64 * 1024)  # a server's worth of channel ids
+        body = await _body(
+            request, max_bytes=64 * 1024
+        )  # a server's worth of channel ids
         if self._member_id(request) is None:
             raise web.HTTPUnauthorized()
         guild = await self._admin_guild(request, guild_id)
@@ -801,13 +964,16 @@ class _Site:
             NAME=name,
             WANDERER_HP=WandererClass().hit_points_max_base,
             SOLDIER_HP=Soldier().hit_points_max_base,
-            TOWN_CLASSES=Markup("".join(_class_card(c(), town) for c, town in TOWN_CLASSES)),
+            TOWN_CLASSES=Markup(
+                "".join(_class_card(c(), town) for c, town in TOWN_CLASSES)
+            ),
         )
         return _send(request, page, "text/html; charset=utf-8")
 
     def _page(self, request: web.Request, title: str, body: str, **values) -> bytes:
         """site.html around `body`, with its {{PLACEHOLDERS}} filled in. Markup goes in as it is, first; the rest
-        is escaped and goes in after, so a name from Discord can't smuggle in a tag or a placeholder."""
+        is escaped and goes in after, so a name from Discord can't smuggle in a tag or a placeholder.
+        """
         character = self._character(request)
         if self._member_id(request) is None:
             account = '<a class="btn ghost" href="/#join">Log in</a>'
@@ -821,9 +987,20 @@ class _Site:
                 '<a class="btn" href="/map">Open the map</a></div>'
             )
         page = SITE_HTML.read_text(encoding="utf-8").replace("{{BODY}}", body)
-        values = {"TITLE": title, "ACCOUNT": Markup(account), "WORLD": self.adapter.world.name, "VERSION": VERSION, **values}
-        for key, value in sorted(values.items(), key=lambda kv: not isinstance(kv[1], Markup)):
-            page = page.replace("{{%s}}" % key, value if isinstance(value, Markup) else html.escape(str(value)))
+        values = {
+            "TITLE": title,
+            "ACCOUNT": Markup(account),
+            "WORLD": self.adapter.world.name,
+            "VERSION": VERSION,
+            **values,
+        }
+        for key, value in sorted(
+            values.items(), key=lambda kv: not isinstance(kv[1], Markup)
+        ):
+            page = page.replace(
+                "{{%s}}" % key,
+                value if isinstance(value, Markup) else html.escape(str(value)),
+            )
         return page.encode()
 
     def _member_id(self, request: web.Request) -> int | None:
@@ -849,7 +1026,9 @@ def _session(request: web.Request) -> str | None:
 async def _body(request: web.Request, max_bytes: int = 1024) -> str:
     """The request body. Raises a 400 if it's missing or bigger than `max_bytes`."""
     length = request.headers.get("Content-Length", "")
-    if not length.isdigit() or int(length) > max_bytes:  # a token is 43 characters, an order less
+    if (
+        not length.isdigit() or int(length) > max_bytes
+    ):  # a token is 43 characters, an order less
         raise web.HTTPBadRequest()
     return (await request.read()).decode(errors="replace")
 
@@ -858,13 +1037,21 @@ def _redirect(location: str, **headers) -> web.Response:
     return web.Response(status=303, headers={"Location": location, **headers})
 
 
-def _send(request: web.Request, body: bytes, ctype: str, etag: str | None = None, status: int = 200) -> web.Response:
+def _send(
+    request: web.Request,
+    body: bytes,
+    ctype: str,
+    etag: str | None = None,
+    status: int = 200,
+) -> web.Response:
     if etag and request.headers.get("If-None-Match") == etag:
         return web.Response(status=304, headers={"ETag": etag})
     headers = {"Content-Type": ctype}
     if not ctype.startswith("image/"):
         headers["Vary"] = "Accept-Encoding"
-        if len(body) >= GZIP_MIN_BYTES and "gzip" in request.headers.get("Accept-Encoding", ""):
+        if len(body) >= GZIP_MIN_BYTES and "gzip" in request.headers.get(
+            "Accept-Encoding", ""
+        ):
             body = gzip.compress(body, compresslevel=5)
             headers["Content-Encoding"] = "gzip"
     if etag:
@@ -875,7 +1062,9 @@ def _send(request: web.Request, body: bytes, ctype: str, etag: str | None = None
     return web.Response(status=status, body=body, headers=headers)
 
 
-async def serve(renderer: Renderer, port: int, host: str = "127.0.0.1") -> web.AppRunner:
+async def serve(
+    renderer: Renderer, port: int, host: str = "127.0.0.1"
+) -> web.AppRunner:
     """Start serving on the running loop (the bot's) and return; the runner's cleanup() stops it."""
     # ponytail: client polls actors every 2s. Swap in SSE (a web.StreamResponse) if that feels laggy.
     site = _Site(renderer)

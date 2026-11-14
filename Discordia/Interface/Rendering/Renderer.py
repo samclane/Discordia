@@ -170,7 +170,13 @@ class Renderer:
                 if tile is not None:
                     image.paste(tile, pos, tile)
                 if isinstance(
-                    space, (GameSpace.Town, GameSpace.Wilds, GameSpace.Cache, GameSpace.Extract)
+                    space,
+                    (
+                        GameSpace.Town,
+                        GameSpace.Wilds,
+                        GameSpace.Cache,
+                        GameSpace.Extract,
+                    ),
                 ):
                     self._paste(space.sprite_path_string, x, y, image)
         return image
@@ -203,7 +209,9 @@ class Renderer:
     @lru_cache(maxsize=4096)  # ~3 KB each
     def _chunk_mini_png(self, cx: int, cy: int) -> bytes:
         size = GameSpace.CHUNK_SIZE * MINI_TILE
-        return _png(self._chunk_image(cx, cy).resize((size, size), Image.Resampling.BOX))
+        return _png(
+            self._chunk_image(cx, cy).resize((size, size), Image.Resampling.BOX)
+        )
 
     def draw_region(self, x0: int, y0: int, x1: int, y1: int) -> Image.Image:
         """Squares [x0, x1) x [y0, y1), clipped to the map, with the actors standing on them.
@@ -241,8 +249,13 @@ class Renderer:
             # The back rows hold the stash, the front row is where you stand.
             spots = [(x, y) for y in range(1, height - 2) for x in range(1, width - 1)]
             things = [HIDEOUT_MONEY] if character.stash_currency else []
-            things += [HIDEOUT_CRATES[i % len(HIDEOUT_CRATES)] for i in range(len(character.stash))]
-            for (x, y), index in zip(spots, things):  # ponytail: a full room just stops showing more
+            things += [
+                HIDEOUT_CRATES[i % len(HIDEOUT_CRATES)]
+                for i in range(len(character.stash))
+            ]
+            for (x, y), index in zip(
+                spots, things
+            ):  # ponytail: a full room just stops showing more
                 image.alpha_composite(self._sheet_tile(index), (x * TILE, y * TILE))
             # ponytail: plain frames, not the achievements' emoji: Pillow needs an emoji font the server lacks.
             trophies = [HIDEOUT_BEST_HAUL] if character.best_haul else []

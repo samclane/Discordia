@@ -120,7 +120,11 @@ class CombatEvent(Event):
                     target=enemy,
                     text=f"{player_character.name} fights {enemy.name}: "
                     f"{rounds} round{'s' * (rounds != 1)}, deals {dealt} dmg, takes {taken}."
-                    + (f" {player_character.pet_name} bites for {bitten} of it." if bitten else "")
+                    + (
+                        f" {player_character.pet_name} bites for {bitten} of it."
+                        if bitten
+                        else ""
+                    )
                     + (f" {enemy.name} flees the fight." if fled else ""),
                 )
             if enemy.is_dead:
@@ -240,13 +244,17 @@ class EncounterEvent(Event):
                 )
             return
         if not npc.currency:
-            response.text = f"You put {npc.name} on the ground and find nothing worth taking."
+            response.text = (
+                f"You put {npc.name} on the ground and find nothing worth taking."
+            )
         else:
             response.currency = npc.currency
             player_character.currency += npc.currency
             npc.currency = 0
             response.text = f"You take ${response.currency} off {npc.name} and leave them in the dirt."
-        response.text += player_character.turn_raider()  # a win either way, and that's what makes a raider
+        response.text += (
+            player_character.turn_raider()
+        )  # a win either way, and that's what makes a raider
 
 
 class MerchantEvent(Event):

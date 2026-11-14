@@ -25,8 +25,13 @@ from Discordia.Interface.Rendering import WebApp
 from Discordia.Interface.Rendering.WebApp import ART_VERSION, _chunk_json
 from Discordia.Interface.WebLogins import LINK_SECONDS, SESSION_SECONDS, WebLogins
 from Discordia.Interface.DiscordInterface import DiscordInterface
-from Discordia.Interface.WorldAdapter import DIRECTION_NAMES, SUPERSEDED, InvalidSpaceException, WorldAdapter, memory_mb
-
+from Discordia.Interface.WorldAdapter import (
+    DIRECTION_NAMES,
+    SUPERSEDED,
+    InvalidSpaceException,
+    WorldAdapter,
+    memory_mb,
+)
 
 # Every test server shares these logins, so one session cookie gets a test past the gate on any of them.
 LOGINS = WebLogins()
@@ -39,13 +44,17 @@ def serve(adapter):
     adapter.web_logins = LOGINS
     loop = asyncio.new_event_loop()
     threading.Thread(target=loop.run_forever, daemon=True).start()
-    runner = asyncio.run_coroutine_threadsafe(WebApp.serve(Renderer(adapter), 0), loop).result(10)
+    runner = asyncio.run_coroutine_threadsafe(
+        WebApp.serve(Renderer(adapter), 0), loop
+    ).result(10)
 
     def shutdown():
         asyncio.run_coroutine_threadsafe(runner.cleanup(), loop).result(10)
         loop.call_soon_threadsafe(loop.stop)
 
-    return SimpleNamespace(server_port=runner.addresses[0][1], loop=loop, shutdown=shutdown)
+    return SimpleNamespace(
+        server_port=runner.addresses[0][1], loop=loop, shutdown=shutdown
+    )
 
 
 def answers(fake):
@@ -66,7 +75,9 @@ def base_url():
     )
     adapter.world.npcs[0].location = adapter.world.space_at(4, 3)
     fallen = adapter.world.space_at(6, 3)  # a corpse run's pile
-    fallen.remains = GameSpace.Remains(Actors.PlayerCharacter(adapter.world, name="Gone"), [], 40, 10**9)
+    fallen.remains = GameSpace.Remains(
+        Actors.PlayerCharacter(adapter.world, name="Gone"), [], 40, 10**9
+    )
     adapter.world.piles.append(fallen)
 
     server = serve(adapter)
@@ -90,11 +101,18 @@ def get(url):
 
 
 def test_page_and_client_are_served(base_url):
-    assert b"<div id=\"viewport\">" in get(base_url + "/map")[2]
+    assert b'<div id="viewport">' in get(base_url + "/map")[2]
     assert b"pollActors" in get(base_url + "/client.js")[2]
-    for path, kind in (("/leaflet.js", "text/javascript"), ("/leaflet.css", "text/css")):  # vendored, not a CDN
+    for path, kind in (
+        ("/leaflet.js", "text/javascript"),
+        ("/leaflet.css", "text/css"),
+    ):  # vendored, not a CDN
         status, headers, body = get(base_url + path)
-        assert status == 200 and headers["Content-Type"].startswith(kind) and b"leaflet-tile" in body
+        assert (
+            status == 200
+            and headers["Content-Type"].startswith(kind)
+            and b"leaflet-tile" in body
+        )
 
 
 def test_explored_chunks_are_pngs(base_url):
@@ -105,13 +123,32 @@ def test_explored_chunks_are_pngs(base_url):
     assert headers["ETag"] == f'"7-{ART_VERSION}"'  # the world seed and the art
 
     terrain = json.loads(get(base_url + f"/chunk/{cx}/{cy}.json")[2])["terrain"]
-    assert len(terrain) == 12 and len(terrain[0]) == GameSpace.CHUNK_SIZE  # clipped to the map
-    assert {t for row in terrain for t in row} <= {"paving", "park", "canal", "rooftops", "ruins", "plaza", "road", "bridge", "wall"}  # what the art shows
+    assert (
+        len(terrain) == 12 and len(terrain[0]) == GameSpace.CHUNK_SIZE
+    )  # clipped to the map
+    assert {t for row in terrain for t in row} <= {
+        "paving",
+        "park",
+        "canal",
+        "rooftops",
+        "ruins",
+        "plaza",
+        "road",
+        "bridge",
+        "wall",
+    }  # what the art shows
 
 
 def test_hovering_names_extraction_points_and_caches():
-    places = json.loads(_chunk_json([[GameSpace.Extract(0, 0), GameSpace.Cache(1, 0), GameSpace.Space(2, 0)]]))["places"]
-    assert [(p["x"], p["kind"], p["name"]) for p in places] == [(0, "Extract", "an extraction point"), (1, "Cache", "a cache")]
+    places = json.loads(
+        _chunk_json(
+            [[GameSpace.Extract(0, 0), GameSpace.Cache(1, 0), GameSpace.Space(2, 0)]]
+        )
+    )["places"]
+    assert [(p["x"], p["kind"], p["name"]) for p in places] == [
+        (0, "Extract", "an extraction point"),
+        (1, "Cache", "a cache"),
+    ]
 
 
 def test_clicking_a_town_names_its_residents():
@@ -131,7 +168,9 @@ def test_zoomed_out_map_gets_a_small_overview(base_url):
     assert Image.open(io.BytesIO(mini)).size == (GameSpace.CHUNK_SIZE * MINI_TILE,) * 2
     assert len(mini) * 5 < len(full)
 
-    get(base_url + f"/chunk/{cx}/{cy}.mini.png")  # the next visitor's is cached, not redrawn
+    get(
+        base_url + f"/chunk/{cx}/{cy}.mini.png"
+    )  # the next visitor's is cached, not redrawn
     assert Renderer._chunk_mini_png.cache_info().misses == misses + 1
 
 
@@ -139,20 +178,30 @@ def test_zoomed_out_map_gets_a_small_overview(base_url):
 def test_unexplored_chunks_404_rather_than_generate(base_url, ext):
     """Generation belongs to the game loop; a visitor panning the map mustn't build the world."""
     with pytest.raises(urllib.error.HTTPError) as excinfo:
-        get(base_url + f"/chunk/5/0.{ext}")  # the far end of the map, where the spawn search never reached
+        get(
+            base_url + f"/chunk/5/0.{ext}"
+        )  # the far end of the map, where the spawn search never reached
     assert excinfo.value.code == 404
 
 
 def test_static_responses_revalidate_to_304(base_url):
-    request = urllib.request.Request(base_url + "/world.json", headers={"If-None-Match": f'"7-{ART_VERSION}"'})
-    with pytest.raises(urllib.error.HTTPError) as excinfo:  # urllib treats any 3xx it can't follow as an error
+    request = urllib.request.Request(
+        base_url + "/world.json", headers={"If-None-Match": f'"7-{ART_VERSION}"'}
+    )
+    with pytest.raises(
+        urllib.error.HTTPError
+    ) as excinfo:  # urllib treats any 3xx it can't follow as an error
         urllib.request.urlopen(request)
     assert excinfo.value.code == 304
 
 
 def test_world_json_describes_the_generated_map(base_url):
     world = json.loads(get(base_url + "/world.json")[2])
-    assert (world["width"], world["height"], world["chunk"]) == (200, 12, GameSpace.CHUNK_SIZE)
+    assert (world["width"], world["height"], world["chunk"]) == (
+        200,
+        12,
+        GameSpace.CHUNK_SIZE,
+    )
     assert {"x", "y"} <= world["spawn"].keys()
 
     towns = json.loads(get(base_url + "/explored.json")[2])["towns"]
@@ -164,10 +213,17 @@ def test_actors_json_carries_the_spawned_npc(base_url):
     actors = json.loads(get(base_url + "/actors.json")[2])["actors"]
     bandit = next(a for a in actors if a["name"] == "Bandit")
     assert (bandit["x"], bandit["y"], bandit["kind"]) == (4, 3, "npc")
-    assert bandit["sprite"].startswith("/sprites/") and bandit["sprite"].endswith(".png")
+    assert bandit["sprite"].startswith("/sprites/") and bandit["sprite"].endswith(
+        ".png"
+    )
     assert get(base_url + bandit["sprite"])[2].startswith(b"\x89PNG")
     pile = next(a for a in actors if a["kind"] == "remains")
-    assert (pile["x"], pile["y"], pile["name"], pile["contents"]) == (6, 3, "Gone's things", "$40")
+    assert (pile["x"], pile["y"], pile["name"], pile["contents"]) == (
+        6,
+        3,
+        "Gone's things",
+        "$40",
+    )
     assert get(base_url + pile["sprite"])[2].startswith(b"\x89PNG")
 
 
@@ -196,11 +252,15 @@ def test_text_is_gzipped_for_browsers_that_take_it(base_url):
         assert response.headers["Content-Encoding"] == "gzip"
         packed = response.read()
     assert gzip.decompress(packed) == plain
-    assert len(packed) * 4 < len(plain)  # terrain names repeat; the polled JSON is the same story
+    assert len(packed) * 4 < len(
+        plain
+    )  # terrain names repeat; the polled JSON is the same story
 
     # Too small to bother, and never the PNGs: they're compressed already.
     for small in ["/world.json", f"/chunk/{cx}/{cy}.png"]:
-        request = urllib.request.Request(base_url + small, headers={"Accept-Encoding": "gzip"})
+        request = urllib.request.Request(
+            base_url + small, headers={"Accept-Encoding": "gzip"}
+        )
         with urllib.request.urlopen(request) as response:
             assert "Content-Encoding" not in response.headers
 
@@ -213,12 +273,18 @@ def test_explored_json_revalidates_until_the_map_grows():
     try:
         etag = get(url)[1]["ETag"]
         with pytest.raises(urllib.error.HTTPError) as excinfo:
-            urllib.request.urlopen(urllib.request.Request(url, headers={"If-None-Match": etag}))
+            urllib.request.urlopen(
+                urllib.request.Request(url, headers={"If-None-Match": etag})
+            )
         assert excinfo.value.code == 304
 
         unexplored = next(cx for cx in range(7) if world.loaded_chunk(cx, 0) is None)
-        world.space_at(unexplored * GameSpace.CHUNK_SIZE, 0)  # someone walks somewhere new
-        status, headers, body = get(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        world.space_at(
+            unexplored * GameSpace.CHUNK_SIZE, 0
+        )  # someone walks somewhere new
+        status, headers, body = get(
+            urllib.request.Request(url, headers={"If-None-Match": etag})
+        )
         assert status == 200 and headers["ETag"] != etag
         assert [unexplored, 0] in json.loads(body)["chunks"]
     finally:
@@ -235,11 +301,15 @@ def test_actors_json_revalidates_until_someone_moves():
     try:
         etag = get(url)[1]["ETag"]
         with pytest.raises(urllib.error.HTTPError) as excinfo:
-            urllib.request.urlopen(urllib.request.Request(url, headers={"If-None-Match": etag}))
+            urllib.request.urlopen(
+                urllib.request.Request(url, headers={"If-None-Match": etag})
+            )
         assert excinfo.value.code == 304
 
         world.npcs[0].location = world.space_at(5, 3)
-        status, headers, body = get(urllib.request.Request(url, headers={"If-None-Match": etag}))
+        status, headers, body = get(
+            urllib.request.Request(url, headers={"If-None-Match": etag})
+        )
         assert status == 200 and headers["ETag"] != etag
         assert json.loads(body)["actors"][0]["x"] == 5
     finally:
@@ -287,7 +357,12 @@ def test_a_weblogin_link_logs_in_once_and_shows_your_character():
 
         def post(t):
             body = f"t={t}"
-            conn.request("POST", "/login", body, {"Content-Type": "application/x-www-form-urlencoded"})
+            conn.request(
+                "POST",
+                "/login",
+                body,
+                {"Content-Type": "application/x-www-form-urlencoded"},
+            )
             response = conn.getresponse()
             response.read()
             return response
@@ -302,7 +377,9 @@ def test_a_weblogin_link_logs_in_once_and_shows_your_character():
         conn.request("GET", "/me.json", headers={"Cookie": session})
         me = json.loads(conn.getresponse().read())
         assert me["name"] == "Webber" and me["id"].startswith("player:")
-        conn.request("GET", "/me.json", headers={"Cookie": COOKIE})  # logged in as nobody's character
+        conn.request(
+            "GET", "/me.json", headers={"Cookie": COOKIE}
+        )  # logged in as nobody's character
         response = conn.getresponse()
         response.read()
         assert response.status == 404
@@ -332,12 +409,16 @@ def test_weblogins_keep_only_digests_and_let_links_lapse():
     assert logins.member_id(session) is None
 
 
-@pytest.mark.parametrize("path", ["/world.json", "/actors.json", "/chunk/0/0.png", "/client.js", "/me.json"])
+@pytest.mark.parametrize(
+    "path", ["/world.json", "/actors.json", "/chunk/0/0.png", "/client.js", "/me.json"]
+)
 def test_without_a_session_the_map_is_closed(base_url, path):
     """The map is for players: no cookie, or a forged one, gets nothing of it."""
     for cookie in ({}, {"Cookie": "session=forged"}):
         with pytest.raises(urllib.error.HTTPError) as refused:
-            urllib.request.build_opener().open(urllib.request.Request(base_url + path, headers=cookie))
+            urllib.request.build_opener().open(
+                urllib.request.Request(base_url + path, headers=cookie)
+            )
         assert refused.value.code == 401
         refused.value.close()
 
@@ -352,7 +433,9 @@ def test_without_a_session_the_map_sends_you_to_how_to_join(base_url):
 
 
 def public_home(base_url, cookie=None) -> str:
-    request = urllib.request.Request(base_url + "/", headers={"Cookie": cookie} if cookie else {})
+    request = urllib.request.Request(
+        base_url + "/", headers={"Cookie": cookie} if cookie else {}
+    )
     with urllib.request.build_opener().open(request) as response:
         assert response.status == 200
         return response.read().decode()
@@ -360,9 +443,15 @@ def public_home(base_url, cookie=None) -> str:
 
 def test_the_home_page_is_public_and_its_art_loads(base_url):
     page = public_home(base_url)
-    assert "<h1>Testland</h1>" in page and "/weblogin" in page and 'href="/#join">Log in' in page
+    assert (
+        "<h1>Testland</h1>" in page
+        and "/weblogin" in page
+        and 'href="/#join">Log in' in page
+    )
     assert "{{" not in page, "a placeholder went unfilled"
-    assert all(name in page for name in ("Scavenger", "Medic", "Scout", "Fixer"))  # each trade's class has a card
+    assert all(
+        name in page for name in ("Scavenger", "Medic", "Scout", "Fixer")
+    )  # each trade's class has a card
     for sprite in set(re.findall(r'src="(/sprites/[^"]+)"', page)):
         with urllib.request.build_opener().open(base_url + sprite) as response:
             assert response.read().startswith(b"\x89PNG")
@@ -377,7 +466,9 @@ def test_the_home_page_knows_who_you_are_and_escapes_it():
         page = public_home(base, f"session={LOGINS.redeem(LOGINS.new_link_token(7))}")
         assert "logged in as <b>Bo&quot;b {{TOKEN}} &amp; co</b>" in page
         assert 'href="/map">Open the map' in page
-        assert "have no character" in public_home(base, COOKIE)  # member 0 never registered
+        assert "have no character" in public_home(
+            base, COOKIE
+        )  # member 0 never registered
     finally:
         server.shutdown()
 
@@ -390,7 +481,9 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
     character = adapter.get_player(3)
     character.equip(Armor.SSh68())
     character.inventory.append(Weapons.FNMinimi())
-    character.pending_event = SimpleNamespace(flavor_text="A <stranger> blocks the road.")
+    character.pending_event = SimpleNamespace(
+        flavor_text="A <stranger> blocks the road."
+    )
     character.hideout_level = 2
     character.achievements = {"a_roof"}
     server = serve(adapter)
@@ -400,21 +493,36 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
         page = public_home(base, cookie)  # the header knows you on every page
         assert 'class="me-link"' in page and "Ada &amp; co" in page
 
-        with urllib.request.build_opener().open(urllib.request.Request(base + "/me", headers={"Cookie": cookie})) as r:
+        with urllib.request.build_opener().open(
+            urllib.request.Request(base + "/me", headers={"Cookie": cookie})
+        ) as r:
             sheet = r.read().decode()
         assert "<h1>Ada &amp; co</h1>" in sheet and "Level 1 Wanderer" in sheet
         helmet = Armor.SSh68()
-        assert html.escape(helmet.name) in sheet  # in its slot, at its rating: armor_count is a roll
+        assert (
+            html.escape(helmet.name) in sheet
+        )  # in its slot, at its rating: armor_count is a roll
         assert f"{helmet._armor_count:g} armor" in sheet
-        assert '<span class="slot">#0</span>' in sheet, "inventory is numbered for /inventory equip"
+        assert (
+            '<span class="slot">#0</span>' in sheet
+        ), "inventory is numbered for /inventory equip"
         assert "A &lt;stranger&gt; blocks the road." in sheet
-        assert "$240<span> / hour</span>" in sheet  # two levels at the default 5-second tick
-        assert '<li><span class="slot">🛖</span><span class="name">A roof: Build a hideout.' in sheet
+        assert (
+            "$240<span> / hour</span>" in sheet
+        )  # two levels at the default 5-second tick
+        assert (
+            '<li><span class="slot">🛖</span><span class="name">A roof: Build a hideout.'
+            in sheet
+        )
         assert "First blood" not in sheet, "locked achievements stay hidden"
         assert "{{" not in sheet, "a placeholder went unfilled"
         assert 'src="/hideout.png"' in sheet
-        with urllib.request.build_opener().open(urllib.request.Request(base + "/hideout.png", headers={"Cookie": cookie})) as r:
-            assert r.headers["Content-Type"] == "image/png" and r.read().startswith(b"\x89PNG")
+        with urllib.request.build_opener().open(
+            urllib.request.Request(base + "/hideout.png", headers={"Cookie": cookie})
+        ) as r:
+            assert r.headers["Content-Type"] == "image/png" and r.read().startswith(
+                b"\x89PNG"
+            )
     finally:
         server.shutdown()
 
@@ -422,11 +530,17 @@ def test_your_character_sheet_shows_your_kit_and_what_is_waiting():
 def test_the_sheet_shows_discords_code_as_code_and_escapes_the_rest():
     from Discordia.Interface.Rendering.WebApp import _code
 
-    assert _code("Try `/hideout build` <now>") == "Try <code>/hideout build</code> &lt;now&gt;"
+    assert (
+        _code("Try `/hideout build` <now>")
+        == "Try <code>/hideout build</code> &lt;now&gt;"
+    )
 
 
 def test_the_sheet_is_for_logged_in_players():
-    conn = http.client.HTTPConnection("127.0.0.1", serve(WorldAdapter(GameSpace.World("Shut", 40, 40, seed=7))).server_port)
+    conn = http.client.HTTPConnection(
+        "127.0.0.1",
+        serve(WorldAdapter(GameSpace.World("Shut", 40, 40, seed=7))).server_port,
+    )
     conn.request("GET", "/me")
     response = conn.getresponse()
     response.read()
@@ -440,12 +554,18 @@ def test_logging_out_ends_the_session_for_good():
     assert session is not None
     conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
     try:
-        conn.request("POST", "/logout", headers={"Cookie": f"session={session}", "Content-Length": "0"})
+        conn.request(
+            "POST",
+            "/logout",
+            headers={"Cookie": f"session={session}", "Content-Length": "0"},
+        )
         response = conn.getresponse()
         response.read()
         assert response.status == 303 and response.headers["Location"] == "/"
         assert "Max-Age=0" in response.headers["Set-Cookie"]
-        assert LOGINS.member_id(session) is None, "a copy of the old cookie must not still work"
+        assert (
+            LOGINS.member_id(session) is None
+        ), "a copy of the old cookie must not still work"
     finally:
         conn.close()
         server.shutdown()
@@ -476,16 +596,32 @@ def test_web_orders_are_checked_before_they_queue():
     port = server.server_port
     try:
         assert act(port, {"action": "move", "direction": "n"})[0] == 401
-        assert act(port, {"action": "move", "direction": "n"}, cookie, "text/plain")[0] == 415, "no forms from elsewhere"
+        assert (
+            act(port, {"action": "move", "direction": "n"}, cookie, "text/plain")[0]
+            == 415
+        ), "no forms from elsewhere"
         assert act(port, {"action": "dance"}, cookie)[0] == 400
         assert act(port, {"action": "move", "direction": "up"}, cookie)[0] == 400
-        assert act(port, {"action": "move", "direction": "n"}, cookie) == (503, "The game isn't running right now.")
+        assert act(port, {"action": "move", "direction": "n"}, cookie) == (
+            503,
+            "The game isn't running right now.",
+        )
 
-        adapter.place_order = answers(lambda character, action: (_ for _ in ()).throw(InvalidSpaceException()))
-        assert act(port, {"action": "move", "direction": "n"}, cookie) == (409, "You can't go that way.")
+        adapter.place_order = answers(
+            lambda character, action: (_ for _ in ()).throw(InvalidSpaceException())
+        )
+        assert act(port, {"action": "move", "direction": "n"}, cookie) == (
+            409,
+            "You can't go that way.",
+        )
         adapter.place_order = answers(lambda character, action: SUPERSEDED)
-        assert "change your mind" in act(port, {"action": "attack", "direction": "e"}, cookie)[1]
-        adapter.place_order = answers(lambda character, action: action())  # no tick to wait for
+        assert (
+            "change your mind"
+            in act(port, {"action": "attack", "direction": "e"}, cookie)[1]
+        )
+        adapter.place_order = answers(
+            lambda character, action: action()
+        )  # no tick to wait for
         status, text = act(port, {"action": "choose", "choice": "talk"}, cookie)
         assert (status, text) == (409, "Nobody is waiting on you to decide anything.")
     finally:
@@ -501,18 +637,32 @@ def test_a_web_order_waits_for_the_bots_tick_and_moves_you():
     direction = next(
         key
         for key, name in DIRECTION_NAMES.items()
-        if world.is_space_valid(world.space_at(start.x + GameSpace.DIRECTION_VECTORS[key][0],
-                                               start.y + GameSpace.DIRECTION_VECTORS[key][1]))
+        if world.is_space_valid(
+            world.space_at(
+                start.x + GameSpace.DIRECTION_VECTORS[key][0],
+                start.y + GameSpace.DIRECTION_VECTORS[key][1],
+            )
+        )
     )
     interface = DiscordInterface(world_adapter=adapter)
     adapter.place_order = interface.order
     adapter.world.tick = lambda: []  # type: ignore[method-assign]  # just the orders, no NPCs
     try:
         answer = {}
-        browser = threading.Thread(target=lambda: answer.update(r=act(server.server_port, {"action": "move", "direction": direction}, cookie)))
+        browser = threading.Thread(
+            target=lambda: answer.update(
+                r=act(
+                    server.server_port,
+                    {"action": "move", "direction": direction},
+                    cookie,
+                )
+            )
+        )
         browser.start()
         time.sleep(0.3)
-        assert player.location is start and browser.is_alive(), "the order waits for the tick"
+        assert (
+            player.location is start and browser.is_alive()
+        ), "the order waits for the tick"
         asyncio.run_coroutine_threadsafe(interface.tick(), server.loop).result(10)
         browser.join(10)
         assert answer["r"][0] == 200
@@ -532,7 +682,12 @@ def test_a_web_order_that_times_out_never_happens(monkeypatch):
     adapter.world.tick = lambda: []  # type: ignore[method-assign]
     try:
         direction = next(iter(DIRECTION_NAMES))
-        assert act(server.server_port, {"action": "move", "direction": direction}, cookie)[0] == 504
+        assert (
+            act(server.server_port, {"action": "move", "direction": direction}, cookie)[
+                0
+            ]
+            == 504
+        )
         asyncio.run_coroutine_threadsafe(interface.tick(), server.loop).result(10)
         assert player.location is start
     finally:
@@ -545,7 +700,11 @@ def test_me_json_carries_your_news_and_whoever_is_waiting():
     adapter, server, cookie = playing()
     player = adapter.get_player(4)
     adapter.add_news(player, "A raider hits you.")
-    player.pending_event = Events.EncounterEvent(1.0, "Someone blocks the road.", Actors.NPC(parent_world=adapter.world, name="Stranger"))
+    player.pending_event = Events.EncounterEvent(
+        1.0,
+        "Someone blocks the road.",
+        Actors.NPC(parent_world=adapter.world, name="Stranger"),
+    )
     try:
         conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
         conn.request("GET", "/me.json", headers={"Cookie": cookie})
@@ -561,9 +720,14 @@ def test_an_order_whose_answer_breaks_still_gets_one():
     """No reply at all reads as a dropped connection, and browsers send a dropped POST again: a second order."""
     adapter, server, cookie = playing()
     orders = []
-    adapter.place_order = answers(lambda character, action: orders.append(1) or "not a response")
+    adapter.place_order = answers(
+        lambda character, action: orders.append(1) or "not a response"
+    )
     try:
-        assert act(server.server_port, {"action": "attack", "direction": "n"}, cookie)[0] == 500
+        assert (
+            act(server.server_port, {"action": "attack", "direction": "n"}, cookie)[0]
+            == 500
+        )
         assert orders == [1]
     finally:
         server.shutdown()
@@ -589,52 +753,97 @@ def test_server_admins_pick_the_channels_on_the_settings_page():
             headers["Content-Type"] = "application/x-www-form-urlencoded"
         conn.request(method, path, body, headers)
         response = conn.getresponse()
-        return response.status, response.headers.get("Location"), response.read().decode()
+        return (
+            response.status,
+            response.headers.get("Location"),
+            response.read().decode(),
+        )
 
     asked = []
     try:
-        assert request("GET", "/admin/5", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
+        assert request("GET", "/admin/5", cookie=None)[:2] == (
+            303,
+            "/#join",
+        ), "logged out: how to get in"
         assert request("GET", "/admin/5")[0] == 503, "no bot to ask who's an admin"
 
-        adapter.guild_for_admin = answers(lambda member, guild: asked.append((member, guild)))
+        adapter.guild_for_admin = answers(
+            lambda member, guild: asked.append((member, guild))
+        )
         assert request("GET", "/admin/5")[0] == 403, "not an admin there"
         assert request("POST", "/admin/5", "c=11")[0] == 403
         assert adapter.guild_settings == {}
 
-        adapter.guild_for_admin = answers(lambda member, guild: asked.append((member, guild)) or (
-            "Test <Server>",
-            [(11, "general", True), (12, "raids", False)],
-        ))
+        adapter.guild_for_admin = answers(
+            lambda member, guild: asked.append((member, guild))
+            or (
+                "Test <Server>",
+                [(11, "general", True), (12, "raids", False)],
+            )
+        )
         status, _, page = request("GET", "/admin/5")
-        assert status == 200 and "Test &lt;Server&gt;" in page and "#raids" in page and " checked" not in page
-        assert "#raids (the bot may not post here)" in page and "#general (" not in page, "says where posts would fail"
-        assert asked[-1] == (0, 5), "asks Discord about the logged-in member, every time"
+        assert (
+            status == 200
+            and "Test &lt;Server&gt;" in page
+            and "#raids" in page
+            and " checked" not in page
+        )
+        assert (
+            "#raids (the bot may not post here)" in page and "#general (" not in page
+        ), "says where posts would fail"
+        assert asked[-1] == (
+            0,
+            5,
+        ), "asks Discord about the logged-in member, every time"
 
-        assert request("POST", "/admin/5", "c=12", **{"Sec-Fetch-Site": "cross-site"})[0] == 403, "no forged forms"
-        assert request("POST", "/admin/5", "c=12&c=999&digest=11&announce=12")[:2] == (303, "/admin/5?saved")
+        assert (
+            request("POST", "/admin/5", "c=12", **{"Sec-Fetch-Site": "cross-site"})[0]
+            == 403
+        ), "no forged forms"
+        assert request("POST", "/admin/5", "c=12&c=999&digest=11&announce=12")[:2] == (
+            303,
+            "/admin/5?saved",
+        )
         assert adapter.guild_settings[5].channels == [12], "only that server's channels"
         assert adapter.guild_settings[5].digest_channel == 11
         assert adapter.guild_settings[5].announce_channel == 12
         status, _, page = request("GET", "/admin/5?saved")
-        assert 'value="12" checked' in page and 'value="11">' in page and "Saved." in page
+        assert (
+            'value="12" checked' in page and 'value="11">' in page and "Saved." in page
+        )
         assert '<option value="11" selected>#general' in page
         for digest in ("999", "", "nope"):
             request("POST", "/admin/5", f"c=12&digest={digest}")
             assert adapter.guild_settings[5].digest_channel is None, digest
 
         # /settings' link logs in and lands here; nowhere else but the map.
-        for after, landing in (("/admin/5", "/admin/5"), ("//evil.example", "/map"), ("", "/map")):
+        for after, landing in (
+            ("/admin/5", "/admin/5"),
+            ("//evil.example", "/map"),
+            ("", "/map"),
+        ):
             token = adapter.web_logins.new_link_token(0)
             page = request("GET", f"/login?t={token}&next={after}", cookie=None)[2]
             assert f'name="next" value="{html.escape(after)}"' in page
             assert ("Open server settings" in page) == (landing == "/admin/5")
-            assert request("POST", "/login", f"t={token}&next={after}", cookie=None)[:2] == (303, landing)
+            assert request("POST", "/login", f"t={token}&next={after}", cookie=None)[
+                :2
+            ] == (303, landing)
         # A spent link says which command makes a new one.
-        assert "Run <code>/settings</code>" in request("POST", "/login", "t=spent&next=/admin/5", cookie=None)[2]
-        assert "Run <code>/weblogin</code>" in request("POST", "/login", "t=spent", cookie=None)[2]
+        assert (
+            "Run <code>/settings</code>"
+            in request("POST", "/login", "t=spent&next=/admin/5", cookie=None)[2]
+        )
+        assert (
+            "Run <code>/weblogin</code>"
+            in request("POST", "/login", "t=spent", cookie=None)[2]
+        )
         # Already logged in: straight to the settings, and the link stays unspent.
         token = adapter.web_logins.new_link_token(0)
-        assert request("GET", f"/login?t={token}&next=/admin/5")[:2] == (303, "/admin/5")
+        assert request("GET", f"/login?t={token}&next=/admin/5")[:2] == (
+            303,
+            "/admin/5",
+        )
         assert adapter.web_logins.redeem(token) is not None
     finally:
         conn.close()
@@ -650,10 +859,17 @@ def test_the_dashboard_is_the_bot_owners_alone():
     def request(path, cookie: str | None = COOKIE):
         conn.request("GET", path, headers={"Cookie": cookie} if cookie else {})
         response = conn.getresponse()
-        return response.status, response.headers.get("Location"), response.read().decode()
+        return (
+            response.status,
+            response.headers.get("Location"),
+            response.read().decode(),
+        )
 
     try:
-        assert request("/admin", cookie=None)[:2] == (303, "/#join"), "logged out: how to get in"
+        assert request("/admin", cookie=None)[:2] == (
+            303,
+            "/#join",
+        ), "logged out: how to get in"
         assert request("/admin.json", cookie=None)[0] == 401
         assert request("/admin")[0] == 503, "no bot to ask who owns it"
         adapter.is_owner = answers(lambda member: False)
@@ -661,18 +877,29 @@ def test_the_dashboard_is_the_bot_owners_alone():
         asked = []
         adapter.is_owner = answers(lambda member: asked.append(member) or True)
         status, _, page = request("/admin")
-        assert status == 200 and 'id="charts"' in page and asked == [0], "asks about the logged-in member"
+        assert (
+            status == 200 and 'id="charts"' in page and asked == [0]
+        ), "asks about the logged-in member"
 
         for tick in range(3):
             adapter.world.ticks = tick
-            adapter.record_tick(orders=1, kills=0, deaths=0, messages=2, seconds=0.01, servers=1)
+            adapter.record_tick(
+                orders=1, kills=0, deaths=0, messages=2, seconds=0.01, servers=1
+            )
         data = json.loads(request("/admin.json")[2])
         assert [s["tick"] for s in data["samples"]] == [0, 1, 2]
-        assert data["samples"][0]["chunks"] == len(adapter.world.loaded_chunks()) and data["samples"][0]["messages"] == 2
+        assert (
+            data["samples"][0]["chunks"] == len(adapter.world.loaded_chunks())
+            and data["samples"][0]["messages"] == 2
+        )
         assert "memory_mb" in data["samples"][0]
         assert data["players"][0]["name"] == "Ann" and data["today"]["active"] == 0
-        assert [s["tick"] for s in json.loads(request("/admin.json?since=1")[2])["samples"]] == [2], "only what's new"
-        assert json.loads(request("/admin.json?since=nope")[2])["samples"][0]["tick"] == 0
+        assert [
+            s["tick"] for s in json.loads(request("/admin.json?since=1")[2])["samples"]
+        ] == [2], "only what's new"
+        assert (
+            json.loads(request("/admin.json?since=nope")[2])["samples"][0]["tick"] == 0
+        )
     finally:
         conn.close()
         server.shutdown()
@@ -680,7 +907,9 @@ def test_the_dashboard_is_the_bot_owners_alone():
 
 def test_memory_comes_from_proc_on_linux_and_is_blank_elsewhere(tmp_path):
     status = tmp_path / "status"
-    status.write_text("Name:\tpython\nVmPeak:\t  999999 kB\nVmRSS:\t  204800 kB\nThreads:\t4\n")
+    status.write_text(
+        "Name:\tpython\nVmPeak:\t  999999 kB\nVmRSS:\t  204800 kB\nThreads:\t4\n"
+    )
     assert memory_mb(str(status)) == 200.0
     assert memory_mb(str(tmp_path / "missing")) is None
 
@@ -716,7 +945,9 @@ def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
         return Image.open(io.BytesIO(renderer.hideout_png(character)))
 
     empty = drawn(1)
-    assert drawn(2).width > empty.width and drawn(40).width == drawn(16).width, "a square a level, up to a cap"
+    assert (
+        drawn(2).width > empty.width and drawn(40).width == drawn(16).width
+    ), "a square a level, up to a cap"
     character.stash_currency = 10
     stocked = drawn(1)
     assert stocked.tobytes() != empty.tobytes(), "the stash shows on the floor"

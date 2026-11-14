@@ -19,7 +19,9 @@ from math import sqrt
 
 from Discordia import SPRITE_FOLDER
 from Discordia.GameLogic import Data, Events, Actors, Items, Weapons
-from Discordia.GameLogic import Armor  # Store stocks every Data.stocked() class: they must all be imported
+from Discordia.GameLogic import (
+    Armor,
+)  # Store stocks every Data.stocked() class: they must all be imported
 from Discordia.GameLogic.Items import Equipment
 from Discordia.GameLogic.Procedural import normal, WorldGenerationParameters
 from Discordia.GameLogic.StringGenerator import (
@@ -126,7 +128,12 @@ CACHE_LEVELS_PER_SALVAGE = 3
 CACHE_REFILL_TICKS = 2880
 # "store": false gear that only caches hand out, one piece at a chance of the cache's level / WILDS_MAX_LEVEL: deep
 # raids are where chest armor and heavy guns come from.
-CACHE_ONLY: Tuple[type, ...] = (Armor.Chest6B2, Armor.Chest6B3, Armor.Chest6B45, Weapons.DShK)
+CACHE_ONLY: Tuple[type, ...] = (
+    Armor.Chest6B2,
+    Armor.Chest6B3,
+    Armor.Chest6B45,
+    Weapons.DShK,
+)
 
 # Extraction points: on the same cells as caches, each cell rolls EXTRACT_CHANCE for one on a plain square of one
 # of its middle chunks. Stepping on one is a ride to the nearest town, so a deep raid needn't walk all the way back.
@@ -153,7 +160,9 @@ ROAD_SCALE = 40
 # side: runs of wall two long at most, corners and mid-sides open. A closed ring strands walkers for good
 # (test_a_greedy_walker_gets_through_every_structure). Real pathfinding (tcod.path, in ROADMAP) lifts that.
 COMPOUND_CHANCE = 0.25
-STRUCTURES: List[List[str]] = [block["rows"] for block in Data.load(Data.DATA_FOLDER / "structures.json").values()]
+STRUCTURES: List[List[str]] = [
+    block["rows"] for block in Data.load(Data.DATA_FOLDER / "structures.json").values()
+]
 
 
 # How far a raider spots a player from, in squares either way. Further than /look's 2, so the first a
@@ -415,7 +424,9 @@ class MountainTerrain(Terrain):
 
 
 class IndustryType(ABC):
-    side: str | None = None  # the army a military base trains for (PlayerCharacter.side)
+    side: str | None = (
+        None  # the army a military base trains for (PlayerCharacter.side)
+    )
 
     @property
     def name(self) -> str:
@@ -604,14 +615,22 @@ class Town(Space):
         self.population: int = population
         self.industry: IndustryType = industry
         self.store: Store = store if store is not None else Store()
-        self.store.side = industry.side  # a base's store knows whose it is; set here, so a load gets it back too
+        self.store.side = (
+            industry.side
+        )  # a base's store knows whose it is; set here, so a load gets it back too
         self.is_underwater: bool = isinstance(self.terrain, WaterTerrain)
         # (role, name, what they say) for each of TOWNSFOLK. Rolled on its own seed from where the town stands, so
         # drawing it doesn't shift the chunk's generation, and here, not on first use: the web map reads it from
         # an HTTP thread, and _seeded swaps the game's global RNG.
         with _seeded("residents", self.x, self.y):
             self.residents: List[Tuple[str, str, str]] = [
-                (role, random.choice([MaleNameGenerator, FemaleNameGenerator]).generate_name(), random.choice(lines))
+                (
+                    role,
+                    random.choice(
+                        [MaleNameGenerator, FemaleNameGenerator]
+                    ).generate_name(),
+                    random.choice(lines),
+                )
                 for role, lines in TOWNSFOLK.items()
             ]
 
@@ -691,7 +710,11 @@ class Wilds(Space):
             if player.parent_world.ticks < self.quiet_until:
                 return []  # as the null event: nothing to narrate
             # Back after a quiet spell: new faces, not the bodies of the last fight to loot again.
-            self.null_event, self.events, self.quiet_until = Events.Event.null_event(), [], None
+            self.null_event, self.events, self.quiet_until = (
+                Events.Event.null_event(),
+                [],
+                None,
+            )
             self.events.append(self.null_event)
         if len(self.events) == 1:
             # Stocked on the first visit, not at generation: enemies and merchant stock are most of a
@@ -755,8 +778,13 @@ class Cache(Space):
             response.text = "There's a cache here, already emptied. Someone will restock it, in time."
             return [response]
         guard = next(
-            (n for n in player.parent_world.npcs if isinstance(n, Actors.Warlord) and not n.is_dead
-             and n.location.distance(self) <= NPC_SIGHT),
+            (
+                n
+                for n in player.parent_world.npcs
+                if isinstance(n, Actors.Warlord)
+                and not n.is_dead
+                and n.location.distance(self) <= NPC_SIGHT
+            ),
             None,
         )
         if guard is not None:  # kill it or lure it off: either way it's earned
@@ -764,16 +792,34 @@ class Cache(Space):
             return [response]
         self.looted_at = now
         level = max(self.level, 1)
-        response.currency = int(normal(CACHE_CURRENCY_PER_LEVEL * level, positive=True, integer=True))
+        response.currency = int(
+            normal(CACHE_CURRENCY_PER_LEVEL * level, positive=True, integer=True)
+        )
         player.currency += response.currency
         found = [f"${response.currency}"]
         stock = Store.generate_store().inventory
-        kit = [max(random.sample(stock, min(level, len(stock))), key=lambda i: i.base_value)] if stock else []
-        if random.random() < level / WILDS_MAX_LEVEL:  # its own roll: against the store's best it would lose
+        kit = (
+            [
+                max(
+                    random.sample(stock, min(level, len(stock))),
+                    key=lambda i: i.base_value,
+                )
+            ]
+            if stock
+            else []
+        )
+        if (
+            random.random() < level / WILDS_MAX_LEVEL
+        ):  # its own roll: against the store's best it would lose
             kit.append(random.choice(CACHE_ONLY)())
         # Salvage every time: the hideout's barter levels can't be bought, so caches are where they come from.
-        extra = isinstance(player.player_class, Actors.Scavenger) + player.has_perk("workbench")
-        salvage = [Items.Salvage() for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE + extra)]
+        extra = isinstance(player.player_class, Actors.Scavenger) + player.has_perk(
+            "workbench"
+        )
+        salvage = [
+            Items.Salvage()
+            for _ in range(1 + level // CACHE_LEVELS_PER_SALVAGE + extra)
+        ]
         for item in kit + salvage:
             player.inventory.append(item)
             response.items.append(item)
@@ -800,11 +846,19 @@ class Extract(Space):
     def run_event(self, player) -> List[PlayerActionResponse]:
         world = player.parent_world
         # Picked up here, before the ride: a pile on this square can't be reached any other way.
-        responses = [found] if (found := world.pick_up_remains(player)) is not None else []
+        responses = (
+            [found] if (found := world.pick_up_remains(player)) is not None else []
+        )
         town = min(world.towns, key=self.distance)
-        player.location = town  # PlayerCharacter.attempt_move sees a town and reports the haul
-        text = f"A ride is waiting at the extraction point. It drops you in {town.name}."
-        return responses + [PlayerActionResponse(is_successful=True, source=player, text=text)]
+        player.location = (
+            town  # PlayerCharacter.attempt_move sees a town and reports the haul
+        )
+        text = (
+            f"A ride is waiting at the extraction point. It drops you in {town.name}."
+        )
+        return responses + [
+            PlayerActionResponse(is_successful=True, source=player, text=text)
+        ]
 
     @property
     def sprite_path(self):
@@ -840,7 +894,10 @@ class Remains:
     expires: int
 
     def __str__(self):
-        return ", ".join(([f"${self.currency}"] if self.currency else []) + [str(item) for item in self.items])
+        return ", ".join(
+            ([f"${self.currency}"] if self.currency else [])
+            + [str(item) for item in self.items]
+        )
 
 
 @dataclass
@@ -886,7 +943,9 @@ class World:
         self.players: List[Actors.PlayerCharacter] = []
         self.npcs: List[Actors.NPC] = []
         self.stats: Stats = Stats()
-        self.ticks: int = 0  # how many times tick() has run, as a clock for things that expire
+        self.ticks: int = (
+            0  # how many times tick() has run, as a clock for things that expire
+        )
         # (player, text) worth telling the player's Discord server: deaths, and raids that brought something home.
         # Whoever posts them takes them (the cog, once a tick); nothing else reads it.
         self.announcements: List[Tuple[Actors.PlayerCharacter, str]] = []
@@ -959,7 +1018,8 @@ class World:
         gx = np.arange(xs.start, xs.stop)[:, None] / self._noise_scale
         gy = np.arange(ys.start, ys.stop)[None, :] / self._noise_scale
         water, mountains, grass, district = (
-            self._noise[layer][gx, gy] for layer in ("water", "mountains", "grass", "districts")
+            self._noise[layer][gx, gy]
+            for layer in ("water", "mountains", "grass", "districts")
         )
         # One square further east and south than the block: a road is a square whose neighbour that way is on
         # the other side of zero.
@@ -975,7 +1035,9 @@ class World:
         block: Dict[Tuple[int, int], Terrain] = {}
         for i, x in enumerate(xs):
             for j, y in enumerate(ys):
-                terrain: Terrain = SandTerrain() if abs(water[i, j]) > params.water else WaterTerrain()
+                terrain: Terrain = (
+                    SandTerrain() if abs(water[i, j]) > params.water else WaterTerrain()
+                )
                 if abs(mountains[i, j]) > params.mountains and terrain.walkable:
                     terrain = MountainTerrain()
                 if abs(grass[i, j]) > params.grass:
@@ -1030,12 +1092,19 @@ class World:
         """Put this chunk's extraction point in, if its cell rolled one here: any plain square will do."""
         if not self._cell_picked(cx, cy, "extract", EXTRACT_CHANCE):
             return
-        spots = [space for row in rows for space in row if type(space) is Space and space.terrain.buildable]
+        spots = [
+            space
+            for row in rows
+            for space in row
+            if type(space) is Space and space.terrain.buildable
+        ]
         if not spots:
             return
         with _seeded(self.seed, cx, cy, "extract"):
             spot = random.choice(spots)
-        rows[spot.y % CHUNK_SIZE][spot.x % CHUNK_SIZE] = Extract(spot.x, spot.y, spot.terrain)
+        rows[spot.y % CHUNK_SIZE][spot.x % CHUNK_SIZE] = Extract(
+            spot.x, spot.y, spot.terrain
+        )
 
     def _place_cache(self, cx: int, cy: int, rows: List[List[Space]]):
         """Put this chunk's cache in, if its cell rolled one and picked this chunk (see CACHE_CELL)."""
@@ -1093,7 +1162,9 @@ class World:
         xs = range(x0, min(x0 + CHUNK_SIZE, self.width))
         ys = range(y0, min(y0 + CHUNK_SIZE, self.height))
         # A square of margin: edges look at neighbours, and those can be in the next chunk over.
-        ground = self._terrain_block(range(xs.start - 1, xs.stop + 1), range(ys.start - 1, ys.stop + 1))
+        ground = self._terrain_block(
+            range(xs.start - 1, xs.stop + 1), range(ys.start - 1, ys.stop + 1)
+        )
         terrain = {**ground, **self._structure(cx, cy)}
 
         rows: List[List[Space]] = []
@@ -1113,7 +1184,9 @@ class World:
                                 x, y, WildsNameGenerator.generate_name(), here
                             )
                         if not here.walkable:
-                            if isinstance(space, Town):  # a town outranks a wall: it stays, as a breach
+                            if isinstance(
+                                space, Town
+                            ):  # a town outranks a wall: it stays, as a breach
                                 space.terrain = terrain[x, y] = ground[x, y]
                             else:  # wilds under a wall are gone
                                 space = Space(x, y, here)
@@ -1163,7 +1236,10 @@ class World:
 
     def depth_at(self, space: Space) -> int:
         """danger_level without the roll: the level a square is meant to be, by distance from the spawn."""
-        return min(WILDS_MAX_LEVEL, 1 + int(self.starting_town.distance(space) / DANGER_TILES_PER_LEVEL))
+        return min(
+            WILDS_MAX_LEVEL,
+            1 + int(self.starting_town.distance(space) / DANGER_TILES_PER_LEVEL),
+        )
 
     def danger_at(self, space: Space) -> int:
         """The danger a player sees at `space`: a wilds square's own roll, else the level it's meant to be."""
@@ -1186,7 +1262,8 @@ class World:
 
     def grid(self, x: int, y: int) -> str:
         """A square as players read it: squares east/west and north/south of the starting town, e.g. "12E 3N".
-        Raw coordinates run to tens of millions; this stays small near home and grows with the danger."""
+        Raw coordinates run to tens of millions; this stays small near home and grows with the danger.
+        """
         dx, dy = x - self.starting_town.x, y - self.starting_town.y
         return f"{abs(dx)}{'W' if dx < 0 else 'E'} {abs(dy)}{'S' if dy > 0 else 'N'}"
 
@@ -1274,8 +1351,12 @@ class World:
             if len(targets):
                 target: Actors.Actor = random.choice(targets)
                 weapon.on_damage()
-                deaths = getattr(target, "deaths", 0)  # a player is revived on the spot: this shows the kill
-                bite = player_character.pet_bite if loc == player_character.location else 0  # it doesn't fetch bullets
+                deaths = getattr(
+                    target, "deaths", 0
+                )  # a player is revived on the spot: this shows the kill
+                bite = (
+                    player_character.pet_bite if loc == player_character.location else 0
+                )  # it doesn't fetch bullets
                 dmg += bite
                 target.take_damage(dmg)
                 response.is_successful = True
@@ -1288,8 +1369,13 @@ class World:
                     response.text = f"You kill {target.name}" + (
                         f" and take {drops}." if drops else "."
                     )
-                elif isinstance(target, Actors.PlayerCharacter) and target.deaths != deaths:
-                    response.text = f"You kill {target.name}." + player_character.turn_raider()
+                elif (
+                    isinstance(target, Actors.PlayerCharacter)
+                    and target.deaths != deaths
+                ):
+                    response.text = (
+                        f"You kill {target.name}." + player_character.turn_raider()
+                    )
                 if bite:
                     response.text = f"{response.text} {player_character.pet_name} bites for {bite} of it.".lstrip()
                 break
@@ -1304,7 +1390,9 @@ class World:
                     # The dead stay in self.npcs until the next tick: one that fell here was killed by an attack
                     # that ran before this one, in the same tick. Losing that race is news, not a mistake.
                     # ponytail: only a no-direction attack checks; a shot down a line doesn't say who beat it.
-                    fallen = next((n for n in self.npcs if n.is_dead and n.fell_at == loc), None)
+                    fallen = next(
+                        (n for n in self.npcs if n.is_dead and n.fell_at == loc), None
+                    )
                     if fallen is not None:
                         response.is_successful = True
                         response.text = f"{fallen.name} is already down."
@@ -1313,7 +1401,9 @@ class World:
                     break
                 loc += direction
                 loc = self.space_at(loc.x, loc.y)
-                if not melee:  # a bullet loses punch with distance; a swing at arm's length doesn't
+                if (
+                    not melee
+                ):  # a bullet loses punch with distance; a swing at arm's length doesn't
                     dmg = int(
                         weapon.calc_damage(int(player_character.location.distance(loc)))
                     )
@@ -1326,57 +1416,89 @@ class World:
         # ponytail: every NPC against every player, each tick. Bucket players by chunk if that grows.
         return space is not None and any(
             p.location is not None
-            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= NPC_AWAKE_RADIUS
+            and max(abs(p.location.x - space.x), abs(p.location.y - space.y))
+            <= NPC_AWAKE_RADIUS
             for p in self.players
         )
 
     @staticmethod
     def spares(npc: Actors.NPC, player: Actors.PlayerCharacter) -> bool:
         """Raiders leave their own kind alone: a Raider-class player is neither hunted nor hit by a raider NPC."""
-        return isinstance(npc, Actors.Raider) and isinstance(player.player_class, Actors.RaiderClass)
+        return isinstance(npc, Actors.Raider) and isinstance(
+            player.player_class, Actors.RaiderClass
+        )
 
-    def prey_in_sight(self, space: Space, hunter: Actors.NPC | None = None) -> Actors.PlayerCharacter | None:
+    def prey_in_sight(
+        self, space: Space, hunter: Actors.NPC | None = None
+    ) -> Actors.PlayerCharacter | None:
         """The nearest player a raider at `space` can see: within NPC_SIGHT, twice that on a plaza, and not safe in
         a town or hidden in ruins, nor one `hunter` spares."""
 
         def sight(terrain: Terrain) -> int:
-            return -1 if isinstance(terrain, RuinsTerrain) else NPC_SIGHT * (2 if isinstance(terrain, PlazaTerrain) else 1)
+            return (
+                -1
+                if isinstance(terrain, RuinsTerrain)
+                else NPC_SIGHT * (2 if isinstance(terrain, PlazaTerrain) else 1)
+            )
 
         in_sight = [
             p
             for p in self.players
             if p.location is not None
             and not isinstance(p.location, Town)
-            and max(abs(p.location.x - space.x), abs(p.location.y - space.y)) <= sight(p.location.terrain)
+            and max(abs(p.location.x - space.x), abs(p.location.y - space.y))
+            <= sight(p.location.terrain)
             and not (hunter and self.spares(hunter, p))
         ]
         return min(in_sight, key=lambda p: space.distance(p.location), default=None)
 
     def stocked_caches(self) -> List[Cache]:
         """The loaded caches with something in them: never emptied, or refilled since."""
-        return [c for c in self.caches if c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS]
+        return [
+            c
+            for c in self.caches
+            if c.looted_at is None or self.ticks - c.looted_at >= CACHE_REFILL_TICKS
+        ]
 
-    def _auto_raid_step(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
+    def _auto_raid_step(
+        self, player: Actors.PlayerCharacter
+    ) -> PlayerActionResponse | None:
         """One tick of an unattended raid: fight whatever shares the square, else walk to the nearest stocked
         cache no deeper than `depth` (or explore out to that depth if none is known), and once time is up or
-        it's hurt, walk to the nearest town. Returns the raid's result when it ends, for the player to be told; None while it goes on."""
+        it's hurt, walk to the nearest town. Returns the raid's result when it ends, for the player to be told; None while it goes on.
+        """
         home_at, deaths, depth = player.auto_raid  # type: ignore[misc]
-        if player.deaths != deaths:  # killed since the last step, by an NPC's turn or a wilds fight
+        if (
+            player.deaths != deaths
+        ):  # killed since the last step, by an NPC's turn or a wilds fight
             player.auto_raid = None
             return PlayerActionResponse(
-                is_successful=False, target=player, source=player,
-                text="Your raid is over: you didn't make it back." + death_toll_text(player),
+                is_successful=False,
+                target=player,
+                source=player,
+                text="Your raid is over: you didn't make it back."
+                + death_toll_text(player),
             )
         here = player.location
-        if any(npc.location == here for npc in self.npcs) and not isinstance(here, Town):
+        if any(npc.location == here for npc in self.npcs) and not isinstance(
+            here, Town
+        ):
             self.attack(player, (0, 0))
             return None
-        going_home = self.ticks >= home_at or player.hit_points < player.hit_points_max * AUTO_RAID_RETREAT
+        going_home = (
+            self.ticks >= home_at
+            or player.hit_points < player.hit_points_max * AUTO_RAID_RETREAT
+        )
         if going_home:
-            if isinstance(here, Town):  # started in town and never left, or a manual move brought it home
+            if isinstance(
+                here, Town
+            ):  # started in town and never left, or a manual move brought it home
                 player.auto_raid = None
                 return PlayerActionResponse(
-                    is_successful=True, target=player, source=player, text=f"Your raid is over, in {here.name}."
+                    is_successful=True,
+                    target=player,
+                    source=player,
+                    text=f"Your raid is over, in {here.name}.",
                 )
             # An extraction point drops it in a town, so the nearest of either is the way home.
             results = player.step(min(self.towns + self.extracts, key=here.distance))
@@ -1384,12 +1506,16 @@ class World:
             stocked = [c for c in self.stocked_caches() if c.level <= depth]
             if stocked:
                 results = player.step(min(stocked, key=here.distance))
-            elif (at := self.depth_at(here)) != depth:  # out to its depth, or back up from past it
+            elif (
+                at := self.depth_at(here)
+            ) != depth:  # out to its depth, or back up from past it
                 results = player.step(self.starting_town, toward=at > depth)
             else:  # as deep as it goes: wander the band, and find a cache if there's one
                 results = []
         if not results:  # boxed in: any way at all, and try again next tick
-            results = player.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
+            results = player.attempt_move(
+                random.choice(list(DIRECTION_VECTORS.values()))
+            )
         if player.deaths != deaths:
             return self._auto_raid_step(player)  # reports the death
         if going_home and isinstance(player.location, Town):
@@ -1398,16 +1524,26 @@ class World:
             # ponytail: a raid whose way to a cache crosses a town extracts there too, so this only counts
             # the last leg. Keep a raid-long snapshot on auto_raid if anyone's haul looks short.
             return PlayerActionResponse(
-                is_successful=True, target=player, source=player, text=f"Your raid is over. {results[-1].text}"
+                is_successful=True,
+                target=player,
+                source=player,
+                text=f"Your raid is over. {results[-1].text}",
             )
         return None
 
     def advance(self, ticks: int):
         """Move the clock on `ticks`, paying every hideout once for each pay day passed. tick() moves it one;
-        a load moves it however many ticks the server was down for, so a restart doesn't eat idle income."""
-        paydays = (self.ticks + ticks) // Actors.HIDEOUT_PAY_TICKS - self.ticks // Actors.HIDEOUT_PAY_TICKS
-        heals = (self.ticks + ticks) // Actors.CAMP_HEAL_TICKS - self.ticks // Actors.CAMP_HEAL_TICKS
-        if (self.ticks + ticks) // STORE_RESTOCK_TICKS > self.ticks // STORE_RESTOCK_TICKS:
+        a load moves it however many ticks the server was down for, so a restart doesn't eat idle income.
+        """
+        paydays = (
+            self.ticks + ticks
+        ) // Actors.HIDEOUT_PAY_TICKS - self.ticks // Actors.HIDEOUT_PAY_TICKS
+        heals = (
+            self.ticks + ticks
+        ) // Actors.CAMP_HEAL_TICKS - self.ticks // Actors.CAMP_HEAL_TICKS
+        if (
+            self.ticks + ticks
+        ) // STORE_RESTOCK_TICKS > self.ticks // STORE_RESTOCK_TICKS:
             for town in self.towns:
                 if town.store.traded:  # an untouched store is still as generated
                     town.store.restock()
@@ -1419,26 +1555,41 @@ class World:
             if p.work_until is not None:
                 end = min(self.ticks, p.work_until)
                 if isinstance(p.location, Town):
-                    p.currency += Actors.WORK_WAGE * (end // Actors.WORK_PAY_TICKS - start // Actors.WORK_PAY_TICKS)
+                    p.currency += Actors.WORK_WAGE * (
+                        end // Actors.WORK_PAY_TICKS - start // Actors.WORK_PAY_TICKS
+                    )
                 else:
-                    p.inventory.extend(Items.Firewood() for _ in range(end // Actors.GATHER_TICKS - start // Actors.GATHER_TICKS))
+                    p.inventory.extend(
+                        Items.Firewood()
+                        for _ in range(
+                            end // Actors.GATHER_TICKS - start // Actors.GATHER_TICKS
+                        )
+                    )
                 if self.ticks >= p.work_until:
                     p.work_until = None
-            if p.pet_name is not None and p.pet_kind == "goat":  # milks on the clock, downtime included, while fed
+            if (
+                p.pet_name is not None and p.pet_kind == "goat"
+            ):  # milks on the clock, downtime included, while fed
                 end = max(start, min(self.ticks, p.pet_fed_until))
                 milkings = end // Actors.PET_MILK_TICKS - start // Actors.PET_MILK_TICKS
                 p.stash.extend(Items.GoatMilk() for _ in range(milkings * p.pet_yield))
 
     def _post_warlords(self):
         """Put an Actors.Warlord on every WILDS_MAX_LEVEL cache a player comes near, once per CACHE_REFILL_TICKS and
-        never while one still stands within a chunk of it: kill it, and the cache is yours until it refills."""
+        never while one still stands within a chunk of it: kill it, and the cache is yours until it refills.
+        """
         for cache in self.caches:
             if (
                 cache.level >= WILDS_MAX_LEVEL
-                and (cache.guarded_at is None or self.ticks - cache.guarded_at >= CACHE_REFILL_TICKS)
+                and (
+                    cache.guarded_at is None
+                    or self.ticks - cache.guarded_at >= CACHE_REFILL_TICKS
+                )
                 and self.near_a_player(cache)
                 and not any(
-                    isinstance(n, Actors.Warlord) and n.location.distance(cache) <= CHUNK_SIZE for n in self.npcs
+                    isinstance(n, Actors.Warlord)
+                    and n.location.distance(cache) <= CHUNK_SIZE
+                    for n in self.npcs
                 )
             ):
                 cache.guarded_at = self.ticks
@@ -1453,7 +1604,10 @@ class World:
         events: List[PlayerActionResponse] = []
         self.advance(1)
         for p in self.players:
-            if p.auto_raid is not None and (event := self._auto_raid_step(p)) is not None:
+            if (
+                p.auto_raid is not None
+                and (event := self._auto_raid_step(p)) is not None
+            ):
                 events.append(event)
             # The tamagotchi's beep: once, on the tick its last meal runs out.
             # ponytail: a goat that goes hungry while the server is down (advance at load) never says so.
@@ -1480,19 +1634,27 @@ class World:
             targets = [
                 p
                 for p in self.players
-                if p.location == npc.location and not isinstance(p.location, Town) and not self.spares(npc, p)
+                if p.location == npc.location
+                and not isinstance(p.location, Town)
+                and not self.spares(npc, p)
             ]
             if not targets:
                 prey = self.prey_in_sight(npc.location, npc)
                 if prey is None:
                     npc.attempt_move(random.choice(list(DIRECTION_VECTORS.values())))
                 elif warning := npc.brain.see(prey):
-                    events.append(PlayerActionResponse(is_successful=True, target=prey, source=npc, text=warning))
+                    events.append(
+                        PlayerActionResponse(
+                            is_successful=True, target=prey, source=npc, text=warning
+                        )
+                    )
                 continue
             target = random.choice(targets)
             deaths = target.deaths
             damage = npc.brain.update(target)
-            if damage is None:  # disengaged: it backs off, which isn't worth waking the player up for
+            if (
+                damage is None
+            ):  # disengaged: it backs off, which isn't worth waking the player up for
                 npc.brain.see(target)
                 continue
             text = f"{npc.name} hits you for {damage} damage."
@@ -1514,11 +1676,21 @@ class World:
         for p in self.players:
             if earned := [Actors.ACHIEVEMENTS[key] for key in p.check_achievements()]:
                 events += [
-                    PlayerActionResponse(is_successful=True, target=p, source=p, text=f"Achievement: {title}. {how}")
+                    PlayerActionResponse(
+                        is_successful=True,
+                        target=p,
+                        source=p,
+                        text=f"Achievement: {title}. {how}",
+                    )
                     for _, title, how, _ in earned
                 ]
                 # One line per player however many: a deploy hands old characters a pile at once.
-                self.announcements.append((p, f"{p.name} earned {', '.join(title for _, title, _, _ in earned)}."))
+                self.announcements.append(
+                    (
+                        p,
+                        f"{p.name} earned {', '.join(title for _, title, _, _ in earned)}.",
+                    )
+                )
         return events
 
     def live_piles(self) -> List[Space]:
@@ -1526,10 +1698,14 @@ class World:
         return [
             space
             for space in list(self.piles)
-            if (pile := space.remains) is not None and pile.expires >= self.ticks and (pile.items or pile.currency)
+            if (pile := space.remains) is not None
+            and pile.expires >= self.ticks
+            and (pile.items or pile.currency)
         ]
 
-    def pick_up_remains(self, player: Actors.PlayerCharacter) -> PlayerActionResponse | None:
+    def pick_up_remains(
+        self, player: Actors.PlayerCharacter
+    ) -> PlayerActionResponse | None:
         """Take whatever a raid death left on the square `player` stands on, if it hasn't rotted away."""
         here = player.location
         pile = here.remains
@@ -1542,7 +1718,10 @@ class World:
         player.currency += pile.currency
         whose = "your own" if pile.owner is player else f"{pile.owner.name}'s"
         return PlayerActionResponse(
-            is_successful=True, items=pile.items, currency=pile.currency, source=player,
+            is_successful=True,
+            items=pile.items,
+            currency=pile.currency,
+            source=player,
             text=f"You find {whose} things where they fell, and take {pile}.",
         )
 
@@ -1563,7 +1742,9 @@ class World:
             pile.items += items
             pile.currency += currency
             pile.expires = self.ticks + REMAINS_TICKS
-            self.piles = [s for s in self.live_piles() if s is not here] + [here]  # pruned as it grows
+            self.piles = [s for s in self.live_piles() if s is not here] + [
+                here
+            ]  # pruned as it grows
             if items or currency:
                 player.last_death_loss = f"{Remains(player, items, currency, 0)}, left where you fell at {self.grid(here.x, here.y)}"
             news = f"{player.name} died at {self.grid(here.x, here.y)}, danger {self.danger_at(here)}."
@@ -1601,10 +1782,14 @@ class Store:
                 inventory.append(item)
         # A gun on the shelf comes with a box for it, or it's a club once its loaded rounds are gone.
         boxes = {item.caliber for item in inventory if isinstance(item, Items.Ammo)}
-        for gun in [item for item in inventory if isinstance(item, Weapons.ProjectileWeapon)]:
+        for gun in [
+            item for item in inventory if isinstance(item, Weapons.ProjectileWeapon)
+        ]:
             if gun.caliber not in boxes:
                 ammo = (c() for c in Data.stocked() if issubclass(c, Items.Ammo))
-                inventory.append(next(box for box in ammo if box.caliber == gun.caliber))
+                inventory.append(
+                    next(box for box in ammo if box.caliber == gun.caliber)
+                )
                 boxes.add(gun.caliber)
         return cls(inventory)
 
@@ -1613,7 +1798,9 @@ class Store:
         have = {type(item) for item in self.inventory}
         self.inventory += [cls() for cls in Data.stocked() if cls not in have]
 
-    def get_price(self, item: Equipment, buyer: Actors.PlayerCharacter | None = None) -> int:
+    def get_price(
+        self, item: Equipment, buyer: Actors.PlayerCharacter | None = None
+    ) -> int:
         """What `item` costs `buyer`: a soldier (only a base's recruit gives you a side) pays SIDE_DISCOUNT less at
         their own side's base and that much more at the other side's."""
         ratio = self.price_ratio
@@ -1640,12 +1827,17 @@ class Store:
         self, item: Equipment, player_character: Actors.PlayerCharacter
     ) -> int:
         """Take `item` off `player_character` (out of their hands too, or they'd keep using what they sold) and
-        pay them for it: town price over price_ratio, so a wilds trader's markup is its discount when it buys."""
+        pay them for it: town price over price_ratio, so a wilds trader's markup is its discount when it buys.
+        """
         if item.is_equipped:
             player_character.unequip(item)
         self.inventory.append(item)
         self.traded = True
-        price = int(item.base_value / self.price_ratio * (1.25 if isinstance(player_character.player_class, Actors.Fixer) else 1))
+        price = int(
+            item.base_value
+            / self.price_ratio
+            * (1.25 if isinstance(player_character.player_class, Actors.Fixer) else 1)
+        )
         player_character.currency += price
         player_character.inventory.remove(item)
         return price
