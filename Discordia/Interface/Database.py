@@ -298,8 +298,10 @@ class Database:
                 town, GameSpace.Town
             ):  # always, unless the map generator changed under the save
                 town.store.inventory = [
-                    _restore_item(
-                        *(entry if isinstance(entry, list) else (entry, None))
+                    (
+                        _restore_item(*entry)
+                        if isinstance(entry, list)
+                        else _restore_item(entry, None)
                     )
                     for entry in json.loads(store_row["items"])
                 ]

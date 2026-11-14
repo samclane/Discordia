@@ -98,9 +98,9 @@ class TestGeneral(unittest.TestCase):
                 pass
         for idx in range(self.NUM_USERS):
             player = self.adapter.get_player(idx)
-            img: Image.Image = Image.open(
-                io.BytesIO(self.adapter.get_player_screenshot(player))
-            )
+            screenshot = self.adapter.get_player_screenshot(player)
+            assert screenshot is not None
+            img: Image.Image = Image.open(io.BytesIO(screenshot))
             self.assertFalse(
                 all(p == (0, 0, 0, 255) for p in img.getdata()),
                 "Black screenshot taken",
@@ -497,9 +497,11 @@ class TestGeneral(unittest.TestCase):
         adapter = database.load()
         database.close()
         assert adapter is not None  # for the type checker
-        shelf = adapter.world.space_at(town.x, town.y).store.inventory
+        loaded_town = adapter.world.space_at(town.x, town.y)
+        assert isinstance(loaded_town, GameSpace.Town)
+        shelf = loaded_town.store.inventory
         self.assertEqual(
-            [(type(i), i.quantity) for i in shelf],
+            [(type(i), getattr(i, "quantity", None)) for i in shelf],
             [(Weapons.Ammo9mm, Weapons.Ammo9mm().quantity)],
         )
 

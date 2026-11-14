@@ -942,7 +942,9 @@ def test_the_hideout_picture_widens_with_the_level_and_holds_the_stash():
 
     def drawn(level):
         character.hideout_level = level
-        return Image.open(io.BytesIO(renderer.hideout_png(character)))
+        png = renderer.hideout_png(character)
+        assert png is not None
+        return Image.open(io.BytesIO(png))
 
     empty = drawn(1)
     assert (
