@@ -117,7 +117,8 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   and the loop doesn't touch `venv/`: `pip install tcod` there; the item adds it to `requirements.txt`)
 - [ ] NPC chase via `tcod.path` (a Dijkstra map toward the player) instead of greedy steps (ponytail in
   `NPC.step`), so a coastline doesn't stop them cold; `astar` can go if `AStarPathfinder` moves over too. Only if
-  stuck NPCs show up in play or the simulator. (blocked: tcod is in now; waits on stuck NPCs showing up)
+  stuck NPCs show up in play or the simulator. (blocked: tcod is in now; waits on stuck NPCs showing up.
+  The game simulator's `npc chase steps stuck (share)` measures it since 2026-11-15: 0 of ~177 a seed so far)
   Walls (2026-11-14) make this the gate on structure shapes: until it lands, no closed rings and no one-door houses.
 
 ## Done
@@ -279,3 +280,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
   keep greedy walkers moving; only the wilds under a wall went from saved maps.
 - 2026-11-14 Pets kept by kind on `/admin`: each tick's row counts the goats and dogs players keep (run-off ones
   not), a "Pets kept" chart, so the pets item can read which roles players pay for. Blocked items otherwise all wait.
+- 2026-11-15 Stuck NPCs measured: the game simulator counts chase steps (an aggressive NPC with a player in sight
+  off its square) and the share that went nowhere, `npc chase steps stuck (share)`. 10 seeds x 2000: 177 a seed,
+  none stuck, so the NPC-chase item stays blocked until walls or water show up in it.

@@ -29,7 +29,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from Discordia.GameLogic import Actors, Events, GameSpace, Items, Weapons
+from Discordia.GameLogic import Actors, Behavior, Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import DIRECTION_VECTORS, Town
 from Discordia.Interface.Rendering.Renderer import Renderer
 from Discordia.Interface.WorldAdapter import WorldAdapter, error_text
@@ -410,6 +410,24 @@ def anomalies(row: dict) -> List[str]:
     return found
 
 
+def _chase(world: GameSpace.World, npc: Actors.NPC, was: GameSpace.Space):
+    """(1, 1) if `npc` chased a player this tick and went nowhere (walls, water: Actor.step is greedy), (1, 0)
+    if it chased and moved, (0, 0) if it didn't chase. Judged after the tick from where the players are now.
+    ponytail: a player killed this tick has already gone home, so that chase isn't counted.
+    """
+    if (
+        npc.is_dead
+        or npc.location is None
+        or not isinstance(npc.brain.current_state, Behavior.Aggressive)
+        or not world.near_a_player(was)
+    ):
+        return 0, 0
+    prey = world.prey_in_sight(was, npc)
+    if prey is None or prey.location == was:  # wandering, or fighting on its square
+        return 0, 0
+    return 1, int(npc.location == was)
+
+
 def simulate(
     ticks: int = 300,
     bots: int = 4,
@@ -427,6 +445,7 @@ def simulate(
         Bot(adapter, i, reach=random.choice([5, 15, 40, 80])) for i in range(bots)
     ]
     rows = []
+    chases = stuck = 0  # NPC chase steps so far, and those that went nowhere
     faulthandler.dump_traceback_later(HANG, exit=True)
     try:
         for tick in range(ticks):
@@ -466,6 +485,7 @@ def simulate(
             before = {
                 bot: (bot.character.location, bot.character.deaths) for bot in players
             }
+            npcs_were = {npc: npc.location for npc in world.npcs}
             for event in world.tick():  # what the cog would DM
                 if event.target in by_character:
                     by_character[event.target].setdefault("world", []).append(
@@ -474,6 +494,9 @@ def simulate(
             for bot, (where, deaths) in before.items():
                 if bot.character.deaths != deaths:
                     results[bot]["died_at"] = _death(where, "npc on the map")
+            for npc, was in npcs_were.items():
+                chased, went_nowhere = _chase(world, npc, was)
+                chases, stuck = chases + chased, stuck + went_nowhere
             for bot in players:
                 row = {
                     "tick": tick,
@@ -481,6 +504,8 @@ def simulate(
                     **results[bot],
                     "npcs": len(world.npcs),
                     "chunks": len(world.loaded_chunks()),
+                    "npc_chases": chases,
+                    "npc_chases_stuck": stuck,
                 }
                 row["anomalies"] = anomalies(row)
                 if row["order_seconds"] > SLOW_ORDER:
@@ -634,6 +659,10 @@ def metrics(rows: List[dict]) -> Dict[str, float]:
         "errors": sum(1 for r in rows if r["error"]),
         "anomalies": sum(len(r["anomalies"]) for r in rows),
         "npcs at the end": rows[-1]["npcs"],
+        "npc chase steps": rows[-1]["npc_chases"],
+        "npc chase steps stuck (share)": round(
+            rows[-1]["npc_chases_stuck"] / max(rows[-1]["npc_chases"], 1), 3
+        ),
         "chunks explored": rows[-1]["chunks"],
         "slowest order (s)": round(max(r["order_seconds"] for r in rows), 3),
     }
@@ -660,6 +689,25 @@ def test_a_run_is_recorded_and_drawn(tmp_path):
     assert sim_history.drift(sim_history.load(history)).endswith(
         ": messages sent 3 -> 5"
     )  # timings left out
+
+
+def test_a_chasing_npc_that_goes_nowhere_counts_as_stuck():
+    from Discordia.test.test_game_logic import _open_ground
+
+    world = GameSpace.World("Chase", 64, 64, seed=3)
+    adapter = WorldAdapter(world)
+    adapter.register_player(1, "Prey")
+    player = adapter.get_player(1)
+    corner = _open_ground(world, 4)
+    player.location = corner
+    npc = Actors.Raider(world, 50, "Hunter")
+    world.add_actor(npc, world.space_at(corner.x + 3, corner.y))
+    was = npc.location
+    assert _chase(world, npc, was) == (1, 1), "in sight, didn't move"
+    npc.location = world.space_at(corner.x + 2, corner.y)
+    assert _chase(world, npc, was) == (1, 0), "closed in"
+    npc.location = was = corner
+    assert _chase(world, npc, was) == (0, 0), "fighting on its square, not chasing"
 
 
 def test_simulated_players_break_no_rules(tmp_path):
