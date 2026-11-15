@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulation Run</title>
-<!-- Filled in by test_simulation.report(): the run's data replaces the null below. No build step. -->
+<!-- Filled in by test_simulation.report(): the run's data replaces the null below, the live map's vendored
+     Leaflet the two placeholders (inlined, so the page works offline). No build step. -->
+<style>/*LEAFLET_CSS*/</style>
 <style>
 :root {
   color-scheme: light;
@@ -45,7 +47,7 @@ h2 { font-size: 15px; margin: 0 0 10px; }
 .key { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 16px; }
 .charts .card { margin: 0; position: relative; }
-svg { display: block; width: 100%; height: auto; }
+.charts svg { display: block; width: 100%; height: auto; } /* not Leaflet's: it sizes its own */
 svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .grid line { stroke: var(--grid); stroke-width: 1; }
 .baseline { stroke: var(--axis); stroke-width: 1; }
@@ -57,14 +59,10 @@ svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nu
 .tip .row { display: flex; align-items: center; gap: 8px; }
 .tip .row b { font-variant-numeric: tabular-nums; min-width: 3ch; }
 .tip .row span:last-child { color: var(--ink-2); }
-.map-wrap { position: relative; overflow: hidden; border-radius: 6px; }
-.map-wrap svg { background: #181818; }
-.trail { fill: none; stroke-width: 1.75; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: 0.9; }
-.halo { fill: none; stroke: rgba(0,0,0,0.55); stroke-width: 4; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.now { stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; visibility: hidden; }
-.map-wrap image { opacity: 0.55; } /* the ground is context; the trails are the story */
-.death line { stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-.death line.under { stroke: rgba(0,0,0,0.7); stroke-width: 5; }
+#map { height: min(70vh, 640px); border-radius: 6px; background: #181818; }
+#map img.ground { image-rendering: pixelated; }
+.death { font: 700 16px/16px system-ui, sans-serif; text-align: center; text-shadow: 0 0 2px #000, 0 0 3px #000; }
+.town { width: 12px; height: 12px; background: #fff; border: 1.5px solid #000; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
 th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
@@ -91,7 +89,8 @@ th[aria-sort=descending] button::after { content: "▼"; color: var(--ink); }
 
   <div class="card">
     <h2>Where the bots went</h2>
-    <div class="map-wrap"><svg id="map"></svg></div>
+    <p class="hint">Drag to pan, scroll or pinch to zoom. Hover a chart to see where every bot was at that tick.</p>
+    <div id="map"></div>
     <div class="legend" id="map-legend"></div>
   </div>
 
@@ -109,6 +108,7 @@ th[aria-sort=descending] button::after { content: "▼"; color: var(--ink); }
     <div id="anomalies"></div>
   </div>
 </main>
+<script>/*LEAFLET_JS*/</script>
 <script>
 const DATA = /*DATA*/null;
 const NS = "http://www.w3.org/2000/svg";
@@ -141,7 +141,7 @@ for (const [label, value] of [
   ["Deaths", totalDeaths],
   ["Kills", DATA.kills],
   ["Anomalies", DATA.anomalies.length],
-  ["Chunks explored", DATA.chunks],
+  ["Chunks explored", DATA.tiles.length],
 ]) {
   const tile = html("div", undefined, tiles, "tile");
   html("div", label, tile, "label");
@@ -157,50 +157,50 @@ function legend(parent) {
 }
 
 // --- Map: the explored ground, each bot's trail, where it died ----------------------------------
-const map = document.getElementById("map");
-const [w, h] = DATA.squares;
-const [ox, oy] = DATA.origin;
-map.setAttribute("viewBox", `0 0 ${w} ${h}`);
-const img = el("image", { href: DATA.map, width: w, height: h, preserveAspectRatio: "none" }, map);
-img.style.imageRendering = "pixelated";
+// As on the live map (client.js): units are squares, y down, square (x, y) is L.latLng(y, x), and whole zoom
+// levels keep every chunk a whole number of pixels so the pictures meet without a seam.
+const map = L.map("map", {
+  crs: L.extend({}, L.CRS.Simple, { transformation: new L.Transformation(1, 0, 1, 0) }),
+  zoomSnap: 1, minZoom: -3, maxZoom: 6, attributionControl: false,
+});
+const at = (x, y) => L.latLng(y + 0.5, x + 0.5); // the middle of square (x, y)
+const C = DATA.chunk;
+const cxs = DATA.tiles.map((t) => t[0]), cys = DATA.tiles.map((t) => t[1]);
+map.fitBounds([[Math.min(...cys) * C, Math.min(...cxs) * C], [(Math.max(...cys) + 1) * C, (Math.max(...cxs) + 1) * C]]);
+for (const [cx, cy, src] of DATA.tiles) {
+  // the ground is context, the trails are the story: dimmed
+  L.imageOverlay(src, [[cy * C, cx * C], [(cy + 1) * C, (cx + 1) * C]], { opacity: 0.55, className: "ground" }).addTo(map);
+}
+const tag = (layer, i) => { // focusBot dims by data-bot; returns the element, to colour
+  const node = layer.getElement();
+  node.dataset.bot = i;
+  return node;
+};
 bots.forEach((b, i) => {
   // A death respawns the bot in town: break the trail there instead of drawing the teleport.
   let segment = [];
   const flush = () => {
     if (segment.length > 1) {
-      const points = segment.join(" ");
-      el("polyline", { points, class: "halo", "data-bot": i }, map);
-      el("polyline", { points, class: "trail", "data-bot": i }, map).style.stroke = color(i);
+      tag(L.polyline(segment, { color: "#000", opacity: 0.55, weight: 4, interactive: false }).addTo(map), i);
+      tag(L.polyline(segment, { weight: 1.75, opacity: 0.9, interactive: false }).addTo(map), i).style.stroke = color(i);
     }
     segment = [];
   };
   for (let t = 0; t < ticks; t++) {
     if (t && b.deaths[t] !== b.deaths[t - 1]) flush();
-    segment.push(`${b.x[t] - ox + 0.5},${b.y[t] - oy + 0.5}`);
+    segment.push(at(b.x[t], b.y[t]));
   }
   flush();
 });
-const r = Math.max(w, h) / 160; // marker size in squares, so it reads at any map size
 bots.forEach((b, i) => {
   for (const [x, y, t] of b.died) {
-    const cx = x - ox + 0.5, cy = y - oy + 0.5;
-    const g = el("g", { class: "death", "data-bot": i }, map);
-    for (const cls of ["under", ""]) {
-      for (const [y1, y2] of [[cy - r, cy + r], [cy + r, cy - r]]) {
-        const line = el("line", { x1: cx - r, y1, x2: cx + r, y2, class: cls }, g);
-        if (!cls) line.style.stroke = color(i);
-      }
-    }
-    el("title", {}, g).textContent = `${b.name} died around here, tick ${t}`;
+    const icon = L.divIcon({ className: "death", html: "✕", iconSize: [16, 16] });
+    tag(L.marker(at(x, y), { icon, title: `${b.name} died around here, tick ${t}`, keyboard: false }).addTo(map), i).style.color = color(i);
   }
 });
 const [tx, ty] = DATA.town;
-el("rect", { x: tx - ox + 0.5 - r * 1.4, y: ty - oy + 0.5 - r * 1.4, width: r * 2.8, height: r * 2.8, fill: "#fff", stroke: "#000", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }, map);
-const nowDots = bots.map((b, i) => {
-  const dot = el("circle", { r: r * 1.6, class: "now" }, map);
-  dot.style.fill = color(i);
-  return dot;
-});
+L.marker(at(tx, ty), { icon: L.divIcon({ className: "town", iconSize: [12, 12] }), title: "starting town", keyboard: false }).addTo(map);
+const nowDots = bots.map(() => L.circleMarker([0, 0], { radius: 6, color: "#fff", weight: 1.5, fillOpacity: 1, interactive: false }));
 const mapLegend = document.getElementById("map-legend");
 legend(mapLegend);
 html("span", "✕ died   ■ starting town   ● position at the hovered tick", mapLegend);
@@ -264,9 +264,8 @@ function show(t, tip, key, unit, x) {
     c.style.visibility = "visible";
   }
   bots.forEach((b, i) => {
-    nowDots[i].setAttribute("cx", b.x[t] - ox + 0.5);
-    nowDots[i].setAttribute("cy", b.y[t] - oy + 0.5);
-    nowDots[i].style.visibility = "visible";
+    nowDots[i].setLatLng(at(b.x[t], b.y[t]));
+    if (!map.hasLayer(nowDots[i])) nowDots[i].addTo(map).getElement().style.fill = color(i);
   });
   tip.replaceChildren();
   html("div", `Tick ${t.toLocaleString()}`, tip, "head");
@@ -287,7 +286,7 @@ function show(t, tip, key, unit, x) {
 
 function hide() {
   for (const c of crosshairs) c.style.visibility = "hidden";
-  for (const d of nowDots) d.style.visibility = "hidden";
+  for (const d of nowDots) d.remove();
   for (const tip of tips) tip.style.visibility = "hidden";
 }
 

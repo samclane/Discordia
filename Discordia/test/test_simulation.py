@@ -16,7 +16,6 @@ over time (sim_template.html is the template). It also appends the run's headlin
 import argparse
 import base64
 import faulthandler
-import io
 import json
 import math
 import random
@@ -26,8 +25,6 @@ from datetime import datetime, timezone
 from statistics import mean
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
-
-from PIL import Image
 
 from Discordia.GameLogic import Actors, Behavior, Events, GameSpace, Items, Weapons
 from Discordia.GameLogic.GameSpace import DIRECTION_VECTORS, Town
@@ -54,7 +51,9 @@ HANG = 300  # seconds for a whole run before faulthandler dumps every stack and 
 # Anomalies already on ROADMAP.md, so the test stays green until they're fixed. Delete one when its fix lands.
 KNOWN: Tuple[str, ...] = ()
 REPORT_TEMPLATE = Path(__file__).with_name("sim_template.html")
-MAP_PX = 4  # pixels a square on the report's map: ~10 chunks across fit a laptop screen
+LEAFLET = (
+    Path(__file__).parents[1] / "Interface" / "Rendering"
+)  # the live map's vendored Leaflet
 HIDEOUT_RESERVE = 300  # what a bot keeps back from a hideout level: a mid-price gun ($75-370) and its ammo
 
 
@@ -521,22 +520,17 @@ def simulate(
 def report(
     rows: List[dict], world: GameSpace.World, players: List[Bot], seed: int, path: Path
 ):
-    """Fill in sim_template.html with this run: the explored map as a picture, and each bot's numbers by tick."""
+    """Fill in sim_template.html with this run: each explored chunk's picture for a Leaflet map (inlined, so the
+    page works offline), and each bot's numbers by tick."""
     renderer = Renderer(WorldAdapter(world))
     chunks = world.loaded_chunks()
-    cx0, cy0 = min(c[0] for c in chunks), min(c[1] for c in chunks)
-    cx1, cy1 = max(c[0] for c in chunks), max(c[1] for c in chunks)
-    side = GameSpace.CHUNK_SIZE * MAP_PX
-    image = Image.new(
-        "RGB", ((cx1 - cx0 + 1) * side, (cy1 - cy0 + 1) * side), (24, 24, 24)
-    )
+    tiles = []
     for cx, cy in chunks:
         png = renderer.chunk_png(cx, cy)
         assert png is not None  # it's loaded: that's where the list came from
-        tile = Image.open(io.BytesIO(png)).resize((side, side), Image.Resampling.BOX)
-        image.paste(tile, ((cx - cx0) * side, (cy - cy0) * side))
-    buffer = io.BytesIO()
-    image.save(buffer, "PNG", optimize=True)
+        tiles.append(
+            [cx, cy, "data:image/png;base64," + base64.b64encode(png).decode()]
+        )
 
     by_name: Dict[str, List[dict]] = {}
     for r in rows:
@@ -570,20 +564,21 @@ def report(
         "size": world.width,
         "chunks": len(chunks),
         "kills": world.stats.kills,
-        "origin": [cx0 * GameSpace.CHUNK_SIZE, cy0 * GameSpace.CHUNK_SIZE],
-        "squares": [
-            (cx1 - cx0 + 1) * GameSpace.CHUNK_SIZE,
-            (cy1 - cy0 + 1) * GameSpace.CHUNK_SIZE,
-        ],
+        "chunk": GameSpace.CHUNK_SIZE,
+        "tiles": tiles,
         "town": [world.starting_town.x, world.starting_town.y],
-        "map": "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode(),
         "bots": bots,
         "anomalies": [[r["tick"], r["name"], a] for r in rows for a in r["anomalies"]],
     }
     blob = json.dumps(data, separators=(",", ":")).replace(
         "</", r"<\/"
     )  # no early </script>
-    page = REPORT_TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", blob)
+    page = (
+        REPORT_TEMPLATE.read_text(encoding="utf-8")
+        .replace("/*DATA*/null", blob)
+        .replace("/*LEAFLET_CSS*/", (LEAFLET / "leaflet.css").read_text("utf-8"))
+        .replace("/*LEAFLET_JS*/", (LEAFLET / "leaflet.js").read_text("utf-8"))
+    )
     path.write_text(page, encoding="utf-8")
 
 
@@ -714,6 +709,9 @@ def test_simulated_players_break_no_rules(tmp_path):
     rows = simulate(ticks=300, bots=4, html=tmp_path / "sim.html")
     page = (tmp_path / "sim.html").read_text(encoding="utf-8")
     assert '"name":"bot0"' in page and '"at":"20' in page, "says when it was run"
+    assert (
+        "/*LEAFLET" not in page and '"tiles":[[' in page
+    ), "Leaflet and the map inlined"
     bad = [
         (r["tick"], r["name"], a)
         for r in rows

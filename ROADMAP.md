@@ -283,3 +283,6 @@ Hand-rolled parts an existing library already does. Researched 2026-11-03; in th
 - 2026-11-15 Stuck NPCs measured: the game simulator counts chase steps (an aggressive NPC with a player in sight
   off its square) and the share that went nowhere, `npc chase steps stuck (share)`. 10 seeds x 2000: 177 a seed,
   none stuck, so the NPC-chase item stays blocked until walls or water show up in it.
+- 2026-11-15 Simulation report map on Leaflet (asked 2026-11-15): pan, zoom and pinch like the live map, each explored
+  chunk at full resolution (was one 4px-a-square picture), trails, deaths, town and hover dots as layers. The live
+  map's vendored Leaflet is inlined, so `sim.html` still works offline; ~1.8 MB for 30 chunks.
